@@ -39,7 +39,7 @@ It does not create M1 content, AI, review, approval, export, publication, recomm
 - [ ] Are email addresses excluded as record identity?
 - [ ] Are RLS policies read-only and deny-by-default?
 - [x] Have migration syntax and integration tests been prepared before execution?
-- [ ] Has a forward-repair approach been documented?
+- [x] Has a forward-repair approach been documented?
 - [ ] Is this migration committed to GitHub before it is run?
 
 ## Known review note
@@ -54,3 +54,6 @@ Do not paste or run this migration in Supabase until:
 2. the isolated Strongr OS target is verified;
 3. a local reset and database-contract test pass;
 4. an explicit owner approval to execute has been recorded.
+
+M0.2 operational acceptance is defined separately in
+`docs/architecture/M0_2_RELIABILITY_ACCEPTANCE.md`.

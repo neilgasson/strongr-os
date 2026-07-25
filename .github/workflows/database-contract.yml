@@ -5,6 +5,7 @@ on:
     paths:
       - "supabase/**"
       - ".github/workflows/database-contract.yml"
+  merge_group:
   push:
     branches: ["main"]
     paths:

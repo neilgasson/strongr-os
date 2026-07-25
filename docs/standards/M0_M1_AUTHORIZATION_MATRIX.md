@@ -15,6 +15,10 @@
 | Create production package | `export.request` | Yes | No |
 | Request AI generation | `content.create` | No | No |
 | Read audit evidence | `audit.read` | No | Read only |
+| Claim/fail/ack outbox delivery | `service_role` | Server | No |
+| Write worker heartbeat | `service_role` | Server | No |
+| Read cross-tenant operational health/metrics | `service_role` | Server | No |
 
 The UI is never an authorization boundary. Command functions re-evaluate the
 active organization membership and permission inside the database transaction.
+`anon` and `authenticated` cannot execute worker or operational functions.

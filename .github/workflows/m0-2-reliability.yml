@@ -1,0 +1,101 @@
+name: M0.2 reliability proof
+
+on:
+  pull_request:
+    paths:
+      - "supabase/**"
+      - "scripts/acceptance/**"
+      - "scripts/ops/**"
+      - "ops/monitoring/**"
+      - "docs/runbooks/**"
+      - ".github/workflows/m0-2-reliability.yml"
+  merge_group:
+  push:
+    branches: ["main"]
+    paths:
+      - "supabase/**"
+      - "scripts/acceptance/**"
+      - "scripts/ops/**"
+      - "ops/monitoring/**"
+      - "docs/runbooks/**"
+      - ".github/workflows/m0-2-reliability.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m0-2-reliability-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Validate executable scripts
+        run: |
+          bash -n scripts/acceptance/*.sh
+          bash -n scripts/ops/*.sh
+
+      - name: Start isolated Supabase
+        run: |
+          mkdir -p artifacts/m0-2
+          npx --yes supabase@2.109.1 start 2>&1 \
+            | tee artifacts/m0-2/supabase-start.log
+
+      - name: Apply migrations from zero
+        run: |
+          npx --yes supabase@2.109.1 db reset --local 2>&1 \
+            | tee artifacts/m0-2/database-reset.log
+
+      - name: Run all pgTAP contracts
+        run: |
+          npx --yes supabase@2.109.1 test db 2>&1 \
+            | tee artifacts/m0-2/database-contracts.log
+
+      - name: Prove concurrent idempotency
+        env:
+          STRONGR_OS_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          scripts/acceptance/run_m0_2_concurrency.sh 2>&1 \
+            | tee artifacts/m0-2/concurrent-idempotency.jsonl
+
+      - name: Rehearse migration failure and forward repair
+        env:
+          STRONGR_OS_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          scripts/acceptance/rehearse_migration_failure.sh 2>&1 \
+            | tee artifacts/m0-2/migration-rehearsal.jsonl
+          scripts/acceptance/rehearse_forward_repairs.sh 2>&1 \
+            | tee artifacts/m0-2/forward-repair-replay.jsonl
+
+      - name: Verify operational health
+        env:
+          STRONGR_OS_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+        run: |
+          scripts/ops/check_m0_2_health.sh 2>&1 \
+            | tee artifacts/m0-2/health.jsonl
+          scripts/ops/export_m0_2_metrics.sh \
+            > artifacts/m0-2/metrics.prom
+
+      - name: Upload acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: m0-2-reliability-evidence-${{ github.sha }}
+          path: artifacts/m0-2
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Stop local Supabase
+        if: always()
+        run: npx --yes supabase@2.109.1 stop --no-backup

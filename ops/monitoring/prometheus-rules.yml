@@ -1,0 +1,42 @@
+groups:
+  - name: strongr-os-m0-2
+    rules:
+      - alert: StrongrOSOutboxDeadLetter
+        expr: strongr_os_outbox_dead_letters > 0
+        for: 0m
+        labels:
+          severity: critical
+          owner: strongr-os
+        annotations:
+          summary: Strongr OS has a dead-lettered outbox event
+          runbook: docs/runbooks/observability.md#dead-letter
+
+      - alert: StrongrOSOutboxExpiredLease
+        expr: strongr_os_outbox_expired_leases > 0
+        for: 5m
+        labels:
+          severity: warning
+          owner: strongr-os
+        annotations:
+          summary: Strongr OS has an unrecovered expired outbox lease
+          runbook: docs/runbooks/observability.md#expired-lease
+
+      - alert: StrongrOSOutboxBacklog
+        expr: strongr_os_outbox_oldest_ready_seconds > 600
+        for: 5m
+        labels:
+          severity: warning
+          owner: strongr-os
+        annotations:
+          summary: Strongr OS outbox backlog is older than ten minutes
+          runbook: docs/runbooks/observability.md#outbox-backlog
+
+      - alert: StrongrOSWorkerStale
+        expr: strongr_os_worker_stale > 0
+        for: 5m
+        labels:
+          severity: critical
+          owner: strongr-os
+        annotations:
+          summary: A Strongr OS worker heartbeat is stale
+          runbook: docs/runbooks/observability.md#stale-worker
