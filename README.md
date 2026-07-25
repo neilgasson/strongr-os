@@ -15,9 +15,12 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M0 — Governed Platform Kernel**
+**M0/M1 database foundation**
 
-The immediate purpose of M0 is to establish secure, recoverable, version-controlled foundations before M1 feature implementation begins.
+The repository now contains the hardened M0 platform-kernel migration and the
+M1 governed audio-reflection migration, database-contract tests, CI validation,
+an authorization matrix, a data dictionary, a threat model, and a migration
+runbook.
 
 ## Current implementation boundary
 
@@ -67,4 +70,6 @@ docs/
 
 ## Status
 
-Foundation repository initialized. No production code, database migration, deployment, or current Strongr Daily change is authorized by this README.
+M0/M1 repository implementation is committed for review and controlled
+execution. These files do not authorize deployment, publication, production
+acceptance, or any change to the current Strongr Daily app.

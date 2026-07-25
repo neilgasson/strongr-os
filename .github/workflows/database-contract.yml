@@ -1,0 +1,38 @@
+name: Database contract
+
+on:
+  pull_request:
+    paths:
+      - "supabase/**"
+      - ".github/workflows/database-contract.yml"
+  push:
+    branches: ["main"]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/database-contract.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Validate migrations and database contracts
+        run: |
+          npx --yes supabase@2.109.1 start
+          npx --yes supabase@2.109.1 db reset --local
+          npx --yes supabase@2.109.1 test db
+
+      - name: Stop local Supabase
+        if: always()
+        run: npx --yes supabase@2.109.1 stop --no-backup
