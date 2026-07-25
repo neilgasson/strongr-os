@@ -95,6 +95,8 @@ insert into m02_claims (label, event_id, attempt_number, lease_token)
 select 'retry-first', event_id, attempt_number, lease_token
 from public.m0_claim_outbox_events('worker-a', 1, 60);
 
+reset role;
+
 select is(
   (select count(*) from m02_claims where label = 'retry-first'),
   1::bigint,
@@ -112,6 +114,9 @@ select ok(
   ),
   'claim records attempt one and an owned lease token'
 );
+
+set local role service_role;
+
 select is(
   public.m0_fail_outbox_event(
     '11000000-0000-4000-8000-000000000011',
@@ -124,6 +129,9 @@ select is(
   'failed',
   'a transient failure schedules the event for retry'
 );
+
+reset role;
+
 select ok(
   (
     select status = 'failed'
@@ -137,9 +145,13 @@ select ok(
   'retry state clears the previous lease and preserves the error code'
 );
 
+set local role service_role;
+
 insert into m02_claims (label, event_id, attempt_number, lease_token)
 select 'retry-second', event_id, attempt_number, lease_token
 from public.m0_claim_outbox_events('worker-b', 1, 60);
+
+reset role;
 
 select ok(
   (
@@ -161,6 +173,8 @@ create temporary table m02_receipts (
 );
 grant select, insert, update, delete on table m02_receipts to service_role;
 
+set local role service_role;
+
 insert into m02_receipts (label, receipt_id)
 select
   'retry-ack',
@@ -170,6 +184,8 @@ select
     (select lease_token from m02_claims where label = 'retry-second'),
     'delivery-11000000-0000-4000-8000-000000000011'
   );
+
+reset role;
 
 select ok(
   (select receipt_id is not null from m02_receipts where label = 'retry-ack'),
@@ -185,6 +201,9 @@ select ok(
   ),
   'acknowledgement marks the event delivered and clears its lease'
 );
+
+set local role service_role;
+
 select is(
   public.m0_ack_outbox_event(
     '11000000-0000-4000-8000-000000000011',
@@ -195,6 +214,9 @@ select is(
   (select receipt_id from m02_receipts where label = 'retry-ack'),
   'duplicate acknowledgement returns the original receipt'
 );
+
+reset role;
+
 select is(
   (
     select count(*)
@@ -204,8 +226,6 @@ select is(
   1::bigint,
   'duplicate delivery creates only one durable receipt'
 );
-
-reset role;
 
 select throws_ok(
   $sql$
@@ -238,6 +258,8 @@ insert into m02_claims (label, event_id, attempt_number, lease_token)
 select 'crash-first', event_id, attempt_number, lease_token
 from public.m0_claim_outbox_events('worker-crashed', 1, 60);
 
+reset role;
+
 select is(
   (
     select event_id from m02_claims where label = 'crash-first'
@@ -246,7 +268,6 @@ select is(
   'crash fixture is leased by the first worker'
 );
 
-reset role;
 update public.outbox_events
 set lease_expires_at = statement_timestamp() - interval '1 second'
 where id = '11000000-0000-4000-8000-000000000021';
@@ -255,6 +276,8 @@ set local role service_role;
 insert into m02_claims (label, event_id, attempt_number, lease_token)
 select 'crash-recovered', event_id, attempt_number, lease_token
 from public.m0_claim_outbox_events('worker-recovery', 1, 60);
+
+reset role;
 
 select ok(
   (
@@ -269,6 +292,9 @@ select ok(
   ),
   'an expired lease is recovered with a new token and attempt number'
 );
+
+set local role service_role;
+
 select throws_ok(
   $sql$
     select public.m0_ack_outbox_event(
@@ -282,6 +308,7 @@ select throws_ok(
   'outbox lease is not owned',
   'the crashed worker cannot acknowledge with its stale lease token'
 );
+
 select lives_ok(
   $sql$
     select public.m0_ack_outbox_event(
@@ -293,6 +320,9 @@ select lives_ok(
   $sql$,
   'the recovery worker acknowledges with the current lease token'
 );
+
+reset role;
+
 select is(
   (
     select status from public.outbox_events
@@ -302,7 +332,6 @@ select is(
   'the crash-recovered event reaches delivered state'
 );
 
-reset role;
 insert into public.outbox_events (
   id, organization_id, event_type, aggregate_type, aggregate_id,
   payload, correlation_id, attempts
@@ -323,6 +352,8 @@ insert into m02_claims (label, event_id, attempt_number, lease_token)
 select 'dead-letter', event_id, attempt_number, lease_token
 from public.m0_claim_outbox_events('worker-dead-letter', 1, 60);
 
+reset role;
+
 select is(
   (
     select attempt_number from m02_claims where label = 'dead-letter'
@@ -330,6 +361,9 @@ select is(
   5,
   'the terminal delivery attempt is numbered five'
 );
+
+set local role service_role;
+
 select is(
   public.m0_fail_outbox_event(
     '11000000-0000-4000-8000-000000000031',
@@ -342,6 +376,9 @@ select is(
   'dead_letter',
   'the terminal failure moves the event to dead letter'
 );
+
+reset role;
+
 select ok(
   (
     select
@@ -364,6 +401,5 @@ select ok(
   'worker heartbeats record retry, recovery, and terminal workers'
 );
 
-reset role;
 select * from finish();
 rollback;

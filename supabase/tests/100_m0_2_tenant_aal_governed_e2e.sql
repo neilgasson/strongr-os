@@ -385,43 +385,55 @@ select lives_ok(
 );
 
 reset role;
+
+select set_config(
+  'm0_2.check_content_version_id',
+  (
+    select v.id::text
+    from public.content_versions v
+    join public.content_items i
+      on i.id = v.content_item_id
+     and i.organization_id = v.organization_id
+    where i.title = 'M0.2 governed path'
+  ),
+  true
+);
+select set_config(
+  'm0_2.check_results_payload',
+  (
+    select jsonb_agg(
+      jsonb_build_object(
+        'check_definition_id', id,
+        'outcome', 'pass',
+        'detail_code', 'm0_2.pass',
+        'evidence', jsonb_build_object('source', 'acceptance')
+      )
+      order by key, version
+    )::text
+    from public.check_definitions
+  ),
+  true
+);
+
 set local role service_role;
 
 select lives_ok(
-  format(
-    $sql$
-      select public.m1_record_check_run(
-        '10000000-0000-4000-8000-000000000001',
-        (
-          select v.id
-          from public.content_versions v
-          join public.content_items i
-            on i.id = v.content_item_id
-           and i.organization_id = v.organization_id
-          where i.title = 'M0.2 governed path'
-        ),
-        'm0_2_acceptance',
-        '1.0.0',
-        'completed',
-        %L::jsonb,
-        '10000000-0000-4000-8000-000000000109'
-      )
-    $sql$,
-    (
-      select jsonb_agg(
-        jsonb_build_object(
-          'check_definition_id', id,
-          'outcome', 'pass',
-          'detail_code', 'm0_2.pass',
-          'evidence', jsonb_build_object('source', 'acceptance')
-        )
-        order by key, version
-      )::text
-      from public.check_definitions
+  $sql$
+    select public.m1_record_check_run(
+      '10000000-0000-4000-8000-000000000001',
+      current_setting('m0_2.check_content_version_id')::uuid,
+      'm0_2_acceptance',
+      '1.0.0',
+      'completed',
+      current_setting('m0_2.check_results_payload')::jsonb,
+      '10000000-0000-4000-8000-000000000109'
     )
-  ),
+  $sql$,
   'service worker records the complete automated-check run'
 );
+
+reset role;
+
 select is(
   (
     select count(*)
@@ -433,7 +445,6 @@ select is(
   'the check run records all eight required results'
 );
 
-reset role;
 select set_config(
   'request.jwt.claims',
   '{"sub":"10000000-0000-4000-8000-000000000011","role":"authenticated","aal":"aal2"}',
