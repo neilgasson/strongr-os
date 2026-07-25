@@ -1,0 +1,58 @@
+{
+  "schema": "strongr.m0_2_acceptance.v1",
+  "status": "pending",
+  "baseline_commit": "ca26e554893643a3975b979089c78505001be13a",
+  "tested_commit": "pending",
+  "pull_request": {
+    "repository": "neilgasson/strongr-os",
+    "number": 1,
+    "head_sha": "pending",
+    "base_branch": "main",
+    "draft": true
+  },
+  "environments": {
+    "local": "pending",
+    "strongr-os-dev": "pending",
+    "disposable_restore": "pending"
+  },
+  "migrations": [
+    "202607241230_m0_governed_platform_kernel.sql",
+    "202607241330_m1_governed_audio_reflection.sql",
+    "202607242230_m1_restrict_check_worker_execute.sql",
+    "202607251200_m0_2_reliability_primitives.sql",
+    "202607251230_m0_2_request_idempotency_fingerprint.sql"
+  ],
+  "evidence": {
+    "original_contract_17": "pending",
+    "m0_2_pg_tap": "pending",
+    "two_user_tenant_isolation": "pending",
+    "inactive_membership_denial": "pending",
+    "revoked_role_denial": "pending",
+    "real_aal1_denial_aal2_success": "pending",
+    "missing_or_downgraded_assurance_denial": "pending",
+    "approval_assurance_and_hash_evidence": "pending",
+    "governed_command_end_to_end": "pending",
+    "approval_and_package_immutability": "pending",
+    "concurrent_idempotency": "pending",
+    "changed_request_idempotency_denial": "pending",
+    "concurrent_outbox_leasing": "pending",
+    "outbox_reliability": "pending",
+    "poison_message_visibility": "pending",
+    "migration_failure_forward_repair": "pending",
+    "forward_repair_replay": "pending",
+    "backup_restore": "pending",
+    "backup_auth_user_precondition": "pending",
+    "observability": "pending",
+    "github_protection": "pending",
+    "github_required_checks_latest_head": "pending",
+    "strongr_daily_untouched": "pending"
+  },
+  "artifacts": [],
+  "rpo_hours": 24,
+  "rto_hours": 4,
+  "measured_restore_seconds": null,
+  "started_at_utc": "pending",
+  "completed_at_utc": "pending",
+  "reviewer": "pending",
+  "owner_approval": "pending"
+}

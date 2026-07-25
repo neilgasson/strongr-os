@@ -1,7 +1,7 @@
 # M0 Governed Platform Kernel — Review Checklist
 
 **Migration:** `202607241230_m0_governed_platform_kernel.sql`  
-**Status:** Draft for review — do not run yet
+**Status:** Hardened and repository-tested — execution remains a separate gate
 
 ## Scope check
 
@@ -38,8 +38,8 @@ It does not create M1 content, AI, review, approval, export, publication, recomm
 - [ ] Is Supabase Auth UUID the profile identity?
 - [ ] Are email addresses excluded as record identity?
 - [ ] Are RLS policies read-only and deny-by-default?
-- [ ] Have migration syntax and integration tests been prepared before execution?
-- [ ] Has a forward-repair approach been documented?
+- [x] Have migration syntax and integration tests been prepared before execution?
+- [x] Has a forward-repair approach been documented?
 - [ ] Is this migration committed to GitHub before it is run?
 
 ## Known review note
@@ -50,7 +50,10 @@ The migration intentionally does not bootstrap Neil's owner membership or assign
 
 Do not paste or run this migration in Supabase until:
 
-1. it is uploaded to `supabase/migrations/`;
-2. it has been reviewed;
-3. the duplicate/incorrect-table checks have passed;
+1. the source commit and database-contract workflow are green;
+2. the isolated Strongr OS target is verified;
+3. a local reset and database-contract test pass;
 4. an explicit owner approval to execute has been recorded.
+
+M0.2 operational acceptance is defined separately in
+`docs/architecture/M0_2_RELIABILITY_ACCEPTANCE.md`.
