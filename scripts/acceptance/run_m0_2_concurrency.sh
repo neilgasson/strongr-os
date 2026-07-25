@@ -15,11 +15,9 @@ if [[ ! "$parallel_requests" =~ ^[2-9][0-9]*$ ]] || (( parallel_requests > 32 ))
 fi
 
 if [[ "$database_url" != *"127.0.0.1"* && "$database_url" != *"localhost"* ]]; then
-  if [[ "${STRONGR_OS_REMOTE_ACCEPTANCE:-}" != "strongr-os-dev" ]]; then
-    printf '%s\n' \
-      "ERROR: Remote execution is locked. Set STRONGR_OS_REMOTE_ACCEPTANCE=strongr-os-dev only for the isolated Strongr OS development project." >&2
-    exit 2
-  fi
+  printf '%s\n' \
+    "ERROR: This concurrency harness is restricted to a disposable local database. Use run_remote_supabase_acceptance.py for strongr-os-dev." >&2
+  exit 2
 fi
 
 new_uuid() {

@@ -4,6 +4,8 @@ set -euo pipefail
 repository="${STRONGR_OS_GITHUB_REPOSITORY:-neilgasson/strongr-os}"
 branch="${STRONGR_OS_PROTECTED_BRANCH:-main}"
 required_checks="${STRONGR_OS_REQUIRED_CHECKS:-Database contract / test,M0.2 reliability proof / acceptance}"
+pull_request="${STRONGR_OS_PULL_REQUEST:-1}"
+expected_sha="${STRONGR_OS_EXPECTED_SHA:-}"
 
 if ! command -v gh >/dev/null 2>&1; then
   printf '%s\n' "ERROR: gh is required." >&2
@@ -11,6 +13,14 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 if ! gh auth status >/dev/null 2>&1; then
   printf '%s\n' "ERROR: gh is not authenticated." >&2
+  exit 2
+fi
+if [[ ! "$pull_request" =~ ^[1-9][0-9]*$ ]]; then
+  printf '%s\n' "ERROR: STRONGR_OS_PULL_REQUEST must be a positive integer." >&2
+  exit 2
+fi
+if [[ -n "$expected_sha" && ! "$expected_sha" =~ ^[a-f0-9]{40}$ ]]; then
+  printf '%s\n' "ERROR: STRONGR_OS_EXPECTED_SHA must be a full commit SHA." >&2
   exit 2
 fi
 
@@ -21,6 +31,13 @@ cleanup() {
 trap cleanup EXIT
 
 gh api "repos/$repository" >"$run_directory/repository.json"
+gh api "repos/$repository/pulls/$pull_request" \
+  >"$run_directory/pull-request.json"
+pull_request_head="$(
+  python3 -c \
+    'import json,sys; print(json.load(open(sys.argv[1]))["head"]["sha"])' \
+    "$run_directory/pull-request.json"
+)"
 
 protection_available=true
 if ! gh api "repos/$repository/branches/$branch/protection" \
@@ -36,14 +53,27 @@ if ! gh api "repos/$repository/rulesets?includes_parents=true" \
   printf '%s\n' '[]' >"$run_directory/rulesets.json"
 fi
 
+actions_available=true
+if ! gh api \
+  "repos/$repository/actions/runs?head_sha=$pull_request_head&per_page=100" \
+  >"$run_directory/action-runs.json" \
+  2>"$run_directory/action-runs.err"; then
+  actions_available=false
+  printf '%s\n' '{"workflow_runs":[]}' >"$run_directory/action-runs.json"
+fi
+
 python3 - \
   "$run_directory/repository.json" \
   "$run_directory/protection.json" \
   "$run_directory/rulesets.json" \
+  "$run_directory/pull-request.json" \
+  "$run_directory/action-runs.json" \
   "$branch" \
   "$required_checks" \
   "$protection_available" \
-  "$rulesets_available" <<'PY'
+  "$rulesets_available" \
+  "$actions_available" \
+  "$expected_sha" <<'PY'
 import json
 import pathlib
 import subprocess
@@ -52,10 +82,14 @@ import sys
 repo = json.loads(pathlib.Path(sys.argv[1]).read_text())
 protection = json.loads(pathlib.Path(sys.argv[2]).read_text())
 rulesets = json.loads(pathlib.Path(sys.argv[3]).read_text())
-branch = sys.argv[4]
-expected_checks = {item.strip() for item in sys.argv[5].split(",") if item.strip()}
-protection_available = sys.argv[6] == "true"
-rulesets_available = sys.argv[7] == "true"
+pull_request = json.loads(pathlib.Path(sys.argv[4]).read_text())
+action_runs = json.loads(pathlib.Path(sys.argv[5]).read_text())
+branch = sys.argv[6]
+expected_checks = {item.strip() for item in sys.argv[7].split(",") if item.strip()}
+protection_available = sys.argv[8] == "true"
+rulesets_available = sys.argv[9] == "true"
+actions_available = sys.argv[10] == "true"
+expected_sha = sys.argv[11]
 
 checks = set()
 requires_pull_request = False
@@ -123,7 +157,7 @@ def targets_branch(ruleset):
 
 
 for ruleset in expanded_rulesets:
-    if ruleset.get("enforcement") not in {"active", "evaluate"}:
+    if ruleset.get("enforcement") != "active":
         continue
     if not targets_branch(ruleset):
         continue
@@ -158,14 +192,53 @@ for ruleset in expanded_rulesets:
             blocks_deletion = True
 
 missing_checks = sorted(expected_checks - checks)
+observed_run_checks = {}
+for run in action_runs.get("workflow_runs") or []:
+    run_name = run.get("name") or ""
+    run_id = run.get("id")
+    if not run_name or run_id is None:
+        continue
+    completed = subprocess.run(
+        [
+            "gh",
+            "api",
+            f"repos/{repo.get('full_name')}/actions/runs/{run_id}/jobs?per_page=100",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        actions_available = False
+        continue
+    for job in json.loads(completed.stdout).get("jobs") or []:
+        context = f"{run_name} / {job.get('name')}"
+        observed_run_checks[context] = {
+            "status": job.get("status"),
+            "conclusion": job.get("conclusion"),
+            "url": job.get("html_url"),
+        }
+
+missing_successful_runs = sorted(
+    check
+    for check in expected_checks
+    if observed_run_checks.get(check, {}).get("conclusion") != "success"
+)
 result = {
     "test": "github_protection_and_required_checks",
     "repository": repo.get("full_name"),
     "private": bool(repo.get("private")),
     "default_branch": repo.get("default_branch"),
     "target_branch": branch,
+    "pull_request_number": pull_request.get("number"),
+    "pull_request_state": pull_request.get("state"),
+    "pull_request_draft": bool(pull_request.get("draft")),
+    "pull_request_base": (pull_request.get("base") or {}).get("ref"),
+    "pull_request_head_sha": (pull_request.get("head") or {}).get("sha"),
+    "expected_head_sha": expected_sha or None,
     "protection_api_available": protection_available,
     "rulesets_api_available": rulesets_available,
+    "actions_api_available": actions_available,
     "requires_pull_request": requires_pull_request,
     "required_approvals": required_approvals,
     "requires_codeowners": requires_codeowners,
@@ -175,6 +248,8 @@ result = {
     "blocks_deletion": blocks_deletion,
     "observed_required_checks": sorted(checks),
     "missing_required_checks": missing_checks,
+    "observed_pull_request_checks": observed_run_checks,
+    "missing_successful_pull_request_checks": missing_successful_runs,
 }
 
 failures = []
@@ -182,6 +257,12 @@ if not result["private"]:
     failures.append("repository is not private")
 if result["default_branch"] != branch:
     failures.append("default branch does not match target")
+if result["pull_request_state"] != "open":
+    failures.append("pull request is not open")
+if result["pull_request_base"] != branch:
+    failures.append("pull request base does not match target branch")
+if expected_sha and result["pull_request_head_sha"] != expected_sha:
+    failures.append("pull request head does not match expected commit")
 if not requires_pull_request:
     failures.append("pull requests are not required")
 if required_approvals < 1:
@@ -198,6 +279,10 @@ if not blocks_deletion:
     failures.append("branch deletion is not blocked")
 if missing_checks:
     failures.append("required checks are missing")
+if not actions_available:
+    failures.append("workflow run or job evidence is unavailable")
+if missing_successful_runs:
+    failures.append("required checks are not successful on the pull-request head")
 
 result["status"] = "pass" if not failures else "fail"
 result["failures"] = failures

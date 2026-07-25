@@ -15,6 +15,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import struct
 import subprocess
@@ -53,6 +54,7 @@ ANON_KEY = require_env("STRONGR_OS_SUPABASE_ANON_KEY")
 SERVICE_KEY = require_env("STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY")
 DATABASE_URL = require_env("STRONGR_OS_DATABASE_URL")
 TARGET = require_env("STRONGR_OS_REMOTE_ACCEPTANCE")
+PROJECT_REF = require_env("STRONGR_OS_PROJECT_REF")
 
 if TARGET != "strongr-os-dev":
     raise AcceptanceFailure(
@@ -62,6 +64,26 @@ if SUPABASE_URL == ANON_KEY or ANON_KEY == SERVICE_KEY:
     raise AcceptanceFailure("Supabase configuration values are invalid")
 if not SUPABASE_URL.startswith("https://"):
     raise AcceptanceFailure("STRONGR_OS_SUPABASE_URL must use HTTPS")
+if not re.fullmatch(r"[a-z0-9]{20}", PROJECT_REF):
+    raise AcceptanceFailure(
+        "STRONGR_OS_PROJECT_REF must be the 20-character strongr-os-dev ref"
+    )
+supabase_hostname = (urllib.parse.urlsplit(SUPABASE_URL).hostname or "").lower()
+if supabase_hostname != f"{PROJECT_REF}.supabase.co":
+    raise AcceptanceFailure(
+        "STRONGR_OS_SUPABASE_URL does not match STRONGR_OS_PROJECT_REF"
+    )
+database_parts = urllib.parse.urlsplit(DATABASE_URL)
+database_hostname = (database_parts.hostname or "").lower()
+database_username = urllib.parse.unquote(database_parts.username or "")
+database_matches_project = (
+    database_hostname == f"db.{PROJECT_REF}.supabase.co"
+    or database_username.endswith(f".{PROJECT_REF}")
+)
+if not database_matches_project:
+    raise AcceptanceFailure(
+        "STRONGR_OS_DATABASE_URL does not match STRONGR_OS_PROJECT_REF"
+    )
 
 
 results: list[dict[str, Any]] = []
@@ -242,6 +264,25 @@ def rest_get(
         f"/rest/v1/{table}?{query}",
         api_key=key,
         bearer=token,
+    )
+
+
+def rest_patch(
+    table: str,
+    query: str,
+    body: dict[str, Any],
+    *,
+    token: str,
+    service: bool = False,
+) -> Any:
+    key = SERVICE_KEY if service else ANON_KEY
+    return http_json(
+        "PATCH",
+        f"/rest/v1/{table}?{query}",
+        api_key=key,
+        bearer=token,
+        body=body,
+        prefer="return=representation",
     )
 
 
@@ -438,6 +479,13 @@ try:
         user_one_visible_organizations=len(one_orgs),
         user_two_visible_organizations=len(two_orgs),
     )
+    record(
+        "same_tenant_positive_access",
+        len(one_orgs) == 1
+        and one_orgs[0]["id"] == org_one
+        and len(two_orgs) == 1
+        and two_orgs[0]["id"] == org_two,
+    )
 
     try:
         rpc(
@@ -459,6 +507,89 @@ try:
         )
     else:
         record("cross_tenant_command_denied", False)
+
+    psql(
+        f"""
+        update public.memberships
+        set status = 'suspended'
+        where id = '{membership_two}'
+          and organization_id = '{org_two}';
+        """
+    )
+    suspended_orgs = rest_get(
+        "organizations", "select=id&order=id", token=token_two_aal1
+    )
+    try:
+        rpc(
+            "m1_create_audio_brief",
+            {
+                "p_organization_id": org_two,
+                "p_title": "suspended membership must fail",
+                "p_payload": {"purpose": "must fail"},
+                "p_correlation_id": str(uuid.uuid4()),
+            },
+            token=token_two_aal1,
+        )
+    except HttpFailure as exc:
+        suspended_command_denied = (
+            isinstance(exc.payload, dict)
+            and exc.payload.get("code") == "42501"
+        )
+    else:
+        suspended_command_denied = False
+    record(
+        "inactive_membership_denied",
+        suspended_orgs == [] and suspended_command_denied,
+        visible_organizations=len(suspended_orgs),
+    )
+    psql(
+        f"""
+        update public.memberships
+        set status = 'active'
+        where id = '{membership_two}'
+          and organization_id = '{org_two}';
+        """
+    )
+
+    psql(
+        f"""
+        insert into public.membership_role_revocations (
+          organization_id, grant_id, revoked_by_membership_id, reason_code
+        )
+        select
+          organization_id, id, '{membership_two}', 'acceptance_revoked'
+        from public.membership_role_grants
+        where organization_id = '{org_two}'
+          and membership_id = '{membership_two}';
+        """
+    )
+    revoked_role_orgs = rest_get(
+        "organizations", "select=id&order=id", token=token_two_aal1
+    )
+    try:
+        rpc(
+            "m1_create_audio_brief",
+            {
+                "p_organization_id": org_two,
+                "p_title": "revoked role must fail",
+                "p_payload": {"purpose": "must fail"},
+                "p_correlation_id": str(uuid.uuid4()),
+            },
+            token=token_two_aal1,
+        )
+    except HttpFailure as exc:
+        revoked_role_command_denied = (
+            isinstance(exc.payload, dict)
+            and exc.payload.get("code") == "42501"
+        )
+    else:
+        revoked_role_command_denied = False
+    record(
+        "revoked_role_denied",
+        [row["id"] for row in revoked_role_orgs] == [org_two]
+        and revoked_role_command_denied,
+        membership_read_preserved=len(revoked_role_orgs) == 1,
+    )
 
     policy_body = {
         "p_organization_id": org_one,
@@ -499,6 +630,29 @@ try:
         )
     )
     record("real_aal2_privileged_command_succeeds", bool(policy_id))
+
+    stale_policy_body = {
+        "p_organization_id": org_one,
+        "p_key": f"m02_stale_{run_id}",
+        "p_version": 1,
+        "p_correlation_id": str(uuid.uuid4()),
+    }
+    try:
+        rpc(
+            "m1_create_review_policy",
+            stale_policy_body,
+            token=token_one_aal1,
+        )
+    except HttpFailure as exc:
+        record(
+            "stale_or_downgraded_session_denied",
+            isinstance(exc.payload, dict)
+            and exc.payload.get("code") == "42501"
+            and "aal2" in str(exc.payload.get("message", "")).lower(),
+            http_status=exc.status,
+        )
+    else:
+        record("stale_or_downgraded_session_denied", False)
 
     brief_response = rpc(
         "m1_create_audio_brief",
@@ -698,6 +852,85 @@ try:
         automated_checks=len(check_results),
     )
 
+    approval_rows = rest_get(
+        "approval_snapshots",
+        "select=id,authentication_assurance,version_payload_hash,"
+        "evidence_bundle_hash"
+        f"&id=eq.{urllib.parse.quote(approval_id)}",
+        token=SERVICE_KEY,
+        service=True,
+    )
+    package_rows = rest_get(
+        "production_packages",
+        "select=id,manifest_hash,manifest"
+        f"&id=eq.{urllib.parse.quote(package_id)}",
+        token=SERVICE_KEY,
+        service=True,
+    )
+    version_rows = rest_get(
+        "content_versions",
+        "select=id,payload_hash"
+        f"&id=eq.{urllib.parse.quote(version_id)}",
+        token=SERVICE_KEY,
+        service=True,
+    )
+    approval_evidence = approval_rows[0]
+    package_evidence = package_rows[0]
+    version_evidence = version_rows[0]
+    record(
+        "approval_assurance_and_hash_evidence",
+        approval_evidence["authentication_assurance"] == "aal2"
+        and len(approval_evidence["version_payload_hash"]) == 64
+        and len(approval_evidence["evidence_bundle_hash"]) == 64
+        and approval_evidence["version_payload_hash"]
+        == version_evidence["payload_hash"]
+        and package_evidence["manifest"]["evidence_bundle_hash"]
+        == approval_evidence["evidence_bundle_hash"]
+        and package_evidence["manifest"]["content_payload_hash"]
+        == version_evidence["payload_hash"]
+        and len(package_evidence["manifest_hash"]) == 64,
+        authentication_assurance=approval_evidence[
+            "authentication_assurance"
+        ],
+        version_payload_hash=approval_evidence["version_payload_hash"],
+        evidence_bundle_hash=approval_evidence["evidence_bundle_hash"],
+        production_manifest_hash=package_evidence["manifest_hash"],
+    )
+
+    immutable_results: list[bool] = []
+    for table_name, row_id, mutation in (
+        (
+            "approval_snapshots",
+            approval_id,
+            {"reason_code": "tamper_attempt"},
+        ),
+        (
+            "production_packages",
+            package_id,
+            {"manifest_hash": "0" * 64},
+        ),
+    ):
+        try:
+            rest_patch(
+                table_name,
+                f"id=eq.{urllib.parse.quote(row_id)}",
+                mutation,
+                token=SERVICE_KEY,
+                service=True,
+            )
+        except HttpFailure as exc:
+            immutable_results.append(
+                isinstance(exc.payload, dict)
+                and exc.payload.get("code") == "55000"
+            )
+        else:
+            immutable_results.append(False)
+    record(
+        "remote_approval_and_package_immutability",
+        immutable_results == [True, True],
+        guarded_records=len(immutable_results),
+    )
+
     idempotency_key = f"m0-2-remote-{run_id}"
 
     def request_generation(_: int) -> str:
@@ -733,6 +966,30 @@ try:
         unique_job_ids=len(set(job_ids)),
         outbox_events=len(outbox_rows),
     )
+    try:
+        returned_uuid(
+            rpc(
+                "m1_request_generation",
+                {
+                    "p_organization_id": org_one,
+                    "p_brief_id": brief_id,
+                    "p_prompt_key": "m0_2.remote",
+                    "p_prompt_version": 2,
+                    "p_idempotency_key": idempotency_key,
+                    "p_correlation_id": str(uuid.uuid4()),
+                },
+                token=token_one_aal2,
+            )
+        )
+    except HttpFailure as exc:
+        record(
+            "remote_changed_request_idempotency_denied",
+            isinstance(exc.payload, dict)
+            and exc.payload.get("code") == "22023",
+            http_status=exc.status,
+        )
+    else:
+        record("remote_changed_request_idempotency_denied", False)
 
     outbox_event_id = str(outbox_rows[0]["id"])
     first_claim = rpc(
@@ -844,6 +1101,156 @@ try:
         and int(health.get("outbox_expired_leases", -1)) == 0
         and int(health.get("outbox_dead_letters", -1)) == 0,
         health_status=health.get("status"),
+    )
+
+    psql(
+        f"""
+        insert into public.outbox_events (
+          organization_id, event_type, aggregate_type, aggregate_id,
+          payload, correlation_id
+        )
+        select
+          '{org_one}',
+          'acceptance.remote_concurrent.v1',
+          'acceptance',
+          gen_random_uuid(),
+          jsonb_build_object('request_number', request_number),
+          gen_random_uuid()
+        from generate_series(1, 8) request_number;
+        """
+    )
+
+    def claim_concurrent_outbox(worker_number: int) -> dict[str, Any]:
+        claimed = rpc(
+            "m0_claim_outbox_events",
+            {
+                "p_worker_id": (
+                    f"{worker_prefix}-concurrent-{worker_number}"
+                ),
+                "p_batch_size": 1,
+                "p_lease_seconds": 60,
+            },
+            token=SERVICE_KEY,
+            service=True,
+        )
+        if len(claimed) != 1:
+            raise AcceptanceFailure(
+                f"concurrent worker {worker_number} claimed {len(claimed)} rows"
+            )
+        return {
+            **claimed[0],
+            "worker_id": f"{worker_prefix}-concurrent-{worker_number}",
+        }
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        concurrent_claims = list(
+            executor.map(claim_concurrent_outbox, range(1, 9))
+        )
+    concurrent_event_ids = {
+        str(claim["event_id"]) for claim in concurrent_claims
+    }
+    concurrent_lease_tokens = {
+        str(claim["lease_token"]) for claim in concurrent_claims
+    }
+    record(
+        "remote_concurrent_outbox_leasing",
+        len(concurrent_claims) == 8
+        and len(concurrent_event_ids) == 8
+        and len(concurrent_lease_tokens) == 8
+        and all(
+            int(claim["attempt_number"]) == 1
+            for claim in concurrent_claims
+        ),
+        parallel_workers=8,
+        unique_events=len(concurrent_event_ids),
+        unique_lease_tokens=len(concurrent_lease_tokens),
+    )
+    for claim in concurrent_claims:
+        returned_uuid(
+            rpc(
+                "m0_ack_outbox_event",
+                {
+                    "p_event_id": claim["event_id"],
+                    "p_worker_id": claim["worker_id"],
+                    "p_lease_token": claim["lease_token"],
+                    "p_delivery_key": f"delivery-{claim['event_id']}",
+                },
+                token=SERVICE_KEY,
+                service=True,
+            )
+        )
+
+    poison_event_id = str(uuid.uuid4())
+    psql(
+        f"""
+        insert into public.outbox_events (
+          id, organization_id, event_type, aggregate_type, aggregate_id,
+          payload, correlation_id, attempts
+        ) values (
+          '{poison_event_id}',
+          '{org_one}',
+          'acceptance.poison_message.v1',
+          'acceptance',
+          gen_random_uuid(),
+          '{{"case":"poison"}}',
+          gen_random_uuid(),
+          4
+        );
+        """
+    )
+    poison_claim = rpc(
+        "m0_claim_outbox_events",
+        {
+            "p_worker_id": f"{worker_prefix}-poison",
+            "p_batch_size": 1,
+            "p_lease_seconds": 60,
+        },
+        token=SERVICE_KEY,
+        service=True,
+    )[0]
+    poison_status = rpc(
+        "m0_fail_outbox_event",
+        {
+            "p_event_id": poison_event_id,
+            "p_worker_id": f"{worker_prefix}-poison",
+            "p_lease_token": poison_claim["lease_token"],
+            "p_error_code": "m0_2.poison",
+            "p_retry_after_seconds": 0,
+            "p_max_attempts": 5,
+        },
+        token=SERVICE_KEY,
+        service=True,
+    )
+    poison_health = rpc(
+        "m0_operational_health",
+        {},
+        token=SERVICE_KEY,
+        service=True,
+    )
+    poison_metrics = rpc(
+        "m0_operational_metrics",
+        {},
+        token=SERVICE_KEY,
+        service=True,
+    )
+    metric_values = {
+        row["metric_name"]: float(row["metric_value"])
+        for row in poison_metrics
+    }
+    record(
+        "poison_message_dead_letter_and_operator_visibility",
+        poison_claim["event_id"] == poison_event_id
+        and int(poison_claim["attempt_number"]) == 5
+        and poison_status == "dead_letter"
+        and poison_health.get("status") == "unhealthy"
+        and int(poison_health.get("outbox_dead_letters", 0)) >= 1
+        and metric_values.get("strongr_os_outbox_dead_letters", 0) >= 1,
+        attempt_number=poison_claim["attempt_number"],
+        terminal_status=poison_status,
+        health_status=poison_health.get("status"),
+        dead_letter_metric=metric_values.get(
+            "strongr_os_outbox_dead_letters"
+        ),
     )
 
 except Exception as exc:

@@ -24,12 +24,16 @@ Do not merge draft PR #1 without Neil's approval.
 With GitHub CLI authenticated for `neilgasson/strongr-os`:
 
 ```bash
+STRONGR_OS_PULL_REQUEST=1 \
+STRONGR_OS_EXPECTED_SHA='[full M0.2 commit SHA]' \
 scripts/acceptance/verify_github_protection.sh \
   | tee m0-2-github-protection.jsonl
 ```
 
-The script reads classic branch protection and repository rulesets. It makes
-no change. A failure reports the missing controls or checks.
+The script reads repository visibility, classic branch protection, repository
+rulesets, pull-request metadata, workflow runs, and every job on the current
+pull-request head. It makes no change. A failure reports missing controls,
+head-SHA drift, or checks that are absent, pending, cancelled, or unsuccessful.
 
 Required checks must have run successfully on the latest pull-request commit.
 An older green run is not acceptance evidence.

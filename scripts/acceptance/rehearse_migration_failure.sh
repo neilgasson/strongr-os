@@ -9,11 +9,9 @@ if ! command -v psql >/dev/null 2>&1; then
 fi
 
 if [[ "$database_url" != *"127.0.0.1"* && "$database_url" != *"localhost"* ]]; then
-  if [[ "${STRONGR_OS_REMOTE_ACCEPTANCE:-}" != "strongr-os-dev" ]]; then
-    printf '%s\n' \
-      "ERROR: Remote execution is locked. Set STRONGR_OS_REMOTE_ACCEPTANCE=strongr-os-dev only for the isolated Strongr OS development project." >&2
-    exit 2
-  fi
+  printf '%s\n' \
+    "ERROR: Migration-failure rehearsal is restricted to a disposable local database." >&2
+  exit 2
 fi
 
 schema_suffix="$(python3 -c 'import uuid; print(uuid.uuid4().hex)')"

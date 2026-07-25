@@ -15,13 +15,15 @@ Every accepted run records:
 - concurrency result;
 - exact-replay and changed-request idempotency results;
 - remote two-user, inactive-member, revoked-role, and AAL results;
+- approval AAL2 evidence, exact hash bindings, and remote immutability results;
 - concurrent outbox leasing result;
 - outbox result;
 - poison-message/operator-visibility result;
 - migration failure and exact forward-repair replay results;
-- backup/restore archive hash and duration;
+- backup/restore archive hash, Auth-user precondition, all-table counts, and
+  duration;
 - health and metrics snapshot;
-- GitHub protection result;
+- GitHub protection, exact PR head, and required workflow-job results;
 - UTC timestamps; and
 - reviewer and owner approval.
 
