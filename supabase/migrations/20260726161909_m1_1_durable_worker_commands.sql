@@ -201,10 +201,10 @@ begin
     p_event_id, p_worker_id, p_lease_token
   );
 
-  select * into v_job
-  from public.generation_jobs
-  where id = v_event.aggregate_id
-    and organization_id = v_event.organization_id
+  select j.* into v_job
+  from public.generation_jobs as j
+  where j.id = v_event.aggregate_id
+    and j.organization_id = v_event.organization_id
   for update;
 
   if not found then
@@ -216,10 +216,10 @@ begin
       message = 'generation correlation mismatch';
   end if;
 
-  select * into v_brief
-  from public.content_briefs
-  where id = v_job.brief_id
-    and organization_id = v_job.organization_id;
+  select b.* into v_brief
+  from public.content_briefs as b
+  where b.id = v_job.brief_id
+    and b.organization_id = v_job.organization_id;
 
   if not found then
     raise exception using errcode = 'P0002',
@@ -238,12 +238,12 @@ begin
   );
 
   if v_job.state = 'succeeded' then
-    select * into v_attempt
-    from public.generation_job_attempts
-    where generation_job_id = v_job.id
-      and organization_id = v_job.organization_id
-      and status = 'succeeded'
-    order by attempt_number desc
+    select a.* into v_attempt
+    from public.generation_job_attempts as a
+    where a.generation_job_id = v_job.id
+      and a.organization_id = v_job.organization_id
+      and a.status = 'succeeded'
+    order by a.attempt_number desc
     limit 1;
 
     if not found or v_job.output_hash is null then
@@ -299,13 +299,13 @@ begin
   end if;
 
   if v_job.state = 'running' then
-    update public.generation_job_attempts
+    update public.generation_job_attempts as a
     set status = 'failed',
         error_code = 'worker_lease_expired',
         finished_at = statement_timestamp()
-    where generation_job_id = v_job.id
-      and organization_id = v_job.organization_id
-      and status = 'started';
+    where a.generation_job_id = v_job.id
+      and a.organization_id = v_job.organization_id
+      and a.status = 'started';
   end if;
 
   v_next_attempt := v_job.attempt_count + 1;
