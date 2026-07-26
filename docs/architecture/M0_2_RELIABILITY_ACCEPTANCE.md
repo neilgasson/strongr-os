@@ -27,7 +27,7 @@ approves merge.
 | Migration repair | `rehearse_migration_failure.sh` and `rehearse_forward_repairs.sh` | Failed transaction leaves no partial state; both real forward repairs replay twice and verify |
 | Backup/restore | `rehearse_backup_restore.sh` | Empty migrated disposable target and Auth-user preconditions pass; archive checksum and every public-table row count match; no orphaned profile exists |
 | Health/metrics | health and metrics scripts | No expired leases, dead letters, stale workers, or aged backlog |
-| Repository control | `verify_github_protection.sh` | Private repo, PR review, CODEOWNERS, strict required checks, no force/delete, exact PR head, and both required workflow jobs successful on that head |
+| Repository control | `verify_github_protection.sh` | Private repo; independent review and CODEOWNERS, or the declared solo-maintainer exception; no bypass; strict required checks; no force/delete; exact PR head; and both required workflow jobs successful on that head |
 
 ## Local gate
 

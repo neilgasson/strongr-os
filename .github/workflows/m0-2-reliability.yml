@@ -2,13 +2,6 @@ name: M0.2 reliability proof
 
 on:
   pull_request:
-    paths:
-      - "supabase/**"
-      - "scripts/acceptance/**"
-      - "scripts/ops/**"
-      - "ops/monitoring/**"
-      - "docs/runbooks/**"
-      - ".github/workflows/m0-2-reliability.yml"
   merge_group:
   push:
     branches: ["main"]
@@ -29,6 +22,7 @@ concurrency:
 
 jobs:
   acceptance:
+    name: M0.2 reliability proof / acceptance
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 

@@ -20,8 +20,16 @@
     "202607241330_m1_governed_audio_reflection.sql",
     "202607242230_m1_restrict_check_worker_execute.sql",
     "202607251200_m0_2_reliability_primitives.sql",
-    "202607251230_m0_2_request_idempotency_fingerprint.sql"
+    "202607251230_m0_2_request_idempotency_fingerprint.sql",
+    "202607251830_m0_2_restrict_anon_security_definer.sql"
   ],
+  "governance": {
+    "mode": "solo-maintainer-exception",
+    "exception_adr": "docs/adr/ADR-0002-solo-maintainer-governance-exception.md",
+    "independent_approval_required": false,
+    "owner_review_required": true,
+    "ruleset_verification": "pending"
+  },
   "evidence": {
     "original_contract_17": "pending",
     "m0_2_pg_tap": "pending",
