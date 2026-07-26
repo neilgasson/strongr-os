@@ -224,7 +224,7 @@ select
     where o.organization_id = :'organization_id'::uuid
       and o.aggregate_type = 'generation_job'
   ),
-  min(id)::text
+  min(id::text)
 from public.generation_jobs
 where organization_id = :'organization_id'::uuid
   and idempotency_key = :'idempotency_key';
