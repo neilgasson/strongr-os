@@ -79,14 +79,20 @@ jobs:
                   where table_schema = 'public'
                     and table_type = 'BASE TABLE'"
           )"
-          migration_history_exists="$(
+          recorded_migration_count="$(
             psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
               -X -qAt -v ON_ERROR_STOP=1 \
-              -c "select to_regclass(
-                    'supabase_migrations.schema_migrations'
-                  ) is not null"
+              -c "select case
+                    when to_regclass(
+                      'supabase_migrations.schema_migrations'
+                    ) is null then 0
+                    else (
+                      select count(*)
+                      from supabase_migrations.schema_migrations
+                    )
+                  end"
           )"
-          if [[ "$public_table_count" != "0" || "$migration_history_exists" != "f" ]]; then
+          if [[ "$public_table_count" != "0" || "$recorded_migration_count" != "0" ]]; then
             printf '%s\n' \
               "ERROR: Disposable target must be clean before migrations are applied." >&2
             exit 1
@@ -95,8 +101,8 @@ jobs:
           psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
             -X -v ON_ERROR_STOP=1 \
             <<'SQL'
-          create schema supabase_migrations;
-          create table supabase_migrations.schema_migrations (
+          create schema if not exists supabase_migrations;
+          create table if not exists supabase_migrations.schema_migrations (
             version text primary key,
             statements text[],
             name text
