@@ -1,9 +1,9 @@
 # M1 — Governed Audio-Reflection Application Slice
 
-**Status:** Proposed  
-**Date:** July 26, 2026  
-**Owner:** Neil Gasson / Strongr Society  
-**Approval gate:** Repository-owner approval is required before implementation begins.
+- **Status:** Proposed
+- **Date:** July 26, 2026
+- **Owner:** Neil Gasson / Strongr Society
+- **Approval gate:** Repository-owner approval is required before implementation begins.
 
 ## Entry condition
 
