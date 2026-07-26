@@ -57,7 +57,7 @@ jobs:
             fi
           done
 
-            - name: Apply repository migrations to disposable target
+      - name: Apply repository migrations to disposable target
         env:
           STRONGR_OS_RESTORE_DATABASE_URL: ${{ secrets.STRONGR_OS_RESTORE_DATABASE_URL }}
         run: |
@@ -103,8 +103,6 @@ jobs:
           )
           on conflict (version) do nothing;
           SQL
-          done
-            SQL
           done
 
       - name: Run real strongr-os-dev acceptance
