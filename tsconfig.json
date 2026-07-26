@@ -16,5 +16,10 @@
     "types": ["node"],
     "verbatimModuleSyntax": true
   },
-  "include": ["apps/**/*.ts", "packages/**/*.ts", "scripts/ci/**/*.ts"]
+  "include": [
+    "apps/**/*.ts",
+    "packages/**/*.ts",
+    "scripts/acceptance/**/*.ts",
+    "scripts/ci/**/*.ts"
+  ]
 }

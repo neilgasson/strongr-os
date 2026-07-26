@@ -15,7 +15,7 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M1.3 implementation — governed review-to-package flow**
+**M1.4 acceptance — governed application proof**
 
 M0.2 reliability and operational acceptance completed on July 26, 2026. The
 canonical record at evidence/m0-2/acceptance-record.json binds the accepted
@@ -30,9 +30,11 @@ accepted M1.0 through PR #13 at commit
 worker through PR #14 at commit
 `da6418a793b244afa973cfecaa69a797cf41bc2c`, and accepted the M1.2 governed
 brief-to-draft flow through PR #15 at commit
-`a960262d09a011cb443c52cb3505c84763a1d8af`. M1.3 is limited to automated
-check evidence, separate human review and evidence commands, AAL2-governed
-approval/revocation, and immutable production-package manifest creation.
+`a960262d09a011cb443c52cb3505c84763a1d8af`, and accepted the M1.3 governed
+review-to-package flow through PR #16 at commit
+`64863271187dd02ca357a6b41bc854c4106c6640`. M1.4 is limited to local and
+non-production end-to-end proof, failure/recovery rehearsal, observability,
+accessibility/privacy evidence, and the final M1 acceptance record.
 
 ## Current implementation boundary
 
@@ -91,7 +93,8 @@ evidence/
 ## Status
 
 The M0/M1 database foundation, M0.2 acceptance, M1.0 application foundation,
-M1.1 durable worker, and M1.2 governed brief-to-draft flow are complete. M1.3
-is in protected implementation. This work does not authorize deployment,
-publication, production acceptance, external AI-provider access, or any change
-to the current Strongr Daily application.
+M1.1 durable worker, M1.2 governed brief-to-draft flow, and M1.3 governed
+review-to-package flow are complete. M1.4 acceptance is in protected
+implementation. This work does not authorize deployment, publication,
+production acceptance, external AI-provider access, or any change to the
+current Strongr Daily application.
