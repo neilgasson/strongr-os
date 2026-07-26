@@ -218,7 +218,6 @@ sha256sum --check "$checksum_path" >/dev/null
 pg_restore \
   --dbname="$restore_url" \
   --data-only \
-  --disable-triggers \
   --no-owner \
   --no-privileges \
   --exit-on-error \
