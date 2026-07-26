@@ -73,9 +73,12 @@ if supabase_hostname != f"{PROJECT_REF}.supabase.co":
     raise AcceptanceFailure(
         "STRONGR_OS_SUPABASE_URL does not match STRONGR_OS_PROJECT_REF"
     )
-database_parts = urllib.parse.urlsplit(DATABASE_URL)
-database_hostname = (database_parts.hostname or "").lower()
-database_username = urllib.parse.unquote(database_parts.username or "")
+database_authority = DATABASE_URL.partition("://")[2].split("/", 1)[0]
+database_userinfo, separator, database_hostport = database_authority.rpartition("@")
+if not separator:
+    raise AcceptanceFailure("STRONGR_OS_DATABASE_URL is not a PostgreSQL URL")
+database_hostname = database_hostport.split(":", 1)[0].strip("[]").lower()
+database_username = urllib.parse.unquote(database_userinfo.split(":", 1)[0])
 database_matches_project = (
     database_hostname == f"db.{PROJECT_REF}.supabase.co"
     or database_username.endswith(f".{PROJECT_REF}")

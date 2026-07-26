@@ -58,9 +58,12 @@ import urllib.parse
 
 
 def matches(connection_string, project_ref):
-    parsed = urllib.parse.urlsplit(connection_string)
-    hostname = (parsed.hostname or "").lower()
-    username = urllib.parse.unquote(parsed.username or "")
+    authority = connection_string.partition("://")[2].split("/", 1)[0]
+    userinfo, separator, hostport = authority.rpartition("@")
+    if not separator:
+        return False
+    hostname = hostport.split(":", 1)[0].strip("[]").lower()
+    username = urllib.parse.unquote(userinfo.split(":", 1)[0])
     return (
         hostname == f"db.{project_ref}.supabase.co"
         or username.endswith(f".{project_ref}")
@@ -127,15 +130,15 @@ required_migrations=(
   202607242230
   202607251200
   202607251230
+  202607251830
 )
 for migration_version in "${required_migrations[@]}"; do
   applied="$(
     psql "$restore_url" -X -qAt -v ON_ERROR_STOP=1 \
-      -v version="$migration_version" \
       -c "select exists (
         select 1
         from supabase_migrations.schema_migrations
-        where version = :'version'
+        where version = '$migration_version'
       )"
   )"
   if [[ "$applied" != "t" ]]; then
@@ -150,6 +153,11 @@ if (( ${#public_tables[@]} == 0 )); then
   printf '%s\n' "ERROR: No Strongr OS public tables were found." >&2
   exit 1
 fi
+
+for table_identifier in "${public_tables[@]}"; do
+  psql "$restore_url" -X -qAt -v ON_ERROR_STOP=1 \
+    -c "truncate table public.$table_identifier restart identity cascade"
+done
 
 for table_identifier in "${public_tables[@]}"; do
   target_count="$(
@@ -210,7 +218,6 @@ sha256sum --check "$checksum_path" >/dev/null
 pg_restore \
   --dbname="$restore_url" \
   --data-only \
-  --disable-triggers \
   --no-owner \
   --no-privileges \
   --exit-on-error \
