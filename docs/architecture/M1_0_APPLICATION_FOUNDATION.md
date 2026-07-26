@@ -2,7 +2,8 @@
 
 ## Status
 
-Implementation candidate for protected review. This stage creates application
+Accepted on protected `main` through owner-approved PR #13 at commit
+`58fdcd9d3ff9736faf505c776d03c4367b7dbd9a`. This stage creates application
 boundaries only. It does not deploy an application, connect an external AI
 provider, change the database, publish content, or modify Strongr Daily.
 
@@ -47,8 +48,8 @@ mutation calls, and secret-key literals.
 The `M1 application / foundation` check uses pinned Node and pnpm versions and
 runs formatting, lint, strict type checking, generated-schema drift detection,
 unit tests, build, and environment-boundary validation. Each check writes a
-separate log plus a JSONL summary. The workflow uploads the evidence directory
-with `if: always()` so failed checks remain diagnosable.
+separate log plus a JSONL summary. The shared M1 workflow uploads the evidence
+directory with `if: always()` so failed checks remain diagnosable.
 
 Existing Database contract and M0.2 reliability checks continue to run on every
 pull request. M1.0 adds no migration and does not alter their security proofs.

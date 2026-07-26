@@ -6,6 +6,7 @@ import type {
   GenerationRequest,
   GenerationResult,
 } from "./generation-adapter.ts";
+import { createGenerationPromptChecksum } from "./generation-adapter.ts";
 
 export const deterministicAdapterIdentity = Object.freeze({
   model: "strongr.fixture.audio-reflection.v1",
@@ -56,13 +57,11 @@ function createFixtureOutput(request: GenerationRequest) {
 }
 
 export const deterministicGenerationAdapter: GenerationAdapter = Object.freeze({
+  identity: deterministicAdapterIdentity,
   generate(request: GenerationRequest): Promise<GenerationResult> {
     const output = createFixtureOutput(request);
     const outputHash = sha256(output);
-    const promptChecksum = sha256({
-      prompt_key: request.promptKey,
-      prompt_version: request.promptVersion,
-    });
+    const promptChecksum = createGenerationPromptChecksum(request.promptKey, request.promptVersion);
 
     return Promise.resolve({
       ...deterministicAdapterIdentity,

@@ -1,5 +1,12 @@
+import { createHash } from "node:crypto";
+
 import type { Uuid } from "../../contracts/src/index.ts";
 import type { AudioReflection, AudioReflectionBrief } from "../../content-schemas/src/index.ts";
+
+export interface GenerationAdapterIdentity {
+  readonly provider: string;
+  readonly model: string;
+}
 
 export interface GenerationRequest {
   readonly organizationId: Uuid;
@@ -21,5 +28,10 @@ export interface GenerationResult {
 }
 
 export interface GenerationAdapter {
+  readonly identity: GenerationAdapterIdentity;
   generate(request: GenerationRequest): Promise<GenerationResult>;
+}
+
+export function createGenerationPromptChecksum(promptKey: string, promptVersion: number): string {
+  return createHash("sha256").update(`${promptKey}:${promptVersion}`, "utf8").digest("hex");
 }
