@@ -135,6 +135,7 @@ create temporary table m12_job (
 );
 create temporary table m12_claim (
   event_id uuid not null,
+  generation_job_id uuid not null,
   lease_token uuid not null
 );
 create temporary table m12_attempt (
@@ -281,17 +282,13 @@ select is(
 
 set local role service_role;
 
-insert into m12_claim (event_id, lease_token)
-select event_id, lease_token
+insert into m12_claim (event_id, generation_job_id, lease_token)
+select event_id, aggregate_id, lease_token
 from public.m1_claim_generation_events('m12-worker', 10, 60);
 
 select is(
-  (select event_id from m12_claim),
-  (
-    select id
-    from public.outbox_events
-    where aggregate_id = (select job_id from m12_job where label = 'first')
-  ),
+  (select generation_job_id from m12_claim),
+  (select job_id from m12_job where label = 'first'),
   'the worker claims the requested generation event'
 );
 
