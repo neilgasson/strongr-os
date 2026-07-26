@@ -130,15 +130,15 @@ required_migrations=(
   202607242230
   202607251200
   202607251230
+  202607251830
 )
 for migration_version in "${required_migrations[@]}"; do
   applied="$(
     psql "$restore_url" -X -qAt -v ON_ERROR_STOP=1 \
-      -v version="$migration_version" \
       -c "select exists (
         select 1
         from supabase_migrations.schema_migrations
-        where version = :'version'
+        where version = '$migration_version'
       )"
   )"
   if [[ "$applied" != "t" ]]; then
