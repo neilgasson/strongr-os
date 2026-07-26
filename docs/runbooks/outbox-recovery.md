@@ -21,14 +21,16 @@ acknowledgement commits.
 
 The M1.1 worker calls `m1_claim_generation_events` so it never leases unrelated
 outbox event types. It then calls `m1_begin_generation_attempt` with the exact
-worker ID and lease token before invoking the provider-neutral adapter.
+worker ID and lease token before invoking the provider-neutral adapter. Begin
+appends an isolated private claim; it does not mutate public attempt history.
 
 On success, the worker calls `m1_complete_generation_attempt` and then
 acknowledges through `m0_ack_outbox_event` with
 `generation-<event-id>` as the stable delivery key. If completion commits but
 acknowledgement does not, allow the lease to expire. The recovery worker will
 receive `already_succeeded`, skip generation, and acknowledge the same delivery
-key.
+key. Completion and failure append terminal `generation_job_attempts` rows;
+those historical facts are never updated.
 
 Do not retry an ambiguous mutating RPC in process. Lease recovery is the source
 of truth.

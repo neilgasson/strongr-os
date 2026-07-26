@@ -8,6 +8,40 @@
 
 begin;
 
+create table app_private.m1_generation_attempt_claims (
+  attempt_id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null,
+  generation_job_id uuid not null,
+  attempt_number integer not null check (attempt_number > 0),
+  event_id uuid not null,
+  worker_id text not null
+    check (length(btrim(worker_id)) between 1 and 160),
+  lease_token uuid not null,
+  provider text not null
+    check (length(btrim(provider)) between 1 and 120),
+  model text not null
+    check (length(btrim(model)) between 1 and 160),
+  prompt_checksum text not null
+    check (prompt_checksum ~ '^[a-f0-9]{64}$'),
+  request_schema_id text not null,
+  started_at timestamptz not null default statement_timestamp(),
+  foreign key (generation_job_id, organization_id)
+    references public.generation_jobs(id, organization_id) on delete restrict,
+  foreign key (event_id, organization_id)
+    references public.outbox_events(id, organization_id) on delete restrict,
+  unique (generation_job_id, attempt_number)
+);
+
+alter table app_private.m1_generation_attempt_claims
+enable row level security;
+
+create trigger m1_generation_attempt_claims_immutable
+before update or delete on app_private.m1_generation_attempt_claims
+for each row execute function app_private.reject_mutation();
+
+revoke all on table app_private.m1_generation_attempt_claims
+from public, anon, authenticated, service_role;
+
 create or replace function app_private.m1_require_generation_event_lease(
   p_event_id uuid,
   p_worker_id text,
@@ -187,6 +221,7 @@ declare
   v_event public.outbox_events%rowtype;
   v_job public.generation_jobs%rowtype;
   v_attempt public.generation_job_attempts%rowtype;
+  v_claim app_private.m1_generation_attempt_claims%rowtype;
   v_brief public.content_briefs%rowtype;
   v_next_attempt integer;
   v_prompt_checksum text;
@@ -299,13 +334,62 @@ begin
   end if;
 
   if v_job.state = 'running' then
-    update public.generation_job_attempts as a
-    set status = 'failed',
-        error_code = 'worker_lease_expired',
-        finished_at = statement_timestamp()
-    where a.generation_job_id = v_job.id
-      and a.organization_id = v_job.organization_id
-      and a.status = 'started';
+    select c.* into v_claim
+    from app_private.m1_generation_attempt_claims as c
+    where c.generation_job_id = v_job.id
+      and c.organization_id = v_job.organization_id
+      and c.attempt_number = v_job.attempt_count;
+
+    if not found or v_claim.event_id <> v_event.id then
+      raise exception using errcode = '55000',
+        message = 'current generation attempt claim is missing';
+    end if;
+
+    if v_claim.worker_id = p_worker_id
+       and v_claim.lease_token = p_lease_token then
+      if v_claim.provider <> p_provider
+         or v_claim.model <> p_model
+         or v_claim.prompt_checksum <> v_prompt_checksum
+         or v_claim.request_schema_id <> v_brief.schema_id then
+        raise exception using errcode = '22023',
+          message = 'generation begin does not match existing provenance';
+      end if;
+
+      return query select
+        'ready'::text,
+        v_job.organization_id,
+        v_job.id,
+        v_job.correlation_id,
+        v_job.prompt_key,
+        v_job.prompt_version,
+        v_claim.prompt_checksum,
+        v_brief.payload,
+        v_claim.attempt_id,
+        v_claim.attempt_number,
+        v_job.max_attempts;
+      return;
+    end if;
+
+    insert into public.generation_job_attempts (
+      id, organization_id, generation_job_id, attempt_number, provider, model,
+      prompt_checksum, request_schema_id, status, error_code, correlation_id,
+      started_at, finished_at
+    ) values (
+      v_claim.attempt_id, v_claim.organization_id,
+      v_claim.generation_job_id, v_claim.attempt_number,
+      v_claim.provider, v_claim.model, v_claim.prompt_checksum,
+      v_claim.request_schema_id, 'failed', 'worker_lease_expired',
+      v_job.correlation_id, v_claim.started_at, statement_timestamp()
+    )
+    returning * into v_attempt;
+
+    perform app_private.record_worker_audit(
+      v_job.organization_id,
+      'generation.attempt_failed',
+      v_event.id,
+      'worker_lease_expired',
+      v_job.correlation_id
+    );
   end if;
 
   v_next_attempt := v_job.attempt_count + 1;
@@ -331,14 +415,14 @@ begin
     return;
   end if;
 
-  insert into public.generation_job_attempts (
-    organization_id, generation_job_id, attempt_number, provider, model,
-    prompt_checksum, request_schema_id, status, correlation_id
+  insert into app_private.m1_generation_attempt_claims (
+    organization_id, generation_job_id, attempt_number, event_id, worker_id,
+    lease_token, provider, model, prompt_checksum, request_schema_id
   ) values (
-    v_job.organization_id, v_job.id, v_next_attempt, p_provider, p_model,
-    v_prompt_checksum, v_brief.schema_id, 'started', v_job.correlation_id
+    v_job.organization_id, v_job.id, v_next_attempt, v_event.id, p_worker_id,
+    p_lease_token, p_provider, p_model, v_prompt_checksum, v_brief.schema_id
   )
-  returning * into v_attempt;
+  returning * into v_claim;
 
   update public.generation_jobs
   set state = 'running',
@@ -367,8 +451,8 @@ begin
     v_job.prompt_version,
     v_prompt_checksum,
     v_brief.payload,
-    v_attempt.id,
-    v_attempt.attempt_number,
+    v_claim.attempt_id,
+    v_claim.attempt_number,
     v_job.max_attempts;
 end;
 $$;
@@ -392,6 +476,7 @@ declare
   v_event public.outbox_events%rowtype;
   v_job public.generation_jobs%rowtype;
   v_attempt public.generation_job_attempts%rowtype;
+  v_claim app_private.m1_generation_attempt_claims%rowtype;
 begin
   if length(btrim(p_provider_response_id)) not between 1 and 255 then
     raise exception using errcode = '22023',
@@ -412,10 +497,10 @@ begin
     p_event_id, p_worker_id, p_lease_token
   );
 
-  select * into v_job
-  from public.generation_jobs
-  where id = v_event.aggregate_id
-    and organization_id = v_event.organization_id
+  select j.* into v_job
+  from public.generation_jobs as j
+  where j.id = v_event.aggregate_id
+    and j.organization_id = v_event.organization_id
   for update;
 
   if not found then
@@ -423,53 +508,78 @@ begin
       message = 'generation job not found';
   end if;
 
-  select * into v_attempt
-  from public.generation_job_attempts
-  where id = p_attempt_id
-    and generation_job_id = v_job.id
-    and organization_id = v_job.organization_id
-  for update;
+  select c.* into v_claim
+  from app_private.m1_generation_attempt_claims as c
+  where c.attempt_id = p_attempt_id
+    and c.generation_job_id = v_job.id
+    and c.organization_id = v_job.organization_id;
 
   if not found then
     raise exception using errcode = 'P0002',
-      message = 'generation attempt not found';
+      message = 'generation attempt claim not found';
   end if;
-
-  if v_job.state = 'succeeded' and v_attempt.status = 'succeeded' then
-    if v_job.output_hash <> p_output_hash
-       or v_attempt.provider_response_id <> p_provider_response_id
-       or v_attempt.response_schema_id <> p_response_schema_id then
-      raise exception using errcode = '22023',
-        message = 'generation completion does not match existing provenance';
-    end if;
-    return 'succeeded';
-  end if;
-
-  if v_job.state <> 'running'
-     or v_attempt.status <> 'started'
-     or v_attempt.attempt_number <> v_job.attempt_count then
+  if v_claim.event_id <> v_event.id
+     or v_claim.worker_id <> p_worker_id
+     or v_claim.lease_token <> p_lease_token then
     raise exception using errcode = '55000',
       message = 'generation attempt is not current';
   end if;
 
-  update public.generation_job_attempts
-  set response_schema_id = p_response_schema_id,
-      provider_response_id = p_provider_response_id,
-      status = 'succeeded',
-      latency_ms = p_latency_ms,
-      error_code = null,
-      finished_at = statement_timestamp()
-  where id = v_attempt.id;
+  select a.* into v_attempt
+  from public.generation_job_attempts as a
+  where a.id = p_attempt_id
+    and a.generation_job_id = v_job.id
+    and a.organization_id = v_job.organization_id;
 
-  update public.generation_jobs
+  if found then
+    if v_job.state = 'succeeded' and v_attempt.status = 'succeeded' then
+      if v_job.output_hash <> p_output_hash
+         or v_attempt.provider_response_id <> p_provider_response_id
+         or v_attempt.response_schema_id <> p_response_schema_id
+         or v_attempt.latency_ms <> p_latency_ms
+         or v_attempt.provider <> v_claim.provider
+         or v_attempt.model <> v_claim.model
+         or v_attempt.prompt_checksum <> v_claim.prompt_checksum then
+        raise exception using errcode = '22023',
+          message = 'generation completion does not match existing provenance';
+      end if;
+      return 'succeeded';
+    end if;
+
+    raise exception using errcode = '55000',
+      message = 'generation attempt is not current';
+  end if;
+
+  if v_job.state <> 'running'
+     or v_claim.attempt_number <> v_job.attempt_count then
+    raise exception using errcode = '55000',
+      message = 'generation attempt is not current';
+  end if;
+
+  insert into public.generation_job_attempts (
+    id, organization_id, generation_job_id, attempt_number, provider, model,
+    prompt_checksum, request_schema_id, response_schema_id,
+    provider_response_id, status, latency_ms, correlation_id,
+    started_at, finished_at
+  ) values (
+    v_claim.attempt_id, v_claim.organization_id,
+    v_claim.generation_job_id, v_claim.attempt_number,
+    v_claim.provider, v_claim.model, v_claim.prompt_checksum,
+    v_claim.request_schema_id, p_response_schema_id,
+    p_provider_response_id, 'succeeded', p_latency_ms, v_job.correlation_id,
+    v_claim.started_at, statement_timestamp()
+  )
+  returning * into v_attempt;
+
+  update public.generation_jobs as j
   set state = 'succeeded',
-      provider = v_attempt.provider,
-      model = v_attempt.model,
+      provider = v_claim.provider,
+      model = v_claim.model,
       provider_response_id = p_provider_response_id,
       output_hash = p_output_hash,
       last_error_code = null,
       finished_at = statement_timestamp()
-  where id = v_job.id;
+  where j.id = v_job.id;
 
   perform app_private.record_worker_audit(
     v_job.organization_id,
@@ -500,6 +610,7 @@ declare
   v_event public.outbox_events%rowtype;
   v_job public.generation_jobs%rowtype;
   v_attempt public.generation_job_attempts%rowtype;
+  v_claim app_private.m1_generation_attempt_claims%rowtype;
   v_new_state text;
 begin
   if p_error_code !~ '^[a-z][a-z0-9_.-]*$' then
@@ -513,10 +624,10 @@ begin
     p_event_id, p_worker_id, p_lease_token
   );
 
-  select * into v_job
-  from public.generation_jobs
-  where id = v_event.aggregate_id
-    and organization_id = v_event.organization_id
+  select j.* into v_job
+  from public.generation_jobs as j
+  where j.id = v_event.aggregate_id
+    and j.organization_id = v_event.organization_id
   for update;
 
   if not found then
@@ -524,27 +635,42 @@ begin
       message = 'generation job not found';
   end if;
 
-  select * into v_attempt
-  from public.generation_job_attempts
-  where id = p_attempt_id
-    and generation_job_id = v_job.id
-    and organization_id = v_job.organization_id
-  for update;
+  select c.* into v_claim
+  from app_private.m1_generation_attempt_claims as c
+  where c.attempt_id = p_attempt_id
+    and c.generation_job_id = v_job.id
+    and c.organization_id = v_job.organization_id;
 
   if not found then
     raise exception using errcode = 'P0002',
-      message = 'generation attempt not found';
+      message = 'generation attempt claim not found';
+  end if;
+  if v_claim.event_id <> v_event.id
+     or v_claim.worker_id <> p_worker_id
+     or v_claim.lease_token <> p_lease_token then
+    raise exception using errcode = '55000',
+      message = 'generation attempt is not current';
   end if;
 
-  if v_attempt.status = 'failed'
-     and v_attempt.error_code = p_error_code
-     and v_job.state in ('failed', 'dead_letter') then
-    return v_job.state;
+  select a.* into v_attempt
+  from public.generation_job_attempts as a
+  where a.id = p_attempt_id
+    and a.generation_job_id = v_job.id
+    and a.organization_id = v_job.organization_id;
+
+  if found then
+    if v_attempt.status = 'failed'
+       and v_attempt.error_code = p_error_code
+       and v_job.state in ('failed', 'dead_letter') then
+      return v_job.state;
+    end if;
+
+    raise exception using errcode = '55000',
+      message = 'generation attempt is not current';
   end if;
 
   if v_job.state <> 'running'
-     or v_attempt.status <> 'started'
-     or v_attempt.attempt_number <> v_job.attempt_count then
+     or v_claim.attempt_number <> v_job.attempt_count then
     raise exception using errcode = '55000',
       message = 'generation attempt is not current';
   end if;
@@ -554,13 +680,20 @@ begin
     else 'failed'
   end;
 
-  update public.generation_job_attempts
-  set status = 'failed',
-      error_code = p_error_code,
-      finished_at = statement_timestamp()
-  where id = v_attempt.id;
+  insert into public.generation_job_attempts (
+    id, organization_id, generation_job_id, attempt_number, provider, model,
+    prompt_checksum, request_schema_id, status, error_code, correlation_id,
+    started_at, finished_at
+  ) values (
+    v_claim.attempt_id, v_claim.organization_id,
+    v_claim.generation_job_id, v_claim.attempt_number,
+    v_claim.provider, v_claim.model, v_claim.prompt_checksum,
+    v_claim.request_schema_id, 'failed', p_error_code,
+    v_job.correlation_id, v_claim.started_at, statement_timestamp()
+  )
+  returning * into v_attempt;
 
-  update public.generation_jobs
+  update public.generation_jobs as j
   set state = v_new_state,
       available_at = case
         when v_new_state = 'failed'
@@ -573,7 +706,7 @@ begin
         when v_new_state = 'dead_letter' then statement_timestamp()
         else null
       end
-  where id = v_job.id;
+  where j.id = v_job.id;
 
   perform app_private.record_worker_audit(
     v_job.organization_id,
@@ -625,6 +758,7 @@ grant execute on function public.m1_fail_generation_attempt(
 
 do $$
 declare
+  v_role text;
   v_signature text;
 begin
   foreach v_signature in array array[
@@ -646,6 +780,60 @@ begin
         v_signature;
     end if;
   end loop;
+
+  foreach v_role in array array['anon', 'authenticated', 'service_role']
+  loop
+    if has_table_privilege(
+      v_role,
+      'app_private.m1_generation_attempt_claims',
+      'SELECT'
+    )
+       or has_table_privilege(
+         v_role,
+         'app_private.m1_generation_attempt_claims',
+         'INSERT'
+       )
+       or has_table_privilege(
+         v_role,
+         'app_private.m1_generation_attempt_claims',
+         'UPDATE'
+       )
+       or has_table_privilege(
+         v_role,
+         'app_private.m1_generation_attempt_claims',
+         'DELETE'
+       ) then
+      raise exception
+        'M1.1 verification failed: % can access private attempt claims',
+        v_role;
+    end if;
+  end loop;
+
+  if not exists (
+    select 1
+    from pg_catalog.pg_class as c
+    join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
+    where n.nspname = 'app_private'
+      and c.relname = 'm1_generation_attempt_claims'
+      and c.relrowsecurity
+  ) then
+    raise exception
+      'M1.1 verification failed: private attempt claims RLS is disabled';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_catalog.pg_trigger as t
+    join pg_catalog.pg_class as c on c.oid = t.tgrelid
+    join pg_catalog.pg_namespace as n on n.oid = c.relnamespace
+    where n.nspname = 'app_private'
+      and c.relname = 'm1_generation_attempt_claims'
+      and t.tgname = 'm1_generation_attempt_claims_immutable'
+      and not t.tgisinternal
+  ) then
+    raise exception
+      'M1.1 verification failed: private attempt claims are mutable';
+  end if;
 end;
 $$;
 

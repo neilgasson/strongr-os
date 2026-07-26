@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, pg_catalog;
 
-select plan(32);
+select plan(37);
 
 select ok(
   not has_function_privilege(
@@ -100,6 +100,30 @@ select ok(
     'EXECUTE'
   ),
   'service_role can fail generation attempts'
+);
+select ok(
+  not has_table_privilege(
+    'anon',
+    'app_private.m1_generation_attempt_claims',
+    'SELECT'
+  ),
+  'anon cannot read private generation attempt claims'
+);
+select ok(
+  not has_table_privilege(
+    'authenticated',
+    'app_private.m1_generation_attempt_claims',
+    'SELECT'
+  ),
+  'authenticated cannot read private generation attempt claims'
+);
+select ok(
+  not has_table_privilege(
+    'service_role',
+    'app_private.m1_generation_attempt_claims',
+    'SELECT'
+  ),
+  'service_role cannot bypass the generation attempt commands'
 );
 
 insert into public.organizations (id, name, slug)
@@ -260,6 +284,21 @@ from public.m1_begin_generation_attempt(
   'strongr.fixture.audio-reflection.v1'
 );
 
+insert into m11_attempts (
+  label, disposition, generation_job_id, prompt_checksum,
+  attempt_id, attempt_number, max_attempts
+)
+select
+  'success-first-replay', disposition, generation_job_id, prompt_checksum,
+  attempt_id, attempt_number, max_attempts
+from public.m1_begin_generation_attempt(
+  '13000000-0000-4000-8000-000000000008',
+  'm11-worker-first',
+  (select lease_token from m11_claims where label = 'success-first'),
+  'deterministic-test',
+  'strongr.fixture.audio-reflection.v1'
+);
+
 reset role;
 
 select ok(
@@ -276,17 +315,53 @@ select ok(
 select ok(
   (
     select
+      original.attempt_id = replay.attempt_id
+      and original.attempt_number = replay.attempt_number
+      and original.prompt_checksum = replay.prompt_checksum
+    from m11_attempts as original
+    cross join m11_attempts as replay
+    where original.label = 'success-first'
+      and replay.label = 'success-first-replay'
+  ),
+  'replaying begin with the same lease returns the same attempt identity'
+);
+select ok(
+  (
+    select
       j.state = 'running'
       and j.attempt_count = 1
-      and a.status = 'started'
-      and a.provider = 'deterministic-test'
-    from public.generation_jobs j
-    join public.generation_job_attempts a
-      on a.generation_job_id = j.id
-     and a.organization_id = j.organization_id
+      and not exists (
+        select 1
+        from public.generation_job_attempts as a
+        where a.generation_job_id = j.id
+      )
+      and exists (
+        select 1
+        from app_private.m1_generation_attempt_claims as c
+        join m11_attempts as a on a.attempt_id = c.attempt_id
+        where a.label = 'success-first'
+          and c.generation_job_id = j.id
+          and c.attempt_number = 1
+          and c.provider = 'deterministic-test'
+      )
+    from public.generation_jobs as j
     where j.id = '13000000-0000-4000-8000-000000000006'
   ),
-  'begin records the running job and append-only attempt provenance'
+  'begin keeps mutable state on the job and records one private claim'
+);
+select throws_ok(
+  $sql$
+    update app_private.m1_generation_attempt_claims
+    set worker_id = worker_id
+    where attempt_id = (
+      select attempt_id
+      from m11_attempts
+      where label = 'success-first'
+    )
+  $sql$,
+  '55000',
+  'm1_generation_attempt_claims is append-only',
+  'private generation attempt claims are append-only'
 );
 
 update public.outbox_events
@@ -348,19 +423,29 @@ select ok(
 select ok(
   (
     select
-      count(*) = 2
+      count(*) = 1
       and count(*) filter (
         where attempt_number = 1
           and status = 'failed'
           and error_code = 'worker_lease_expired'
       ) = 1
-      and count(*) filter (
-        where attempt_number = 2 and status = 'started'
-      ) = 1
     from public.generation_job_attempts
     where generation_job_id = '13000000-0000-4000-8000-000000000006'
+  )
+  and exists (
+    select 1
+    from app_private.m1_generation_attempt_claims as c
+    join m11_attempts as a on a.attempt_id = c.attempt_id
+    where a.label = 'success-recovered'
+      and c.generation_job_id = '13000000-0000-4000-8000-000000000006'
+      and c.attempt_number = 2
+      and not exists (
+        select 1
+        from public.generation_job_attempts as h
+        where h.id = c.attempt_id
+      )
   ),
-  'recovery closes the abandoned attempt and preserves both attempt records'
+  'recovery appends the abandoned failure and keeps the new attempt pending'
 );
 
 set local role service_role;
@@ -642,6 +727,10 @@ select ok(
       ) = 1
       and count(*) filter (
         where action = 'generation.attempt_failed'
+      ) = 2
+      and count(*) filter (
+        where action = 'generation.attempt_failed'
+          and reason_code = 'worker_lease_expired'
       ) = 1
       and count(*) filter (
         where action = 'generation.dead_lettered'
