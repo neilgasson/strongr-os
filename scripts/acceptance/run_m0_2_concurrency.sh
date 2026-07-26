@@ -173,7 +173,8 @@ select set_config(
     'aal', 'aal1'
   )::text,
   false
-);
+) as request_jwt_claims
+\gset
 set role authenticated;
 select public.m1_request_generation(
   :'organization_id'::uuid,
