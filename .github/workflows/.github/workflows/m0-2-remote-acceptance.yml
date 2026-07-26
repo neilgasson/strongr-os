@@ -1,4 +1,4 @@
-name: M0.2 remote acceptance
+name: .github/workflows/m0-2-remote-acceptance.yml
 
 on:
   workflow_dispatch:
