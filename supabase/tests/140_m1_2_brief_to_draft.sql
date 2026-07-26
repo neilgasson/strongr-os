@@ -265,6 +265,9 @@ select is(
   (select job_id from m12_job where label = 'replay'),
   'an exact generation request replay returns the same job'
 );
+
+reset role;
+
 select is(
   (
     select count(*)
@@ -276,7 +279,6 @@ select is(
   'an exact replay creates only one outbox event'
 );
 
-reset role;
 set local role service_role;
 
 insert into m12_claim (event_id, lease_token)
