@@ -15,7 +15,7 @@
     "lint": "biome lint apps packages scripts/ci",
     "schema:check": "node scripts/ci/generate-content-schemas.ts --check",
     "schema:generate": "node scripts/ci/generate-content-schemas.ts",
-    "test": "node --test apps/studio/test/environment.test.ts apps/worker/test/environment.test.ts packages/ai/test/deterministic-adapter.test.ts packages/content-schemas/test/audio-reflection.test.ts",
+    "test": "node --test apps/studio/test/environment.test.ts apps/worker/test/environment.test.ts apps/worker/test/durable-worker.test.ts apps/worker/test/supabase-rpc.test.ts packages/ai/test/deterministic-adapter.test.ts packages/content-schemas/test/audio-reflection.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

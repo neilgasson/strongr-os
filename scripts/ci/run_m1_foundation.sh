@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-artifact_dir="${STRONGR_OS_M1_ARTIFACT_DIR:-artifacts/m1-0}"
+artifact_dir="${STRONGR_OS_M1_ARTIFACT_DIR:-artifacts/m1}"
 mkdir -p "$artifact_dir"
 summary="$artifact_dir/summary.jsonl"
 : >"$summary"

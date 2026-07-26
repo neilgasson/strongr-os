@@ -39,9 +39,9 @@ jobs:
 
       - name: Prepare evidence directory
         run: |
-          mkdir -p artifacts/m1-0
+          mkdir -p artifacts/m1
           printf '{"check":"workflow_started","status":"pass","sha":"%s"}\n' \
-            "$GITHUB_SHA" >artifacts/m1-0/workflow.jsonl
+            "$GITHUB_SHA" >artifacts/m1/workflow.jsonl
 
       - name: Set up Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
@@ -58,21 +58,23 @@ jobs:
         id: install
         run: |
           pnpm install --frozen-lockfile 2>&1 \
-            | tee artifacts/m1-0/install.log
+            | tee artifacts/m1/install.log
 
       - name: Validate shell syntax
         if: always()
         run: bash -n scripts/ci/*.sh
 
-      - name: Run M1.0 foundation checks
+      - name: Run M1 application checks
         if: always()
+        env:
+          STRONGR_OS_M1_ARTIFACT_DIR: artifacts/m1
         run: bash scripts/ci/run_m1_foundation.sh
 
-      - name: Upload M1.0 evidence
+      - name: Upload M1 application evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: m1-0-foundation-evidence-${{ github.sha }}
-          path: artifacts/m1-0
+          name: m1-application-evidence-${{ github.sha }}
+          path: artifacts/m1
           if-no-files-found: error
           retention-days: 30
