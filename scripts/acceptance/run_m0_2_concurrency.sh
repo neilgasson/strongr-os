@@ -173,7 +173,8 @@ select set_config(
     'aal', 'aal1'
   )::text,
   false
-);
+) as request_jwt_claims
+\gset
 set role authenticated;
 select public.m1_request_generation(
   :'organization_id'::uuid,
@@ -224,7 +225,7 @@ select
     where o.organization_id = :'organization_id'::uuid
       and o.aggregate_type = 'generation_job'
   ),
-  min(id)::text
+  min(id::text)
 from public.generation_jobs
 where organization_id = :'organization_id'::uuid
   and idempotency_key = :'idempotency_key';

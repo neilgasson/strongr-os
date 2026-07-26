@@ -25,6 +25,9 @@ jobs:
     name: M0.2 reliability proof / acceptance
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
 
     steps:
       - name: Check out source
