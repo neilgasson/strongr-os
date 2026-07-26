@@ -30,6 +30,13 @@ jobs:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
+      - name: Prepare evidence directory
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/m0-2-remote
+          printf '{"test":"workflow_started","status":"pass","sha":"%s"}\n' \
+            "$GITHUB_SHA" >artifacts/m0-2-remote/workflow.jsonl
+
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
@@ -62,35 +69,52 @@ jobs:
           STRONGR_OS_RESTORE_DATABASE_URL: ${{ secrets.STRONGR_OS_RESTORE_DATABASE_URL }}
         run: |
           set -euo pipefail
-          mkdir -p artifacts/m0-2-remote
+          evidence=artifacts/m0-2-remote/migrations.jsonl
+          trap 'status=$?; if (( status != 0 )); then printf "{\"test\":\"repository_migrations\",\"status\":\"fail\",\"exit_code\":%d}\n" "$status" >>"$evidence"; fi' EXIT
+
+          public_table_count="$(
+            psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
+              -X -qAt -v ON_ERROR_STOP=1 \
+              -c "select count(*) from information_schema.tables
+                  where table_schema = 'public'
+                    and table_type = 'BASE TABLE'"
+          )"
+          migration_history_exists="$(
+            psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
+              -X -qAt -v ON_ERROR_STOP=1 \
+              -c "select to_regclass(
+                    'supabase_migrations.schema_migrations'
+                  ) is not null"
+          )"
+          if [[ "$public_table_count" != "0" || "$migration_history_exists" != "f" ]]; then
+            printf '%s\n' \
+              "ERROR: Disposable target must be clean before migrations are applied." >&2
+            exit 1
+          fi
 
           psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
             -X -v ON_ERROR_STOP=1 \
-            -c "create schema if not exists supabase_migrations"
+            <<'SQL'
+          create schema supabase_migrations;
+          create table supabase_migrations.schema_migrations (
+            version text primary key,
+            statements text[],
+            name text
+          );
+          SQL
 
-          psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
-            -X -v ON_ERROR_STOP=1 \
-            -c "create table if not exists supabase_migrations.schema_migrations (
-                  version text primary key,
-                  statements text[],
-                  name text
-                )"
-
+          migration_count=0
           for migration in supabase/migrations/*.sql; do
             echo "Applying $migration"
-
-            psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
-              -X -v ON_ERROR_STOP=1 \
-              -f "$migration"
-
             filename="$(basename "$migration" .sql)"
             version="${filename%%_*}"
             migration_name="${filename#*_}"
 
             psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
-              -X -v ON_ERROR_STOP=1 \
+              -X -v ON_ERROR_STOP=1 --single-transaction \
               -v version="$version" \
-              -v migration_name="$migration_name" <<'SQL'
+              -v migration_name="$migration_name" \
+              -f "$migration" -f - <<'SQL'
           insert into supabase_migrations.schema_migrations (
             version,
             statements,
@@ -101,9 +125,25 @@ jobs:
             array[]::text[],
             :'migration_name'
           )
-          on conflict (version) do nothing;
+          ;
           SQL
+            migration_count="$((migration_count + 1))"
+            printf '{"test":"migration_applied","status":"pass","version":"%s","name":"%s"}\n' \
+              "$version" "$migration_name" >>"$evidence"
           done
+
+          recorded_count="$(
+            psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
+              -X -qAt -v ON_ERROR_STOP=1 \
+              -c "select count(*) from supabase_migrations.schema_migrations"
+          )"
+          if [[ "$recorded_count" != "$migration_count" ]]; then
+            printf '%s\n' \
+              "ERROR: Applied and recorded migration counts differ." >&2
+            exit 1
+          fi
+          printf '{"test":"repository_migrations","status":"pass","count":%d}\n' \
+            "$migration_count" >>"$evidence"
 
       - name: Run real strongr-os-dev acceptance
         env:
@@ -113,9 +153,8 @@ jobs:
           STRONGR_OS_DATABASE_URL: ${{ secrets.STRONGR_OS_DATABASE_URL }}
         run: |
           set -euo pipefail
-          mkdir -p artifacts/m0-2-remote
           python3 scripts/acceptance/run_remote_supabase_acceptance.py \
-            | tee artifacts/m0-2-remote/remote-acceptance.jsonl
+            2>&1 | tee artifacts/m0-2-remote/remote-acceptance.jsonl
 
       - name: Run disposable backup and restore rehearsal
         env:
@@ -124,9 +163,8 @@ jobs:
           STRONGR_OS_RESTORE_WORK_DIRECTORY: ${{ runner.temp }}/strongr-os-restore
         run: |
           set -euo pipefail
-          mkdir -p artifacts/m0-2-remote
           scripts/acceptance/rehearse_backup_restore.sh \
-            | tee artifacts/m0-2-remote/backup-restore.jsonl
+            2>&1 | tee artifacts/m0-2-remote/backup-restore.jsonl
 
       - name: Upload remote acceptance evidence
         if: always()
