@@ -155,6 +155,11 @@ if (( ${#public_tables[@]} == 0 )); then
 fi
 
 for table_identifier in "${public_tables[@]}"; do
+  psql "$restore_url" -X -qAt -v ON_ERROR_STOP=1 \
+    -c "truncate table public.$table_identifier restart identity cascade"
+done
+
+for table_identifier in "${public_tables[@]}"; do
   target_count="$(
     psql "$restore_url" -X -qAt -v ON_ERROR_STOP=1 \
       -c "select count(*) from public.$table_identifier"
