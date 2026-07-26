@@ -1,0 +1,78 @@
+name: M1 application
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: ["main"]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "scripts/ci/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig*.json"
+      - "biome.json"
+      - ".nvmrc"
+      - ".github/workflows/m1-application.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m1-application-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  foundation:
+    name: M1 application / foundation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Prepare evidence directory
+        run: |
+          mkdir -p artifacts/m1-0
+          printf '{"check":"workflow_started","status":"pass","sha":"%s"}\n' \
+            "$GITHUB_SHA" >artifacts/m1-0/workflow.jsonl
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+          pnpm --version
+
+      - name: Install dependencies
+        id: install
+        run: |
+          pnpm install --frozen-lockfile 2>&1 \
+            | tee artifacts/m1-0/install.log
+
+      - name: Validate shell syntax
+        if: always()
+        run: bash -n scripts/ci/*.sh
+
+      - name: Run M1.0 foundation checks
+        if: always()
+        run: bash scripts/ci/run_m1_foundation.sh
+
+      - name: Upload M1.0 evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: m1-0-foundation-evidence-${{ github.sha }}
+          path: artifacts/m1-0
+          if-no-files-found: error
+          retention-days: 30

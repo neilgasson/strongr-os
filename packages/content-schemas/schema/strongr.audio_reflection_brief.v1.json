@@ -1,0 +1,120 @@
+{
+  "type": "object",
+  "required": [
+    "audience",
+    "constraints",
+    "objectives",
+    "schema_id",
+    "scripture_references",
+    "target_duration_seconds",
+    "theme",
+    "title",
+    "tone"
+  ],
+  "properties": {
+    "audience": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "\\S"
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500,
+        "pattern": "\\S"
+      },
+      "maxItems": 12
+    },
+    "objectives": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500,
+        "pattern": "\\S"
+      },
+      "maxItems": 8,
+      "minItems": 1
+    },
+    "schema_id": {
+      "type": "string",
+      "const": "strongr.audio_reflection_brief.v1"
+    },
+    "scripture_references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "reference",
+          "source_citation",
+          "translation"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "\\S"
+          },
+          "source_citation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "translation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "\\S"
+          }
+        },
+        "additionalProperties": false
+      },
+      "maxItems": 12,
+      "minItems": 1
+    },
+    "target_duration_seconds": {
+      "type": "integer",
+      "maximum": 1200,
+      "minimum": 60
+    },
+    "theme": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "pattern": "\\S"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    },
+    "tone": {
+      "anyOf": [
+        {
+          "type": "string",
+          "const": "challenging"
+        },
+        {
+          "type": "string",
+          "const": "encouraging"
+        },
+        {
+          "type": "string",
+          "const": "pastoral"
+        },
+        {
+          "type": "string",
+          "const": "reflective"
+        }
+      ]
+    }
+  },
+  "$id": "https://strongr.os/schemas/strongr.audio_reflection_brief.v1.json",
+  "additionalProperties": false
+}

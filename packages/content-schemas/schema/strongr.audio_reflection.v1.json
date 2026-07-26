@@ -1,0 +1,89 @@
+{
+  "type": "object",
+  "required": [
+    "closing",
+    "opening",
+    "reflection",
+    "reflection_questions",
+    "schema_id",
+    "scripture_references",
+    "title"
+  ],
+  "properties": {
+    "closing": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "\\S"
+    },
+    "opening": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "\\S"
+    },
+    "reflection": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000,
+      "pattern": "\\S"
+    },
+    "reflection_questions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500,
+        "pattern": "\\S"
+      },
+      "maxItems": 5,
+      "minItems": 1
+    },
+    "schema_id": {
+      "type": "string",
+      "const": "strongr.audio_reflection.v1"
+    },
+    "scripture_references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "reference",
+          "source_citation",
+          "translation"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "\\S"
+          },
+          "source_citation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "pattern": "\\S"
+          },
+          "translation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "\\S"
+          }
+        },
+        "additionalProperties": false
+      },
+      "maxItems": 12,
+      "minItems": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "\\S"
+    }
+  },
+  "$id": "https://strongr.os/schemas/strongr.audio_reflection.v1.json",
+  "additionalProperties": false
+}
