@@ -241,12 +241,14 @@ for run in action_runs.get("workflow_runs") or []:
         actions_available = False
         continue
     for job in json.loads(completed.stdout).get("jobs") or []:
-        context = f"{run_name} / {job.get('name')}"
-        observed_run_checks[context] = {
-            "status": job.get("status"),
-            "conclusion": job.get("conclusion"),
-            "url": job.get("html_url"),
-        }
+        job_name = job.get("name") or ""
+        for context in {job_name, f"{run_name} / {job_name}"}:
+            if context in expected_checks:
+                observed_run_checks[context] = {
+                    "status": job.get("status"),
+                    "conclusion": job.get("conclusion"),
+                    "url": job.get("html_url"),
+                }
 
 missing_successful_runs = sorted(
     check
