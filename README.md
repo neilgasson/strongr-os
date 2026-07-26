@@ -15,7 +15,7 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M1 planning — governed audio-reflection application slice**
+**M1.0 implementation — governed application foundation**
 
 M0.2 reliability and operational acceptance completed on July 26, 2026. The
 canonical record at evidence/m0-2/acceptance-record.json binds the accepted
@@ -24,8 +24,9 @@ exact identifiers.
 
 The repository contains the hardened M0 platform kernel, the governed M1
 audio-reflection database foundation, and the accepted M0.2 reliability proof.
-The proposed M1 application scope is defined in docs/architecture/M1_SCOPE.md
-for repository-owner review before implementation begins.
+The repository owner approved the M1 application scope through PR #12. M1.0 is
+limited to module skeletons, typed contracts, environment boundaries,
+deterministic fixtures, and CI foundations.
 
 ## Current implementation boundary
 
@@ -40,7 +41,8 @@ The existing Strongr Studio and M1 checkpoints are design and workflow reference
 - AI may assist with drafting and checks; authorized humans retain theological, editorial, approval, export, and publishing authority.
 - Tenant isolation, authorization, auditability, accessibility, recovery, and privacy are release requirements.
 - No database migration is executed before it is reviewed and committed.
-- No M1 implementation begins until the proposed M1 scope is explicitly approved.
+- M1 implementation remains inside the explicitly approved scope and protected
+  delivery sequence.
 
 ## Repository structure
 
@@ -82,7 +84,7 @@ evidence/
 
 ## Status
 
-The M0/M1 database foundation and M0.2 acceptance are complete. M1 application
-scope is proposed but not yet approved for implementation. These files do not
-authorize deployment, publication, production acceptance, or any change to the
-current Strongr Daily application.
+The M0/M1 database foundation and M0.2 acceptance are complete. M1 scope is
+approved for protected implementation, beginning with M1.0. This approval does
+not authorize deployment, publication, production acceptance, or any change to
+the current Strongr Daily application.
