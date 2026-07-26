@@ -12,6 +12,7 @@ import type {
   DeliveryFailureState,
   GenerationAttemptDisposition,
   GenerationAttemptLease,
+  GenerationCompletion,
   GenerationEventClaim,
   GenerationFailureState,
   GenerationWorkerStore,
@@ -205,18 +206,26 @@ export class SupabaseGenerationWorkerStore implements GenerationWorkerStore {
     attemptId: Uuid,
     result: GenerationResult,
     latencyMs: number,
-  ): Promise<"succeeded"> {
-    const state = await this.#rpc.rpc<unknown>(workerCommands.completeGenerationAttempt, {
+  ): Promise<GenerationCompletion> {
+    const value = await this.#rpc.rpc<unknown>(workerCommands.completeGenerationAttempt, {
       p_attempt_id: attemptId,
       p_event_id: claim.eventId,
       p_latency_ms: latencyMs,
       p_lease_token: claim.leaseToken,
+      p_output: result.output,
       p_output_hash: result.outputHash,
       p_provider_response_id: result.providerResponseId,
       p_response_schema_id: result.responseSchemaId,
       p_worker_id: workerId,
     });
-    return requireScalar(state, ["succeeded"] as const, "complete generation attempt");
+    const completion = requireSingleRow(value, "complete generation attempt");
+    if (requireString(completion, "completion_state") !== "succeeded") {
+      throw new Error("Invalid complete generation attempt RPC result");
+    }
+    return Object.freeze({
+      completionState: "succeeded",
+      contentVersionId: requireUuid(completion, "content_version_id"),
+    });
   }
 
   async failGenerationAttempt(

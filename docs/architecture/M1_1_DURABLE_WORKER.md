@@ -2,12 +2,14 @@
 
 ## Status
 
-Implementation candidate for protected review. M1.0 was accepted through PR
-#13 at commit `58fdcd9d3ff9736faf505c776d03c4367b7dbd9a`.
+Accepted on protected `main` through owner-approved PR #14 at commit
+`da6418a793b244afa973cfecaa69a797cf41bc2c`. M1.0 was accepted through PR #13
+at commit `58fdcd9d3ff9736faf505c776d03c4367b7dbd9a`.
 
-M1.1 adds a non-deployed, server-side worker slice. It does not create a draft
-version, begin M1.2 operator flows, connect an external AI provider, publish
-content, or modify the current Strongr Daily application.
+M1.1 added a non-deployed, server-side worker slice. At its acceptance
+boundary, it did not create a draft version, begin M1.2 operator flows, connect
+an external AI provider, publish content, or modify the current Strongr Daily
+application.
 
 ## Delivery contract
 

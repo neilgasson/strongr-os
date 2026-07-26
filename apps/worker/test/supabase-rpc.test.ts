@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SupabaseRpcClient, SupabaseRpcError } from "../src/index.ts";
+import {
+  SupabaseGenerationWorkerStore,
+  SupabaseRpcClient,
+  SupabaseRpcError,
+} from "../src/index.ts";
+import { deterministicGenerationAdapter } from "../../../packages/ai/src/index.ts";
+import { audioReflectionBriefFixture, fixtureIds } from "../../../packages/testing/src/index.ts";
+import type { GenerationEventClaim } from "../src/index.ts";
 import type { WorkerEnvironment } from "../src/environment.ts";
 
 const secretEnvironment: WorkerEnvironment = Object.freeze({
@@ -68,4 +75,59 @@ test("legacy service-role RPC adds its JWT authorization header", async () => {
   assert.equal(result, "succeeded");
   assert.equal(capturedHeaders?.apikey, environment.supabasePrivilegedKey);
   assert.equal(capturedHeaders?.Authorization, `Bearer ${environment.supabasePrivilegedKey}`);
+});
+
+test("worker completion sends validated output and returns the durable draft identity", async () => {
+  const contentVersionId = "00000000-0000-4000-8000-000000000009";
+  let capturedBody: Readonly<Record<string, unknown>> | undefined;
+  const client = new SupabaseRpcClient(secretEnvironment, (_input, init) => {
+    capturedBody = JSON.parse(String(init?.body)) as Readonly<Record<string, unknown>>;
+    return Promise.resolve(
+      Response.json([
+        {
+          completion_state: "succeeded",
+          content_version_id: contentVersionId,
+        },
+      ]),
+    );
+  });
+  const store = new SupabaseGenerationWorkerStore(client);
+  const claim: GenerationEventClaim = {
+    aggregateType: "generation_job",
+    attemptNumber: 1,
+    causationId: null,
+    correlationId: fixtureIds.correlationId,
+    eventId: "00000000-0000-4000-8000-000000000005",
+    eventType: "content.generation_requested.v1",
+    eventVersion: 1,
+    generationJobId: fixtureIds.generationJobId,
+    leaseExpiresAt: "2026-07-26T17:00:00Z",
+    leaseToken: "00000000-0000-4000-8000-000000000008",
+    organizationId: fixtureIds.organizationAlphaId,
+    payload: { job_id: fixtureIds.generationJobId },
+  };
+  const generation = await deterministicGenerationAdapter.generate({
+    brief: audioReflectionBriefFixture,
+    correlationId: fixtureIds.correlationId,
+    generationJobId: fixtureIds.generationJobId,
+    organizationId: fixtureIds.organizationAlphaId,
+    promptKey: "strongr.audio_reflection.fixture",
+    promptVersion: 1,
+  });
+
+  const completion = await store.completeGenerationAttempt(
+    claim,
+    secretEnvironment.workerId,
+    "00000000-0000-4000-8000-000000000006",
+    generation,
+    37,
+  );
+
+  assert.deepEqual(completion, {
+    completionState: "succeeded",
+    contentVersionId,
+  });
+  assert.deepEqual(capturedBody?.p_output, generation.output);
+  assert.equal(capturedBody?.p_output_hash, generation.outputHash);
+  assert.equal(capturedBody?.p_response_schema_id, "strongr.audio_reflection.v1");
 });
