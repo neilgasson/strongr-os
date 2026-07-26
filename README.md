@@ -15,16 +15,17 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M0.2 reliability and operational proof**
+**M1 planning — governed audio-reflection application slice**
 
-The repository now contains the hardened M0 platform-kernel migration and the
-M1 governed audio-reflection migration, database-contract tests, CI validation,
-an authorization matrix, a data dictionary, a threat model, and a migration
-runbook. M0.2 adds the forward worker-permission repair, tokenized outbox
-leases, retry/dead-letter recovery, immutable delivery receipts, health and
-metrics, complete generation-request idempotency fingerprints, real Auth
-acceptance automation, concurrency tests, recovery drills, and a second
-required CI check.
+M0.2 reliability and operational acceptance completed on July 26, 2026. The
+canonical record at evidence/m0-2/acceptance-record.json binds the accepted
+remote, migration, recovery, reliability, governance, and artifact evidence to
+exact identifiers.
+
+The repository contains the hardened M0 platform kernel, the governed M1
+audio-reflection database foundation, and the accepted M0.2 reliability proof.
+The proposed M1 application scope is defined in docs/architecture/M1_SCOPE.md
+for repository-owner review before implementation begins.
 
 ## Current implementation boundary
 
@@ -39,7 +40,7 @@ The existing Strongr Studio and M1 checkpoints are design and workflow reference
 - AI may assist with drafting and checks; authorized humans retain theological, editorial, approval, export, and publishing authority.
 - Tenant isolation, authorization, auditability, accessibility, recovery, and privacy are release requirements.
 - No database migration is executed before it is reviewed and committed.
-- No M1 implementation continues until the M0 acceptance requirements are met.
+- No M1 implementation begins until the proposed M1 scope is explicitly approved.
 
 ## Repository structure
 
@@ -81,6 +82,7 @@ evidence/
 
 ## Status
 
-M0/M1 is implemented and M0.2 acceptance evidence is prepared for controlled
-execution. These files do not authorize merge, deployment, publication,
-production acceptance, or any change to the current Strongr Daily app.
+The M0/M1 database foundation and M0.2 acceptance are complete. M1 application
+scope is proposed but not yet approved for implementation. These files do not
+authorize deployment, publication, production acceptance, or any change to the
+current Strongr Daily application.
