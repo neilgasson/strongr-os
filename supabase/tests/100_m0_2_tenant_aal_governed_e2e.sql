@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, pg_catalog;
 
-select plan(38);
+select plan(41);
 
 insert into public.organizations (id, name, slug)
 values
@@ -626,6 +626,66 @@ select lives_ok(
     )
   $sql$,
   'approved evidence produces an immutable production package'
+);
+
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-4000-8000-000000000011","role":"authenticated","aal":"aal1"}',
+  true
+);
+
+select throws_ok(
+  $sql$
+    select public.m1_revoke_approval(
+      '10000000-0000-4000-8000-000000000001',
+      (
+        select id from public.approval_snapshots
+        where organization_id = '10000000-0000-4000-8000-000000000001'
+      ),
+      'evidence_changed',
+      '10000000-0000-4000-8000-000000000116'
+    )
+  $sql$,
+  '42501',
+  'aal2 authentication required',
+  'AAL1 cannot revoke an approval'
+);
+
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"10000000-0000-4000-8000-000000000011","role":"authenticated","aal":"aal2"}',
+  true
+);
+
+select lives_ok(
+  $sql$
+    select public.m1_revoke_approval(
+      '10000000-0000-4000-8000-000000000001',
+      (
+        select id from public.approval_snapshots
+        where organization_id = '10000000-0000-4000-8000-000000000001'
+      ),
+      'evidence_changed',
+      '10000000-0000-4000-8000-000000000117'
+    )
+  $sql$,
+  'the same authorized revocation succeeds at AAL2'
+);
+
+select throws_ok(
+  $sql$
+    select public.m1_create_production_package(
+      '10000000-0000-4000-8000-000000000001',
+      (
+        select id from public.approval_snapshots
+        where organization_id = '10000000-0000-4000-8000-000000000001'
+      ),
+      '10000000-0000-4000-8000-000000000118'
+    )
+  $sql$,
+  '55000',
+  'approval is absent or revoked',
+  'a revoked approval cannot authorize another package request'
 );
 
 reset role;
