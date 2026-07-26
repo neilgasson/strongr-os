@@ -18,6 +18,7 @@ import {
 const eventId = "00000000-0000-4000-8000-000000000005";
 const attemptId = "00000000-0000-4000-8000-000000000006";
 const receiptId = "00000000-0000-4000-8000-000000000007";
+const contentVersionId = "00000000-0000-4000-8000-000000000009";
 
 const claim: GenerationEventClaim = Object.freeze({
   aggregateType: "generation_job",
@@ -68,7 +69,10 @@ function createStore(overrides: Partial<GenerationWorkerStore> = {}): {
     },
     completeGenerationAttempt() {
       calls.push("complete");
-      return Promise.resolve("succeeded");
+      return Promise.resolve({
+        completionState: "succeeded" as const,
+        contentVersionId,
+      });
     },
     failGenerationAttempt() {
       calls.push("fail-generation");
@@ -119,7 +123,12 @@ test("durable worker completes and acknowledges a governed generation attempt", 
     succeeded: 1,
   });
   assert.deepEqual(calls, ["claim", "begin", "complete", "acknowledge", "heartbeat"]);
-  assert.ok(records.some((record) => record.action === "generation_completed"));
+  assert.ok(
+    records.some(
+      (record) =>
+        record.action === "generation_completed" && record.content_version_id === contentVersionId,
+    ),
+  );
   const serialized = JSON.stringify(records);
   assert.doesNotMatch(serialized, /Synthetic Reflection Fixture/);
   assert.doesNotMatch(serialized, /leaseToken|output|brief|apikey|secret/i);
@@ -264,4 +273,26 @@ test("invalid brief fails before the adapter sees private content", async () => 
 
   assert.equal(generationCalls, 0);
   assert.equal(summary.retried, 1);
+});
+
+test("tampered adapter output provenance fails before draft persistence", async () => {
+  const adapter: GenerationAdapter = {
+    async generate(request) {
+      const result = await deterministicGenerationAdapter.generate(request);
+      return { ...result, outputHash: "f".repeat(64) };
+    },
+    identity: deterministicGenerationAdapter.identity,
+  };
+  const { calls, store } = createStore();
+  const worker = new DurableGenerationWorker({
+    adapter,
+    store,
+    workerId: "m1-worker-invalid-output",
+  });
+
+  const summary = await worker.runOnce();
+
+  assert.equal(summary.retried, 1);
+  assert.deepEqual(calls, ["claim", "begin", "fail-generation", "fail-outbox", "heartbeat"]);
+  assert.ok(!calls.includes("complete"));
 });

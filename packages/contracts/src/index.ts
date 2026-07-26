@@ -83,8 +83,54 @@ export interface TenantBriefSummary {
   readonly createdAt: string;
 }
 
+export type GenerationJobState =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "dead_letter"
+  | "cancelled";
+
+export interface TenantGenerationJobSummary {
+  readonly id: Uuid;
+  readonly organizationId: Uuid;
+  readonly briefId: Uuid;
+  readonly state: GenerationJobState;
+  readonly attemptCount: number;
+  readonly outputHash: string | null;
+  readonly createdAt: string;
+  readonly finishedAt: string | null;
+}
+
+export type ContentVersionState = "draft" | "submitted" | "superseded";
+export type ContentVersionSource = "manual" | "ai_assisted";
+
+export interface TenantContentVersionSummary {
+  readonly id: Uuid;
+  readonly organizationId: Uuid;
+  readonly contentItemId: Uuid;
+  readonly briefId: Uuid;
+  readonly versionNumber: number;
+  readonly schemaId: "strongr.audio_reflection.v1";
+  readonly payload: JsonValue;
+  readonly payloadHash: string;
+  readonly source: ContentVersionSource;
+  readonly sourceJobId: Uuid | null;
+  readonly state: ContentVersionState;
+  readonly createdAt: string;
+  readonly submittedAt: string | null;
+}
+
 export interface TenantReadGateway {
-  listBriefs(organizationId: Uuid): Promise<readonly TenantBriefSummary[]>;
+  listBriefs(organizationId: Uuid, limit?: number): Promise<readonly TenantBriefSummary[]>;
+  listGenerationJobs(
+    organizationId: Uuid,
+    limit?: number,
+  ): Promise<readonly TenantGenerationJobSummary[]>;
+  listContentVersions(
+    organizationId: Uuid,
+    limit?: number,
+  ): Promise<readonly TenantContentVersionSummary[]>;
 }
 
 export interface ContentGenerationRequestedV1 {

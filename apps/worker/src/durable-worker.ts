@@ -3,8 +3,11 @@ import type {
   GenerationAdapterIdentity,
   GenerationResult,
 } from "../../../packages/ai/src/index.ts";
+import { createGenerationOutputHash } from "../../../packages/ai/src/index.ts";
 import {
+  type AudioReflection,
   type AudioReflectionBrief,
+  parseAudioReflection,
   parseAudioReflectionBrief,
 } from "../../../packages/content-schemas/src/index.ts";
 import type { JsonValue, Uuid } from "../../../packages/contracts/src/index.ts";
@@ -47,6 +50,11 @@ export interface GenerationAttemptLease {
 export type DeliveryFailureState = "failed" | "dead_letter" | "delivered";
 export type GenerationFailureState = "failed" | "dead_letter";
 
+export interface GenerationCompletion {
+  readonly completionState: "succeeded";
+  readonly contentVersionId: Uuid;
+}
+
 export interface GenerationWorkerStore {
   claimGenerationEvents(
     workerId: string,
@@ -64,7 +72,7 @@ export interface GenerationWorkerStore {
     attemptId: Uuid,
     result: GenerationResult,
     latencyMs: number,
-  ): Promise<"succeeded">;
+  ): Promise<GenerationCompletion>;
   failGenerationAttempt(
     claim: GenerationEventClaim,
     workerId: string,
@@ -101,6 +109,7 @@ export interface WorkerEvidenceRecord {
   readonly event_id?: Uuid;
   readonly generation_job_id?: Uuid;
   readonly attempt_number?: number;
+  readonly content_version_id?: Uuid;
   readonly error_code?: string;
 }
 
@@ -151,12 +160,18 @@ function validGenerationResult(
   identity: GenerationAdapterIdentity,
   promptChecksum: string,
 ): boolean {
+  let output: AudioReflection;
+  try {
+    output = parseAudioReflection(result.output);
+  } catch {
+    return false;
+  }
   return (
     result.provider === identity.provider &&
     result.model === identity.model &&
     result.promptChecksum === promptChecksum &&
     result.responseSchemaId === "strongr.audio_reflection.v1" &&
-    /^[a-f0-9]{64}$/.test(result.outputHash)
+    result.outputHash === createGenerationOutputHash(output)
   );
 }
 
@@ -311,8 +326,9 @@ export class DurableGenerationWorker {
       );
     }
 
+    let completion: GenerationCompletion;
     try {
-      await this.#store.completeGenerationAttempt(
+      completion = await this.#store.completeGenerationAttempt(
         claim,
         this.#workerId,
         attempt.attemptId,
@@ -337,7 +353,14 @@ export class DurableGenerationWorker {
       return "deferred";
     }
 
-    this.#record("generation_completed", "pass", claim, attempt);
+    this.#record(
+      "generation_completed",
+      "pass",
+      claim,
+      attempt,
+      undefined,
+      completion.contentVersionId,
+    );
     return "succeeded";
   }
 
@@ -461,6 +484,7 @@ export class DurableGenerationWorker {
     claim?: GenerationEventClaim,
     attempt?: GenerationAttemptLease,
     errorCode?: string,
+    contentVersionId?: Uuid,
   ): void {
     this.#evidence.record({
       action,
@@ -475,6 +499,7 @@ export class DurableGenerationWorker {
           }
         : {}),
       ...(errorCode ? { error_code: errorCode } : {}),
+      ...(contentVersionId ? { content_version_id: contentVersionId } : {}),
     });
   }
 }

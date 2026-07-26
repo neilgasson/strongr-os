@@ -56,7 +56,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'anon',
-    'public.m1_complete_generation_attempt(uuid,text,uuid,uuid,text,text,text,integer)',
+    'public.m1_complete_generation_attempt(uuid,text,uuid,uuid,text,text,jsonb,text,integer)',
     'EXECUTE'
   ),
   'anon cannot complete generation attempts'
@@ -64,7 +64,7 @@ select ok(
 select ok(
   not has_function_privilege(
     'authenticated',
-    'public.m1_complete_generation_attempt(uuid,text,uuid,uuid,text,text,text,integer)',
+    'public.m1_complete_generation_attempt(uuid,text,uuid,uuid,text,text,jsonb,text,integer)',
     'EXECUTE'
   ),
   'authenticated cannot complete generation attempts'
@@ -72,7 +72,7 @@ select ok(
 select ok(
   has_function_privilege(
     'service_role',
-    'public.m1_complete_generation_attempt(uuid,text,uuid,uuid,text,text,text,integer)',
+    'public.m1_complete_generation_attempt(uuid,text,uuid,uuid,text,text,jsonb,text,integer)',
     'EXECUTE'
   ),
   'service_role can complete generation attempts'
@@ -451,15 +451,31 @@ select ok(
 set local role service_role;
 
 select is(
-  public.m1_complete_generation_attempt(
-    '13000000-0000-4000-8000-000000000008',
-    'm11-worker-recovery',
-    (select lease_token from m11_claims where label = 'success-recovered'),
-    (select attempt_id from m11_attempts where label = 'success-recovered'),
-    'fixture-provider-response',
-    'strongr.audio_reflection.v1',
-    repeat('c', 64),
-    42
+  (
+    select completion_state
+    from public.m1_complete_generation_attempt(
+      '13000000-0000-4000-8000-000000000008',
+      'm11-worker-recovery',
+      (select lease_token from m11_claims where label = 'success-recovered'),
+      (select attempt_id from m11_attempts where label = 'success-recovered'),
+      'fixture-provider-response',
+      'strongr.audio_reflection.v1',
+      '{
+        "closing":"Synthetic closing.",
+        "opening":"Synthetic opening.",
+        "reflection":"Synthetic reflection.",
+        "reflection_questions":["Synthetic question?"],
+        "schema_id":"strongr.audio_reflection.v1",
+        "scripture_references":[{
+          "reference":"Synthetic Reference 1:1",
+          "source_citation":"Synthetic fixture; not a quotation",
+          "translation":"TEST"
+        }],
+        "title":"M1.1 durable worker fixture"
+      }'::jsonb,
+      repeat('c', 64),
+      42
+    )
   ),
   'succeeded',
   'the current worker completes the generation attempt'
@@ -488,15 +504,31 @@ select ok(
 set local role service_role;
 
 select is(
-  public.m1_complete_generation_attempt(
-    '13000000-0000-4000-8000-000000000008',
-    'm11-worker-recovery',
-    (select lease_token from m11_claims where label = 'success-recovered'),
-    (select attempt_id from m11_attempts where label = 'success-recovered'),
-    'fixture-provider-response',
-    'strongr.audio_reflection.v1',
-    repeat('c', 64),
-    42
+  (
+    select completion_state
+    from public.m1_complete_generation_attempt(
+      '13000000-0000-4000-8000-000000000008',
+      'm11-worker-recovery',
+      (select lease_token from m11_claims where label = 'success-recovered'),
+      (select attempt_id from m11_attempts where label = 'success-recovered'),
+      'fixture-provider-response',
+      'strongr.audio_reflection.v1',
+      '{
+        "closing":"Synthetic closing.",
+        "opening":"Synthetic opening.",
+        "reflection":"Synthetic reflection.",
+        "reflection_questions":["Synthetic question?"],
+        "schema_id":"strongr.audio_reflection.v1",
+        "scripture_references":[{
+          "reference":"Synthetic Reference 1:1",
+          "source_citation":"Synthetic fixture; not a quotation",
+          "translation":"TEST"
+        }],
+        "title":"M1.1 durable worker fixture"
+      }'::jsonb,
+      repeat('c', 64),
+      42
+    )
   ),
   'succeeded',
   'an exact completion replay is idempotent'

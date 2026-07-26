@@ -8,6 +8,7 @@ export type {
   DurableWorkerOptions,
   GenerationAttemptDisposition,
   GenerationAttemptLease,
+  GenerationCompletion,
   GenerationEventClaim,
   GenerationFailureState,
   GenerationWorkerStore,
