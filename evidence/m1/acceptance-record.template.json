@@ -1,0 +1,83 @@
+{
+  "schema": "strongr.m1_acceptance.v1",
+  "status": "pending",
+  "implementation_baseline": "64863271187dd02ca357a6b41bc854c4106c6640",
+  "tested_commit": "pending",
+  "pull_request": {
+    "repository": "neilgasson/strongr-os",
+    "number": null,
+    "head_sha": "pending",
+    "base_branch": "main",
+    "draft": true
+  },
+  "environments": {
+    "local": {
+      "status": "pending",
+      "workflow_run_id": null,
+      "job_id": null,
+      "artifact_id": null
+    },
+    "strongr-os-dev": {
+      "status": "pending",
+      "project_ref": "fifrlyddmjkogmdvyjdp",
+      "workflow_run_id": null,
+      "job_id": null,
+      "artifact_id": null
+    }
+  },
+  "migrations": {
+    "repository_files": [
+      "202607241230_m0_governed_platform_kernel.sql",
+      "202607241330_m1_governed_audio_reflection.sql",
+      "202607242230_m1_restrict_check_worker_execute.sql",
+      "202607251200_m0_2_reliability_primitives.sql",
+      "202607251230_m0_2_request_idempotency_fingerprint.sql",
+      "202607251830_m0_2_restrict_anon_security_definer.sql",
+      "20260726161909_m1_1_durable_worker_commands.sql",
+      "20260726205703_m1_2_brief_to_draft.sql"
+    ],
+    "local_from_zero": "pending",
+    "local_recorded_history_count": null,
+    "remote_accepted_m0_2_baseline": "pending",
+    "remote_atomic_delta": "pending",
+    "remote_delta_versions": [
+      "20260726161909",
+      "20260726205703"
+    ]
+  },
+  "evidence": {
+    "m0_2_entry_record": "pending",
+    "strongr_daily_untouched": "pending",
+    "two_tenant_isolation": "pending",
+    "anonymous_denial": "pending",
+    "browser_direct_write_denial": "pending",
+    "service_role_boundary": "pending",
+    "brief_and_idempotent_request": "pending",
+    "worker_transient_failure": "pending",
+    "worker_retry_recovery": "pending",
+    "immutable_generated_draft": "pending",
+    "submitted_version_integrity": "pending",
+    "versioned_automated_checks": "pending",
+    "human_governance": "pending",
+    "real_aal1_denial": "pending",
+    "real_aal2_success": "pending",
+    "package_integrity": "pending",
+    "revocation": "pending",
+    "observability": "pending",
+    "accessibility_transcript_contract": "pending",
+    "privacy": "pending",
+    "fixture_cleanup": "pending",
+    "failure_artifact_preservation": "pending",
+    "github_protection": "pending",
+    "required_checks_latest_head": "pending"
+  },
+  "artifacts": [],
+  "started_at_utc": "pending",
+  "completed_at_utc": "pending",
+  "owner_approval": {
+    "status": "pending",
+    "owner": "neilgasson",
+    "approved_on": null,
+    "record": "pending"
+  }
+}

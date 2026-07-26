@@ -32,28 +32,29 @@ export interface GenerationAdapter {
   generate(request: GenerationRequest): Promise<GenerationResult>;
 }
 
-function canonicalJson(value: unknown): string {
+function postgresJsonbText(value: unknown): string {
   if (value === null || typeof value === "boolean" || typeof value === "string") {
     return JSON.stringify(value);
   }
   if (typeof value === "number") {
     if (!Number.isFinite(value)) {
-      throw new Error("Canonical JSON does not support non-finite numbers");
+      throw new Error("PostgreSQL JSON does not support non-finite numbers");
     }
     return JSON.stringify(value);
   }
   if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalJson(item)).join(",")}]`;
+    return `[${value.map((item) => postgresJsonbText(item)).join(", ")}]`;
   }
   if (typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
-      left < right ? -1 : left > right ? 1 : 0,
-    );
+    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => {
+      const lengthDifference = Buffer.byteLength(left, "utf8") - Buffer.byteLength(right, "utf8");
+      return lengthDifference || Buffer.from(left).compare(Buffer.from(right));
+    });
     return `{${entries
-      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`)
-      .join(",")}}`;
+      .map(([key, item]) => `${JSON.stringify(key)}: ${postgresJsonbText(item)}`)
+      .join(", ")}}`;
   }
-  throw new Error("Canonical JSON supports JSON values only");
+  throw new Error("PostgreSQL JSON supports JSON values only");
 }
 
 export function createGenerationPromptChecksum(promptKey: string, promptVersion: number): string {
@@ -61,5 +62,5 @@ export function createGenerationPromptChecksum(promptKey: string, promptVersion:
 }
 
 export function createGenerationOutputHash(output: AudioReflection): string {
-  return createHash("sha256").update(canonicalJson(output), "utf8").digest("hex");
+  return createHash("sha256").update(postgresJsonbText(output), "utf8").digest("hex");
 }

@@ -16,6 +16,15 @@ test("deterministic generation returns identical provenance for an exact replay"
   assert.match(first.outputHash, /^[a-f0-9]{64}$/);
 });
 
+test("generation output hash matches the PostgreSQL jsonb evidence contract", async () => {
+  const result = await deterministicGenerationAdapter.generate(createGenerationRequestFixture());
+
+  assert.equal(
+    result.outputHash,
+    "98ca50f09be947c329f4224640989b19f0bc83fe059c07ed71ae8455f1641425",
+  );
+});
+
 test("changed prompt provenance changes the deterministic result identity", async () => {
   const first = await deterministicGenerationAdapter.generate(createGenerationRequestFixture());
   const changed = await deterministicGenerationAdapter.generate(

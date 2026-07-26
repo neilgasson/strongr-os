@@ -87,6 +87,31 @@ json.loads(
         / "acceptance-record.template.json"
     ).read_text()
 )
+json.loads(
+    (
+        root
+        / "evidence"
+        / "m1"
+        / "acceptance-record.template.json"
+    ).read_text()
+)
+
+expected_migrations = [
+    "202607241230_m0_governed_platform_kernel.sql",
+    "202607241330_m1_governed_audio_reflection.sql",
+    "202607242230_m1_restrict_check_worker_execute.sql",
+    "202607251200_m0_2_reliability_primitives.sql",
+    "202607251230_m0_2_request_idempotency_fingerprint.sql",
+    "202607251830_m0_2_restrict_anon_security_definer.sql",
+    "20260726161909_m1_1_durable_worker_commands.sql",
+    "20260726205703_m1_2_brief_to_draft.sql",
+]
+observed_migrations = [
+    path.name
+    for path in sorted((root / "supabase" / "migrations").glob("*.sql"))
+]
+if observed_migrations != expected_migrations:
+    failures.append("the M1.4 repository migration inventory changed")
 
 if failures:
     for failure in failures:
