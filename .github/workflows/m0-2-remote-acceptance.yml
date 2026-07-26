@@ -40,7 +40,8 @@ jobs:
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
-          sudo apt-get install --yes postgresql-client
+          sudo apt-get install --yes postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >>"$GITHUB_PATH"
 
       - name: Validate required secrets
         env:
