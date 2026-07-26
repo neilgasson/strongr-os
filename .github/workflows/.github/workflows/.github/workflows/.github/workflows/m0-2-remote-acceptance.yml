@@ -1,4 +1,4 @@
-name: .github/workflows/m0-2-remote-acceptance.yml
+name: M0.2 remote acceptance
 
 on:
   workflow_dispatch:
@@ -62,10 +62,45 @@ jobs:
           STRONGR_OS_RESTORE_DATABASE_URL: ${{ secrets.STRONGR_OS_RESTORE_DATABASE_URL }}
         run: |
           set -euo pipefail
+
+          psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
+            -X -v ON_ERROR_STOP=1 \
+            -c "create schema if not exists supabase_migrations"
+
+          psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
+            -X -v ON_ERROR_STOP=1 \
+            -c "create table if not exists supabase_migrations.schema_migrations (
+                  version text primary key,
+                  statements text[],
+                  name text
+                )"
+
           for migration in supabase/migrations/*.sql; do
             echo "Applying $migration"
+
             psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
-              -X -v ON_ERROR_STOP=1 -f "$migration"
+              -X -v ON_ERROR_STOP=1 \
+              -f "$migration"
+
+            filename="$(basename "$migration" .sql)"
+            version="${filename%%_*}"
+            migration_name="${filename#*_}"
+
+            psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
+              -X -v ON_ERROR_STOP=1 \
+              -v version="$version" \
+              -v migration_name="$migration_name" \
+              -c "insert into supabase_migrations.schema_migrations (
+                    version,
+                    statements,
+                    name
+                  )
+                  values (
+                    :'version',
+                    array[]::text[],
+                    :'migration_name'
+                  )
+                  on conflict (version) do nothing"
           done
 
       - name: Run real strongr-os-dev acceptance
