@@ -58,9 +58,12 @@ import urllib.parse
 
 
 def matches(connection_string, project_ref):
-    parsed = urllib.parse.urlsplit(connection_string)
-    hostname = (parsed.hostname or "").lower()
-    username = urllib.parse.unquote(parsed.username or "")
+    authority = connection_string.partition("://")[2].split("/", 1)[0]
+    userinfo, separator, hostport = authority.rpartition("@")
+    if not separator:
+        return False
+    hostname = hostport.split(":", 1)[0].strip("[]").lower()
+    username = urllib.parse.unquote(userinfo.split(":", 1)[0])
     return (
         hostname == f"db.{project_ref}.supabase.co"
         or username.endswith(f".{project_ref}")
