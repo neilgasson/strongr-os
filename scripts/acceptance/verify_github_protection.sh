@@ -6,6 +6,7 @@ branch="${STRONGR_OS_PROTECTED_BRANCH:-main}"
 required_checks="${STRONGR_OS_REQUIRED_CHECKS:-Database contract / test,M0.2 reliability proof / acceptance}"
 pull_request="${STRONGR_OS_PULL_REQUEST:-1}"
 expected_sha="${STRONGR_OS_EXPECTED_SHA:-}"
+governance_mode="${STRONGR_OS_GOVERNANCE_MODE:-independent-review}"
 
 if ! command -v gh >/dev/null 2>&1; then
   printf '%s\n' "ERROR: gh is required." >&2
@@ -21,6 +22,12 @@ if [[ ! "$pull_request" =~ ^[1-9][0-9]*$ ]]; then
 fi
 if [[ -n "$expected_sha" && ! "$expected_sha" =~ ^[a-f0-9]{40}$ ]]; then
   printf '%s\n' "ERROR: STRONGR_OS_EXPECTED_SHA must be a full commit SHA." >&2
+  exit 2
+fi
+if [[ "$governance_mode" != "independent-review" \
+  && "$governance_mode" != "solo-maintainer" ]]; then
+  printf '%s\n' \
+    "ERROR: STRONGR_OS_GOVERNANCE_MODE must be independent-review or solo-maintainer." >&2
   exit 2
 fi
 
@@ -73,7 +80,8 @@ python3 - \
   "$protection_available" \
   "$rulesets_available" \
   "$actions_available" \
-  "$expected_sha" <<'PY'
+  "$expected_sha" \
+  "$governance_mode" <<'PY'
 import json
 import pathlib
 import subprocess
@@ -90,6 +98,7 @@ protection_available = sys.argv[8] == "true"
 rulesets_available = sys.argv[9] == "true"
 actions_available = sys.argv[10] == "true"
 expected_sha = sys.argv[11]
+governance_mode = sys.argv[12]
 
 checks = set()
 requires_pull_request = False
@@ -99,6 +108,9 @@ dismisses_stale_reviews = False
 strict_checks = False
 blocks_force_push = False
 blocks_deletion = False
+blocks_admin_bypass = False
+requires_conversation_resolution = False
+has_ruleset_bypass = False
 
 status_checks = protection.get("required_status_checks") or {}
 strict_checks = bool(status_checks.get("strict"))
@@ -124,6 +136,14 @@ if protection:
     )
     blocks_deletion = not bool(
         (protection.get("allow_deletions") or {}).get("enabled")
+    )
+    blocks_admin_bypass = bool(
+        (protection.get("enforce_admins") or {}).get("enabled")
+    )
+    requires_conversation_resolution = bool(
+        (protection.get("required_conversation_resolution") or {}).get(
+            "enabled"
+        )
     )
 
 expanded_rulesets = []
@@ -156,11 +176,15 @@ def targets_branch(ruleset):
     return not includes or any(item in candidates for item in includes)
 
 
+active_branch_ruleset = False
 for ruleset in expanded_rulesets:
     if ruleset.get("enforcement") != "active":
         continue
     if not targets_branch(ruleset):
         continue
+    active_branch_ruleset = True
+    if ruleset.get("bypass_actors"):
+        has_ruleset_bypass = True
     for rule in ruleset.get("rules") or []:
         rule_type = rule.get("type")
         params = rule.get("parameters") or {}
@@ -190,6 +214,11 @@ for ruleset in expanded_rulesets:
             blocks_force_push = True
         elif rule_type == "deletion":
             blocks_deletion = True
+        elif rule_type == "required_conversation_resolution":
+            requires_conversation_resolution = True
+
+if active_branch_ruleset and not has_ruleset_bypass:
+    blocks_admin_bypass = True
 
 missing_checks = sorted(expected_checks - checks)
 observed_run_checks = {}
@@ -236,6 +265,7 @@ result = {
     "pull_request_base": (pull_request.get("base") or {}).get("ref"),
     "pull_request_head_sha": (pull_request.get("head") or {}).get("sha"),
     "expected_head_sha": expected_sha or None,
+    "governance_mode": governance_mode,
     "protection_api_available": protection_available,
     "rulesets_api_available": rulesets_available,
     "actions_api_available": actions_available,
@@ -246,6 +276,9 @@ result = {
     "strict_required_checks": strict_checks,
     "blocks_force_push": blocks_force_push,
     "blocks_deletion": blocks_deletion,
+    "blocks_admin_bypass": blocks_admin_bypass,
+    "requires_conversation_resolution": requires_conversation_resolution,
+    "has_ruleset_bypass": has_ruleset_bypass,
     "observed_required_checks": sorted(checks),
     "missing_required_checks": missing_checks,
     "observed_pull_request_checks": observed_run_checks,
@@ -265,14 +298,24 @@ if expected_sha and result["pull_request_head_sha"] != expected_sha:
     failures.append("pull request head does not match expected commit")
 if not requires_pull_request:
     failures.append("pull requests are not required")
-if required_approvals < 1:
-    failures.append("at least one approval is not required")
-if not requires_codeowners:
-    failures.append("CODEOWNERS review is not required")
-if not dismisses_stale_reviews:
-    failures.append("stale approvals are not dismissed")
+if governance_mode == "independent-review":
+    if required_approvals < 1:
+        failures.append("at least one approval is not required")
+    if not requires_codeowners:
+        failures.append("CODEOWNERS review is not required")
+    if not dismisses_stale_reviews:
+        failures.append("stale approvals are not dismissed")
+else:
+    if required_approvals != 0:
+        failures.append("solo-maintainer mode must require zero approvals")
+    if requires_codeowners:
+        failures.append("solo-maintainer mode cannot require CODEOWNERS approval")
+    if has_ruleset_bypass or not blocks_admin_bypass:
+        failures.append("solo-maintainer mode permits ruleset bypass")
 if not strict_checks:
     failures.append("strict required checks are not enabled")
+if not requires_conversation_resolution:
+    failures.append("conversation resolution is not required")
 if not blocks_force_push:
     failures.append("force pushes are not blocked")
 if not blocks_deletion:
