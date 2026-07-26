@@ -1,4 +1,13 @@
 export {
+  AutomatedReviewCheckRunner,
+  createAutomatedReviewCheckRunner,
+} from "./automated-review-checks.ts";
+export type {
+  AutomatedCheckStore,
+  AutomatedReviewCheckEvidence,
+  AutomatedReviewCheckEvidenceSink,
+} from "./automated-review-checks.ts";
+export {
   createJsonLineEvidenceSink,
   DurableGenerationWorker,
 } from "./durable-worker.ts";
@@ -31,3 +40,4 @@ export {
 } from "./supabase-rpc.ts";
 export type { RpcFetch } from "./supabase-rpc.ts";
 export { SupabaseGenerationWorkerStore } from "./supabase-worker-store.ts";
+export { SupabaseReviewCheckStore } from "./supabase-review-check-store.ts";

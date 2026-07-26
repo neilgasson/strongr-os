@@ -2,9 +2,8 @@
 
 ## Status
 
-Implementation candidate for protected review. M1.1 was accepted through
-owner-approved PR #14 at commit
-`da6418a793b244afa973cfecaa69a797cf41bc2c`.
+Accepted through owner-approved PR #15 at commit
+`a960262d09a011cb443c52cb3505c84763a1d8af`.
 
 M1.2 adds a non-deployed operator and persistence slice from a validated
 audio-reflection brief to one immutable AI-assisted draft. It does not connect

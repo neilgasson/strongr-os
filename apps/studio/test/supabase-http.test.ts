@@ -10,6 +10,15 @@ const briefId = "00000000-0000-4000-8000-000000000003";
 const jobId = "00000000-0000-4000-8000-000000000004";
 const versionId = "00000000-0000-4000-8000-000000000005";
 const correlationId = "00000000-0000-4000-8000-000000000006";
+const policyId = "00000000-0000-4000-8000-000000000007";
+const checkRunId = "00000000-0000-4000-8000-000000000008";
+const scriptureEvidenceId = "00000000-0000-4000-8000-000000000009";
+const rightsSnapshotId = "00000000-0000-4000-8000-000000000010";
+const scriptureReviewId = "00000000-0000-4000-8000-000000000011";
+const theologyReviewId = "00000000-0000-4000-8000-000000000012";
+const editorialReviewId = "00000000-0000-4000-8000-000000000013";
+const approvalId = "00000000-0000-4000-8000-000000000014";
+const packageId = "00000000-0000-4000-8000-000000000015";
 const hash = "a".repeat(64);
 
 const environment: StudioEnvironment = Object.freeze({
@@ -48,6 +57,106 @@ test("authenticated commands use the publishable key, user bearer token, and exa
     p_payload: { schema_id: "strongr.audio_reflection_brief.v1" },
     p_title: "Synthetic brief",
   });
+});
+
+test("M1.3 governed RPCs map exact evidence identities without browser table writes", async () => {
+  const requests: { readonly input: string; readonly init?: RequestInit }[] = [];
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "fresh-aal2-user-jwt",
+    environment,
+    fetch(input, init) {
+      requests.push({ input: String(input), ...(init ? { init } : {}) });
+      return Promise.resolve(Response.json(approvalId));
+    },
+  });
+
+  await gateway.invoke("m1_create_review_policy", {
+    correlationId,
+    key: "m1_3_default",
+    organizationId,
+    version: 1,
+  });
+  await gateway.invoke("m1_record_scripture_evidence", {
+    contentVersionId: versionId,
+    correlationId,
+    organizationId,
+    reference: "Synthetic Reference 1:1",
+    sourceCitation: "Synthetic source citation",
+    translation: "TEST",
+    verificationStatus: "verified",
+  });
+  await gateway.invoke("m1_record_rights_snapshot", {
+    contentVersionId: versionId,
+    correlationId,
+    organizationId,
+    sourceSummary: "Synthetic rights evidence",
+    status: "cleared",
+  });
+  await gateway.invoke("m1_record_review", {
+    contentVersionId: versionId,
+    correlationId,
+    decision: "approved",
+    evidence: { source: "synthetic_test" },
+    lane: "scripture",
+    organizationId,
+    reasonCode: "m1_3_acceptance",
+  });
+  await gateway.invoke("m1_approve_version", {
+    checkRunId,
+    contentVersionId: versionId,
+    correlationId,
+    editorialReviewId,
+    organizationId,
+    reasonCode: "m1_3_acceptance",
+    reviewPolicyId: policyId,
+    rightsSnapshotId,
+    scriptureEvidenceId,
+    scriptureReviewId,
+    theologyReviewId,
+  });
+  await gateway.invoke("m1_create_production_package", {
+    approvalSnapshotId: approvalId,
+    correlationId,
+    organizationId,
+  });
+  await gateway.invoke("m1_revoke_approval", {
+    approvalSnapshotId: approvalId,
+    correlationId,
+    organizationId,
+    reasonCode: "evidence_changed",
+  });
+
+  assert.equal(requests.length, 7);
+  assert.deepEqual(JSON.parse(String(requests[4]?.init?.body)), {
+    p_check_run_id: checkRunId,
+    p_content_version_id: versionId,
+    p_correlation_id: correlationId,
+    p_editorial_review_id: editorialReviewId,
+    p_organization_id: organizationId,
+    p_reason_code: "m1_3_acceptance",
+    p_review_policy_id: policyId,
+    p_rights_snapshot_id: rightsSnapshotId,
+    p_scripture_evidence_id: scriptureEvidenceId,
+    p_scripture_review_id: scriptureReviewId,
+    p_theology_review_id: theologyReviewId,
+  });
+  assert.deepEqual(JSON.parse(String(requests[5]?.init?.body)), {
+    p_approval_snapshot_id: approvalId,
+    p_correlation_id: correlationId,
+    p_organization_id: organizationId,
+  });
+  assert.deepEqual(JSON.parse(String(requests[6]?.init?.body)), {
+    p_approval_snapshot_id: approvalId,
+    p_correlation_id: correlationId,
+    p_organization_id: organizationId,
+    p_reason_code: "evidence_changed",
+  });
+  for (const request of requests) {
+    const headers = request.init?.headers as Readonly<Record<string, string>>;
+    assert.equal(headers.apikey, environment.supabasePublishableKey);
+    assert.equal(headers.authorization, "Bearer fresh-aal2-user-jwt");
+    assert.equal(request.init?.method, "POST");
+  }
 });
 
 test("tenant reads are explicitly filtered, bounded, ordered, and contract parsed", async () => {
@@ -125,6 +234,102 @@ test("tenant reads are explicitly filtered, bounded, ordered, and contract parse
     assert.equal(url.searchParams.get("limit"), "25");
     assert.equal(url.searchParams.get("order"), "created_at.desc,id.desc");
     assert.equal(url.searchParams.has("offset"), false);
+  }
+});
+
+test("M1.3 evidence reads remain tenant-filtered and parse immutable hashes", async () => {
+  const requestedUrls: string[] = [];
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch(input) {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.includes("/check_definitions?")) {
+        return Promise.resolve(
+          Response.json([
+            {
+              blocks_approval: true,
+              id: scriptureReviewId,
+              key: "scripture.reference_present",
+              lane: "scripture",
+              name: "Scripture reference present",
+              version: 1,
+            },
+          ]),
+        );
+      }
+      if (url.includes("/review_policies?")) {
+        return Promise.resolve(
+          Response.json([
+            {
+              created_at: "2026-07-26T20:00:00Z",
+              id: policyId,
+              is_active: true,
+              key: "m1_3_default",
+              organization_id: organizationId,
+              policy_hash: hash,
+              version: 1,
+            },
+          ]),
+        );
+      }
+      if (url.includes("/approval_snapshots?")) {
+        return Promise.resolve(
+          Response.json([
+            {
+              approved_at: "2026-07-26T20:01:00Z",
+              authentication_assurance: "aal2",
+              check_run_id: checkRunId,
+              content_version_id: versionId,
+              evidence_bundle_hash: hash,
+              id: approvalId,
+              organization_id: organizationId,
+              reason_code: "m1_3_acceptance",
+              review_policy_id: policyId,
+              rights_snapshot_id: rightsSnapshotId,
+              scripture_evidence_id: scriptureEvidenceId,
+              version_payload_hash: hash,
+            },
+          ]),
+        );
+      }
+      return Promise.resolve(
+        Response.json([
+          {
+            approval_snapshot_id: approvalId,
+            created_at: "2026-07-26T20:02:00Z",
+            id: packageId,
+            manifest: {
+              approval_snapshot_id: approvalId,
+              schema_id: "strongr.production_package.v1",
+            },
+            manifest_hash: hash,
+            manifest_schema_id: "strongr.production_package.v1",
+            organization_id: organizationId,
+          },
+        ]),
+      );
+    },
+  });
+
+  const [definitions, policies, approvals, packages] = await Promise.all([
+    gateway.listCheckDefinitions(25),
+    gateway.listReviewPolicies(organizationId, 25),
+    gateway.listApprovalSnapshots(organizationId, 25),
+    gateway.listProductionPackages(organizationId, 25),
+  ]);
+
+  assert.equal(definitions[0]?.key, "scripture.reference_present");
+  assert.equal(policies[0]?.policyHash, hash);
+  assert.equal(approvals[0]?.authenticationAssurance, "aal2");
+  assert.equal(packages[0]?.manifestHash, hash);
+  const definitionUrl = new URL(
+    requestedUrls.find((url) => url.includes("/check_definitions?")) ?? "",
+  );
+  assert.equal(definitionUrl.searchParams.has("organization_id"), false);
+  for (const requestedUrl of requestedUrls.filter((url) => !url.includes("/check_definitions?"))) {
+    assert.equal(new URL(requestedUrl).searchParams.get("organization_id"), `eq.${organizationId}`);
   }
 });
 

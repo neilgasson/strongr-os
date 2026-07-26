@@ -22,13 +22,43 @@ const versionId = "00000000-0000-4000-8000-000000000012";
 
 function createReads(): TenantReadGateway {
   return {
+    listApprovalRevocations() {
+      return Promise.resolve([]);
+    },
+    listApprovalSnapshots() {
+      return Promise.resolve([]);
+    },
     listBriefs() {
+      return Promise.resolve([]);
+    },
+    listCheckDefinitions() {
+      return Promise.resolve([]);
+    },
+    listCheckResults() {
+      return Promise.resolve([]);
+    },
+    listCheckRuns() {
       return Promise.resolve([]);
     },
     listContentVersions() {
       return Promise.resolve([]);
     },
     listGenerationJobs() {
+      return Promise.resolve([]);
+    },
+    listProductionPackages() {
+      return Promise.resolve([]);
+    },
+    listReviewDecisions() {
+      return Promise.resolve([]);
+    },
+    listReviewPolicies() {
+      return Promise.resolve([]);
+    },
+    listRightsSnapshots() {
+      return Promise.resolve([]);
+    },
+    listScriptureEvidence() {
       return Promise.resolve([]);
     },
   };
@@ -184,6 +214,7 @@ test("workspace loading keeps all reads tenant-scoped", async () => {
   const organizations: string[] = [];
   const limits: number[] = [];
   const reads: TenantReadGateway = {
+    ...createReads(),
     listBriefs(organizationId, limit) {
       organizations.push(organizationId);
       limits.push(limit ?? 0);

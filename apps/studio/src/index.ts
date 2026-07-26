@@ -13,6 +13,14 @@ export type { StudioEnvironment, StudioEnvironmentSource } from "./environment.t
 export { createStudioFoundation } from "./foundation.ts";
 export type { StudioCommandGateway, StudioFoundation } from "./foundation.ts";
 export {
+  createReviewToPackageOperatorFlow,
+  ReviewToPackageOperatorFlow,
+} from "./review-to-package-flow.ts";
+export type {
+  ApproveVersionInput,
+  ReviewToPackageWorkspace,
+} from "./review-to-package-flow.ts";
+export {
   createStudioSupabaseGateway,
   StudioApiError,
   StudioSupabaseGateway,
