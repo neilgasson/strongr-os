@@ -1,0 +1,101 @@
+name: M0.2 remote acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: m0-2-remote-acceptance
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: m0-2-acceptance
+
+    env:
+      STRONGR_OS_PROJECT_REF: fifrlyddmjkogmdvyjdp
+      STRONGR_OS_REMOTE_ACCEPTANCE: strongr-os-dev
+      STRONGR_OS_SOURCE_PROJECT_REF: fifrlyddmjkogmdvyjdp
+      STRONGR_OS_RESTORE_PROJECT_REF: guovsmbtxuowyyqamaex
+      STRONGR_OS_SOURCE_TARGET: strongr-os-dev
+      STRONGR_OS_RESTORE_TARGET: strongr-os-disposable
+      STRONGR_OS_RESTORE_CONFIRM: strongr-os-disposable-restore
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Validate required secrets
+        env:
+          STRONGR_OS_SUPABASE_URL: ${{ secrets.STRONGR_OS_SUPABASE_URL }}
+          STRONGR_OS_SUPABASE_ANON_KEY: ${{ secrets.STRONGR_OS_SUPABASE_ANON_KEY }}
+          STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY }}
+          STRONGR_OS_DATABASE_URL: ${{ secrets.STRONGR_OS_DATABASE_URL }}
+          STRONGR_OS_RESTORE_DATABASE_URL: ${{ secrets.STRONGR_OS_RESTORE_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          for name in \
+            STRONGR_OS_SUPABASE_URL \
+            STRONGR_OS_SUPABASE_ANON_KEY \
+            STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY \
+            STRONGR_OS_DATABASE_URL \
+            STRONGR_OS_RESTORE_DATABASE_URL
+          do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is missing"
+              exit 1
+            fi
+          done
+
+      - name: Apply repository migrations to disposable target
+        env:
+          STRONGR_OS_RESTORE_DATABASE_URL: ${{ secrets.STRONGR_OS_RESTORE_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          for migration in supabase/migrations/*.sql; do
+            echo "Applying $migration"
+            psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
+              -X -v ON_ERROR_STOP=1 -f "$migration"
+          done
+
+      - name: Run real strongr-os-dev acceptance
+        env:
+          STRONGR_OS_SUPABASE_URL: ${{ secrets.STRONGR_OS_SUPABASE_URL }}
+          STRONGR_OS_SUPABASE_ANON_KEY: ${{ secrets.STRONGR_OS_SUPABASE_ANON_KEY }}
+          STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY }}
+          STRONGR_OS_DATABASE_URL: ${{ secrets.STRONGR_OS_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/m0-2-remote
+          python3 scripts/acceptance/run_remote_supabase_acceptance.py \
+            | tee artifacts/m0-2-remote/remote-acceptance.jsonl
+
+      - name: Run disposable backup and restore rehearsal
+        env:
+          STRONGR_OS_DATABASE_URL: ${{ secrets.STRONGR_OS_DATABASE_URL }}
+          STRONGR_OS_RESTORE_DATABASE_URL: ${{ secrets.STRONGR_OS_RESTORE_DATABASE_URL }}
+          STRONGR_OS_RESTORE_WORK_DIRECTORY: ${{ runner.temp }}/strongr-os-restore
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/m0-2-remote
+          scripts/acceptance/rehearse_backup_restore.sh \
+            | tee artifacts/m0-2-remote/backup-restore.jsonl
+
+      - name: Upload remote acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: m0-2-remote-acceptance-${{ github.sha }}
+          path: artifacts/m0-2-remote
+          if-no-files-found: error
+          retention-days: 30
