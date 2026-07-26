@@ -57,11 +57,12 @@ jobs:
             fi
           done
 
-      - name: Apply repository migrations to disposable target
+            - name: Apply repository migrations to disposable target
         env:
           STRONGR_OS_RESTORE_DATABASE_URL: ${{ secrets.STRONGR_OS_RESTORE_DATABASE_URL }}
         run: |
           set -euo pipefail
+          mkdir -p artifacts/m0-2-remote
 
           psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
             -X -v ON_ERROR_STOP=1 \
@@ -89,18 +90,21 @@ jobs:
             psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
               -X -v ON_ERROR_STOP=1 \
               -v version="$version" \
-              -v migration_name="$migration_name" \
-              -c "insert into supabase_migrations.schema_migrations (
-                    version,
-                    statements,
-                    name
-                  )
-                  values (
-                    :'version',
-                    array[]::text[],
-                    :'migration_name'
-                  )
-                  on conflict (version) do nothing"
+              -v migration_name="$migration_name" <<'SQL'
+          insert into supabase_migrations.schema_migrations (
+            version,
+            statements,
+            name
+          )
+          values (
+            :'version',
+            array[]::text[],
+            :'migration_name'
+          )
+          on conflict (version) do nothing;
+          SQL
+          done
+            SQL
           done
 
       - name: Run real strongr-os-dev acceptance
