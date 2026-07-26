@@ -25,9 +25,11 @@ Every accepted run records:
 - health and metrics snapshot;
 - GitHub protection, exact PR head, and required workflow-job results;
 - UTC timestamps; and
-- reviewer and owner approval.
+- independent reviewer and owner approval, or the declared solo-maintainer
+  exception and owner approval.
 
 `acceptance-record.template.json` is the canonical final record shape.
 
 M0.2 remains incomplete while any value is `pending`, any test failed, the
-head SHA differs from the tested SHA, or the owner approval is absent.
+head SHA differs from the tested SHA, or the required governance sign-off is
+absent.
