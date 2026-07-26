@@ -79,19 +79,22 @@ jobs:
                   where table_schema = 'public'
                     and table_type = 'BASE TABLE'"
           )"
-          recorded_migration_count="$(
+          migration_history_exists="$(
             psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
               -X -qAt -v ON_ERROR_STOP=1 \
-              -c "select case
-                    when to_regclass(
-                      'supabase_migrations.schema_migrations'
-                    ) is null then 0
-                    else (
-                      select count(*)
-                      from supabase_migrations.schema_migrations
-                    )
-                  end"
+              -c "select to_regclass(
+                    'supabase_migrations.schema_migrations'
+                  ) is not null"
           )"
+          recorded_migration_count=0
+          if [[ "$migration_history_exists" == "t" ]]; then
+            recorded_migration_count="$(
+              psql "$STRONGR_OS_RESTORE_DATABASE_URL" \
+                -X -qAt -v ON_ERROR_STOP=1 \
+                -c "select count(*)
+                    from supabase_migrations.schema_migrations"
+            )"
+          fi
           if [[ "$public_table_count" != "0" || "$recorded_migration_count" != "0" ]]; then
             printf '%s\n' \
               "ERROR: Disposable target must be clean before migrations are applied." >&2
