@@ -2,9 +2,6 @@ name: Database contract
 
 on:
   pull_request:
-    paths:
-      - "supabase/**"
-      - ".github/workflows/database-contract.yml"
   merge_group:
   push:
     branches: ["main"]
