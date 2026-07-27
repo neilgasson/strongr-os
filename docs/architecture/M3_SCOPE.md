@@ -1,9 +1,12 @@
 # M3 — Strongr Studio Operator Console
 
-- **Status:** Proposed for repository-owner approval
+- **Status:** Approved for protected implementation
 - **Date:** July 27, 2026
 - **Owner:** Neil Gasson / Strongr Society
-- **Approval gate:** Not yet satisfied
+- **Approval record:** The repository owner explicitly approved this exact scope
+  in the controlling Codex task on July 27, 2026. PR #27 is the durable approval
+  record.
+- **Approval gate:** Satisfied by explicit repository-owner approval
 - **Production authority:** None
 
 ## Entry condition
@@ -13,8 +16,8 @@ M2 is accepted. The canonical record is stored at
 stored at `PROJECT_STATUS.md` on protected `main` at
 `3b2ffe31879937e2c3896bcfe003e1d1eca6c5e8`.
 
-Approval of this document will authorize implementation planning and protected
-M3.0 through M3.4 pull requests. It will not authorize production deployment,
+Approval of this document authorizes implementation planning and protected M3.0
+through M3.4 pull requests. It does not authorize production deployment,
 publication, public Storage, browser uploads, live AI or media providers, or
 any change to the current Strongr Daily application.
 
