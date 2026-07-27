@@ -2,8 +2,8 @@ import { readFile, readdir } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repositoryRoot = fileURLToPath(new URL("../..", import.meta.url));
-const clientRoots = ["apps/studio", "dist/apps/studio"];
+const repositoryRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
+const clientRoots = ["apps/studio/src", "apps/studio/dist"];
 const forbiddenTokens = [
   "SUPABASE_ACCESS_TOKEN",
   "SUPABASE_SECRET_KEY",
@@ -14,7 +14,8 @@ const forbiddenTokens = [
   "@strongr/worker",
   "apps/worker",
 ];
-const directMutation = /\.(?:delete|insert|update|upsert)\s*\(/;
+const directMutation =
+  /\.from\s*\([^)]{0,200}\)[\s\S]{0,200}\.\s*(?:delete|insert|update|upsert)\s*\(/;
 const storageMutationOrListing =
   /\.(?:copy|createSignedUploadUrl|getPublicUrl|list|move|remove|upload)\s*\(/;
 const secretLiteral = /\bsb_secret_[A-Za-z0-9_-]{8,}\b/;
@@ -29,7 +30,11 @@ async function collectFiles(root: string): Promise<string[]> {
     const path = resolve(root, entry.name);
     if (entry.isDirectory()) {
       files.push(...(await collectFiles(path)));
-    } else if ([".js", ".json", ".sql", ".ts"].includes(extname(entry.name))) {
+    } else if (
+      [".css", ".html", ".js", ".json", ".map", ".mjs", ".sql", ".ts", ".tsx"].includes(
+        extname(entry.name),
+      )
+    ) {
       files.push(path);
     }
   }

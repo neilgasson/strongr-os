@@ -2,5 +2,26 @@
   "name": "@strongr/studio",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "test:browser": "vite build && playwright test",
+    "typecheck": "tsc -p tsconfig.browser.json && tsc -p tsconfig.playwright.json"
+  },
+  "dependencies": {
+    "@supabase/auth-js": "2.110.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-router-dom": "7.18.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@playwright/test": "1.62.0",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.4",
+    "vite": "8.1.5"
+  }
 }

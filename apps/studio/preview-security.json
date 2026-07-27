@@ -1,0 +1,20 @@
+{
+  "schema_version": "strongr.studio_preview_security.v1",
+  "deployment_status": "deferred_to_m3_4",
+  "artifact_directory": "apps/studio/dist",
+  "spa_fallback": "/index.html",
+  "public_environment_allowlist": ["PUBLIC_SUPABASE_PUBLISHABLE_KEY", "PUBLIC_SUPABASE_URL"],
+  "required_headers": {
+    "Cache-Control": "no-store",
+    "Content-Security-Policy": "default-src 'self'; base-uri 'none'; connect-src 'self' ${PUBLIC_SUPABASE_ORIGIN}; font-src 'self'; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' data:; manifest-src 'self'; media-src 'self' blob:; object-src 'none'; script-src 'self'; style-src 'self'; upgrade-insecure-requests",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
+    "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY"
+  },
+  "runtime_scripts": "self_only",
+  "auth_redirect_origins": "explicit_allowlist_required_at_m3_4",
+  "data_classification": "synthetic_non_production_only"
+}

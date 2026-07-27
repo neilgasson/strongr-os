@@ -27,3 +27,15 @@ test("Studio rejects non-publishable keys", () => {
     /publishable key/,
   );
 });
+
+test("Studio rejects unreviewed public browser values", () => {
+  assert.throws(
+    () =>
+      loadStudioEnvironment({
+        PUBLIC_ANALYTICS_TOKEN: "unreviewed-browser-value",
+        PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_fixture_123456",
+        PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+      }),
+    /Unsupported public Studio environment value: PUBLIC_ANALYTICS_TOKEN/,
+  );
+});

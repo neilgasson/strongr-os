@@ -1,0 +1,99 @@
+name: M3 application
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: ["main"]
+    paths:
+      - "apps/studio/**"
+      - "scripts/ci/**"
+      - "docs/adr/ADR-0003-static-browser-studio.md"
+      - "docs/architecture/M3_0_BROWSER_FOUNDATION.md"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig*.json"
+      - "biome.json"
+      - ".nvmrc"
+      - ".github/workflows/m3-application.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m3-application-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-foundation:
+    name: M3 application / browser foundation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Prepare evidence directory
+        run: |
+          mkdir -p artifacts/m3-browser
+          printf '{"check":"workflow_started","status":"pass","sha":"%s"}\n' \
+            "$GITHUB_SHA" >artifacts/m3-browser/workflow.jsonl
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+          pnpm --version
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile 2>&1 \
+            | tee artifacts/m3-browser/install.log
+
+      - name: Install Chromium
+        if: always()
+        run: |
+          pnpm --filter @strongr/studio exec playwright install --with-deps chromium 2>&1 \
+            | tee artifacts/m3-browser/chromium-install.log
+
+      - name: Validate shell syntax
+        if: always()
+        run: bash -n scripts/ci/*.sh
+
+      - name: Run M3 browser foundation checks
+        if: always()
+        env:
+          STRONGR_OS_M3_ARTIFACT_DIR: artifacts/m3-browser
+        run: bash scripts/ci/run_m3_browser_foundation.sh
+
+      - name: Finalize browser evidence
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          printf '{"check":"workflow_completed","status":"%s","sha":"%s"}\n' \
+            "$JOB_STATUS" "$GITHUB_SHA" \
+            >>artifacts/m3-browser/workflow.jsonl
+          find artifacts/m3-browser -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            >artifacts/m3-browser/SHA256SUMS
+
+      - name: Upload M3 browser evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: m3-browser-foundation-${{ github.sha }}
+          path: artifacts/m3-browser
+          if-no-files-found: error
+          retention-days: 30

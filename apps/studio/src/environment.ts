@@ -9,6 +9,20 @@ export interface StudioEnvironmentSource {
   readonly [name: string]: string | undefined;
 }
 
+const allowedPublicEnvironmentNames = new Set([
+  "PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "PUBLIC_SUPABASE_URL",
+]);
+
+function rejectUnknownPublicValues(source: StudioEnvironmentSource): void {
+  const unknownNames = Object.keys(source)
+    .filter((name) => name.startsWith("PUBLIC_") && !allowedPublicEnvironmentNames.has(name))
+    .sort();
+  if (unknownNames.length > 0) {
+    throw new Error(`Unsupported public Studio environment value: ${unknownNames.join(", ")}`);
+  }
+}
+
 function requireValue(
   source: StudioEnvironmentSource,
   name: keyof StudioEnvironmentSource,
@@ -36,6 +50,7 @@ function requirePublishableKey(value: string): string {
 }
 
 export function loadStudioEnvironment(source: StudioEnvironmentSource): StudioEnvironment {
+  rejectUnknownPublicValues(source);
   return Object.freeze({
     supabaseUrl: requireSupabaseUrl(requireValue(source, "PUBLIC_SUPABASE_URL")),
     supabasePublishableKey: requirePublishableKey(
