@@ -11,11 +11,13 @@
     "noImplicitOverride": true,
     "noUncheckedIndexedAccess": true,
     "rewriteRelativeImportExtensions": true,
+    "skipLibCheck": true,
     "strict": true,
     "target": "ES2024",
     "types": ["node"],
     "verbatimModuleSyntax": true
   },
+  "exclude": ["apps/studio/browser-test/**", "apps/studio/playwright.config.ts"],
   "include": [
     "apps/**/*.ts",
     "packages/**/*.ts",
