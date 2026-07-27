@@ -2,19 +2,21 @@
 
 ## Checkpoint identity
 
-- **Checkpoint:** M3.0 accepted — browser and design foundation
+- **Checkpoint:** M3.1 accepted — identity, tenant context, and canonical work queue
 - **Recorded:** 2026-07-27
 - **Repository:** `neilgasson/strongr-os`
 - **Protected branch:** `main`
-- **Protected-main checkpoint commit:** `0db978b4ad419164a270401bc9000ad6a895c69d`
+- **Protected-main checkpoint commit:** `a66f1f09046b4626c669b56cd627b09a48ddcffc`
 - **M3 scope approval commit:** `001096279eaf1117b18ac213a3627d2a0d4ca44b`
+- **M3.1 implementation commit:** `a618a227e9eb40ee0844c6df38c6f1b5d01a7a86`
 - **M3.0 implementation commit:** `ff597682c242f5ae58e5866c443f58486de0ce73`
 - **M2 remotely tested implementation commit:** `5df45797bc5502030982b182d2adeb8be54dd7ff`
 - **Overall status:** Acceptance-proven pre-production platform core with an
-  accessible static Strongr Studio browser foundation; not yet an authenticated
-  operator workflow, production deployment, or finished user-facing product
+  accessible authenticated Strongr Studio identity, tenant-selection, MFA, and
+  canonical work-queue foundation; governed browser actions, deployment, and a
+  finished user-facing product remain incomplete
 
-This file is the durable restart point for Strongr OS work after M3.0. If a
+This file is the durable restart point for Strongr OS work after M3.1. If a
 future task or conversation loses context, begin here and follow the restart
 procedure below. The canonical M0.2–M2 acceptance records remain the authority
 for detailed backend test, artifact, workflow, and commit identifiers.
@@ -22,22 +24,23 @@ for detailed backend test, artifact, workflow, and commit identifiers.
 ## Executive summary
 
 Strongr OS now has a secure and tested platform foundation, one complete
-governed audio-reflection workflow, and the first accessible Strongr Studio
-browser foundation. The backend can accept a tenant-scoped brief, create durable
-generation and media jobs, produce deterministic draft and WAV fixtures, run
-automated checks, preserve separate human review authority, approve an exact
+governed audio-reflection workflow, and an accessible authenticated Strongr
+Studio browser foundation. The backend can accept a tenant-scoped brief, create
+durable generation and media jobs, produce deterministic draft and WAV fixtures,
+run automated checks, preserve separate human review authority, approve an exact
 version, create a governed package, store media privately, stage an immutable
 release manifest, revoke authority or staged content, and prove backup and exact
 byte recovery.
 
 The implementation has passed clean local replay and non-production remote
 acceptance against Supabase/PostgreSQL, Auth, row-level security, and private
-Storage. M3.0 adds a static React/Vite browser shell, routing, semantic design
-tokens, an Auth-only Supabase package boundary, restrictive preview contracts,
-and automated browser/accessibility evidence. The shell is not yet connected to
-sign-in, organization discovery, or the governed operator workflow. It is not
-deployed, does not use live external AI or voice providers, and does not publish
-content.
+Storage. M3.0 added the static React/Vite browser shell and restrictive preview
+boundary. M3.1 connected supported Supabase Auth session and TOTP operations,
+active-organization discovery and selection, permission-aware navigation, and a
+canonical tenant-scoped work queue while retaining database authorization as
+the authority. Governed brief, review, approval, package, media, and release
+actions are not yet exposed in the browser. The Studio is not deployed, does not
+use live external AI or voice providers, and does not publish content.
 
 ## Completed and accepted
 
@@ -110,6 +113,15 @@ content.
   and the implementation boundary in
   [`docs/architecture/M3_0_BROWSER_FOUNDATION.md`](docs/architecture/M3_0_BROWSER_FOUNDATION.md).
 - M3.0 was owner-accepted and squash-merged through PR #28.
+- M3.1 added sign-in and sign-out, safe session-expiry handling, supported TOTP
+  enrollment and verification, active-organization selection, explicit tenant
+  context, permission-aware navigation, and the canonical read-only work queue.
+- M3.1 uses only existing authenticated `SELECT` grants and RLS policies for
+  tenant-scoped data. UI permissions remain hints, never authorization, and no
+  governed write or service credential moved into the browser.
+- Recorded the M3.1 boundary in
+  [`docs/architecture/M3_1_IDENTITY_TENANT_WORK_QUEUE.md`](docs/architecture/M3_1_IDENTITY_TENANT_WORK_QUEUE.md).
+- M3.1 was owner-accepted and squash-merged through PR #30.
 
 ## Verified checkpoint evidence
 
@@ -138,6 +150,30 @@ content.
     passed.
   - [M2 acceptance run 30306909850](https://github.com/neilgasson/strongr-os/actions/runs/30306909850)
     passed.
+- M3.1 identity, tenant context, and canonical work queue:
+  [PR #30](https://github.com/neilgasson/strongr-os/pull/30), merged to protected
+  `main` as `a66f1f09046b4626c669b56cd627b09a48ddcffc`.
+  - 63 unit tests passed.
+  - 16 Playwright tests passed across desktop and 360-pixel Chromium.
+  - Sign-in, session expiry, TOTP enrollment and verification, tenant switching,
+    permission-aware navigation, canonical work-queue reads, accessibility, and
+    browser-boundary checks passed.
+  - All six pull-request checks passed before merge.
+  - No migration, RLS, grant, Storage policy, Supabase project, deployment,
+    production, or Strongr Daily file changed.
+- Protected-main replays after M3.1:
+  - [M3 application run 30313224413](https://github.com/neilgasson/strongr-os/actions/runs/30313224413)
+    passed.
+  - [M1 application run 30313224416](https://github.com/neilgasson/strongr-os/actions/runs/30313224416)
+    passed.
+  - [M1 acceptance run 30313224381](https://github.com/neilgasson/strongr-os/actions/runs/30313224381)
+    applied all migrations once to an isolated clean database, verified migration
+    history and contracts, passed the real application boundary, and uploaded
+    evidence.
+  - [M2 acceptance run 30313224359](https://github.com/neilgasson/strongr-os/actions/runs/30313224359)
+    applied all migrations once to an isolated clean database, verified migration
+    history and contracts, passed the governed end-to-end workflow, and uploaded
+    evidence.
 - Final M2 remote acceptance:
   [workflow run 30237884139](https://github.com/neilgasson/strongr-os/actions/runs/30237884139)
   - Local acceptance passed.
@@ -187,17 +223,17 @@ production recovery-time benchmark.
 ## Current functional boundary
 
 Strongr OS is a functional pre-production backend/platform core for one governed
-audio-content workflow with an acceptance-proven static browser foundation. The
-shell is accessible and responsive, but it does not yet authenticate an
-operator, load organizations, or operate the governed workflow. It is not yet a
-complete Strongr Society operating system or a user-facing production product.
+audio-content workflow with an acceptance-proven authenticated browser
+foundation. Strongr Studio can sign an operator in and out, safely handle
+session expiry, support TOTP MFA, show only RLS-visible active organizations,
+keep the selected tenant explicit, and reconstruct a canonical read-only work
+queue. It does not yet operate the governed workflow and is not a complete
+Strongr Society operating system or a user-facing production product.
 
 The repository currently does **not** provide:
 
-- A connected Strongr Studio sign-in, MFA, tenant-selection, or work-queue
-  experience.
-- Browser operation of the accepted brief, review, package, media, staging, and
-  revocation workflow.
+- Browser operation of the accepted brief, draft, evidence, human review,
+  approval, package, media, staging, and revocation workflow.
 - An owner-accessible deployed non-production Strongr Studio preview.
 - Production hosting, domains, secrets, release operations, or a public launch.
 - Live external AI writing or media/voice generation providers.
@@ -211,69 +247,69 @@ The repository currently does **not** provide:
 
 ## Work remaining
 
-1. M3.1 — implement sign-in, sign-out, safe session expiry, supported TOTP MFA,
-   active-organization discovery and selection, permission-aware navigation,
-   and the canonical work queue.
-2. M3.2 — implement the browser-guided brief-to-draft, immutable version,
+1. M3.2 — implement the browser-guided brief-to-draft, immutable version,
    separate evidence/review, exact approval/revocation, and package workflow.
-3. M3.3 — implement deterministic media request and status, exact private
+2. M3.3 — implement deterministic media request and status, exact private
    checksum-verified playback, transcript/accessibility review, immutable
    staging, and revocation.
-4. M3.4 — deliver the owner-accessible isolated non-production preview, complete
+3. M3.4 — deliver the owner-accessible isolated non-production preview, complete
    browser acceptance evidence, canonical M3 acceptance record, and explicit
    owner acceptance.
-5. Decide whether and when to introduce live AI and media providers. Each must
+4. Decide whether and when to introduce live AI and media providers. Each must
    preserve deterministic test adapters, provenance, privacy, retries, cost
    controls, and human authority.
-6. Define production architecture and operations: deployment environments,
+5. Define production architecture and operations: deployment environments,
    secret management, monitoring, alerting, scheduled backups, restore drills,
    release procedures, and incident response.
-7. Add performance, load, concurrency, failure-injection, and longer-running
+6. Add performance, load, concurrency, failure-injection, and longer-running
    reliability evidence appropriate to the approved production target.
-8. Define publication and distribution only after private staging and revocation
+7. Define publication and distribution only after private staging and revocation
    controls remain proven end to end.
-9. Plan each additional Strongr Society product as a separately governed scope
+8. Plan each additional Strongr Society product as a separately governed scope
    built on the shared platform.
 
 ## Next action
 
-The next safe action is **M3.1 — identity, tenant, and work queue** on a new
-protected branch from checkpoint commit `0db978b`.
+The next safe action is **M3.2 — brief through governed package** on a new
+protected branch from checkpoint commit `a66f1f0`.
 
-M3.1 should connect the M3.0 shell to supported Supabase Auth session and TOTP
-operations, discover only active organizations visible through current RLS,
-keep the active organization explicit on every governed screen, provide
-permission-aware navigation without treating UI state as authorization, and
-reconstruct the work queue from canonical tenant-scoped reads.
+M3.2 should guide an authorized operator through brief submission, durable draft
+generation status, immutable version inspection, automated evidence review,
+separate Scripture/theology/editorial human review, exact-version AAL2 approval
+and revocation, and immutable production-package creation. Every governed
+mutation must use the existing narrow command boundary with an explicit active
+organization, exact target identity, idempotency key, confirmation, and canonical
+reread after completion or uncertainty.
 
-M3.1 must not add public sign-up, user administration, direct browser writes,
-service credentials, production configuration, deployment, or Strongr Daily
-changes. If the accepted M0–M2 contracts reveal a genuine database gap, stop and
-use the separately approved append-only migration process rather than broadening
-the browser boundary.
+M3.2 must not grant the browser direct table writes, service credentials, human
+approval authority to automation, publication, public Storage, production
+configuration, deployment, or Strongr Daily changes. If the accepted M0–M2
+contracts reveal a genuine database gap, stop and use the separately approved
+append-only migration process instead of broadening the browser boundary.
 
 ## Restart procedure
 
 When resuming Strongr OS work:
 
 1. Confirm protected `main` contains checkpoint commit
-   `0db978b4ad419164a270401bc9000ad6a895c69d` or a documented successor.
+   `a66f1f09046b4626c669b56cd627b09a48ddcffc` or a documented successor.
 2. Read this file, the approved M3 scope, and the three canonical acceptance
    records:
    - `docs/architecture/M3_SCOPE.md`
    - `evidence/m0-2/acceptance-record.json`
    - `evidence/m1/acceptance-record.json`
    - `evidence/m2/acceptance-record.json`
-3. Review `README.md`, `docs/adr/ADR-0003-static-browser-studio.md`,
-   `docs/architecture/M3_0_BROWSER_FOUNDATION.md`, and the M1/M2 Studio gateway
-   and acceptance contracts that M3.1 will consume.
+3. Review `README.md`, `docs/architecture/M3_1_IDENTITY_TENANT_WORK_QUEUE.md`,
+   `docs/architecture/M1_2_BRIEF_TO_DRAFT.md`,
+   `docs/architecture/M1_3_REVIEW_TO_PACKAGE.md`, and the accepted Studio gateway
+   and command contracts that M3.2 will consume.
 4. Confirm the `main protection` ruleset remains active with no bypass actors and
    the required checks remain strict.
 5. Confirm the current Strongr Daily application has not been changed.
 6. Start from current protected `main` on a new `agent/*` branch.
-7. Implement M3.1 only; do not begin M3.2 until M3.1 is owner-accepted.
+7. Implement M3.2 only; do not begin M3.3 until M3.2 is owner-accepted.
 8. Run all existing required checks plus the M3 application check and new
-   M3.1-specific acceptance checks before merge.
+   M3.2-specific acceptance checks before merge.
 
 ## Protected-main checks at this checkpoint
 
