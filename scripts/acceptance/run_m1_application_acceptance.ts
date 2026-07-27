@@ -430,7 +430,10 @@ async function ensurePrivateMediaBucket(config: AcceptanceConfig): Promise<void>
     headers,
     method: "GET",
   });
-  if (response.status === 404) {
+  // Hosted Storage returns 400 for a missing bucket while the local emulator
+  // returns 404. Both mean the disposable target still needs this reviewed,
+  // private bucket; every other read failure remains fatal.
+  if (response.status === 400 || response.status === 404) {
     response = await fetch(`${config.supabaseUrl}/storage/v1/bucket`, {
       body: JSON.stringify({
         allowed_mime_types: ["audio/wav"],
