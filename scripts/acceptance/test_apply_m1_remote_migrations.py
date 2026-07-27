@@ -8,6 +8,7 @@ from apply_m1_remote_migrations import (
     database_matches_project,
     strip_transaction_wrapper,
 )
+from apply_m2_remote_migrations import MIGRATION_FILENAMES as M2_MIGRATION_FILENAMES
 
 
 class ApplyM1RemoteMigrationsTest(unittest.TestCase):
@@ -55,6 +56,16 @@ commit;
                 "postgresql://postgres.other:password@aws.pooler.supabase.com:6543/postgres",
                 project,
             )
+        )
+
+    def test_m2_delta_is_ordered_and_contains_only_reviewed_migrations(self) -> None:
+        self.assertEqual(
+            M2_MIGRATION_FILENAMES,
+            (
+                "20260727015650_m2_media_storage_foundation.sql",
+                "20260727023903_m2_1_durable_media_worker.sql",
+                "20260727032345_m2_2_review_release_staging.sql",
+            ),
         )
 
 

@@ -1,0 +1,81 @@
+{
+  "schema": "strongr.m2_acceptance.v1",
+  "status": "pending",
+  "implementation_baseline": "d55dc9cc383d44c3a6fed81b2ec41827dcd431e2",
+  "tested_commit": "pending",
+  "pull_request": {
+    "repository": "neilgasson/strongr-os",
+    "number": null,
+    "head_sha": "pending",
+    "merge_sha": "pending",
+    "base_branch": "main",
+    "merged": false
+  },
+  "environments": {
+    "local": {
+      "status": "pending",
+      "workflow_run_id": null,
+      "job_id": null,
+      "artifact_id": null
+    },
+    "strongr-os-dev": {
+      "status": "pending",
+      "project_ref": "fifrlyddmjkogmdvyjdp",
+      "workflow_run_id": null,
+      "job_id": null,
+      "artifact_id": null
+    }
+  },
+  "migrations": {
+    "repository_count": 11,
+    "local_from_zero": "pending",
+    "local_recorded_history_count": null,
+    "remote_atomic_delta": "pending",
+    "remote_applied_exactly_once": null,
+    "remote_delta_versions": [
+      "20260727015650",
+      "20260727023903",
+      "20260727032345"
+    ]
+  },
+  "evidence": {
+    "strongr_daily_untouched": "pending",
+    "private_bucket_configuration": "pending",
+    "real_aal1_media_request_denial": "pending",
+    "durable_media_worker": "pending",
+    "byte_validation_and_provenance": "pending",
+    "two_tenant_isolation": "pending",
+    "anonymous_denial": "pending",
+    "exact_private_retrieval": "pending",
+    "bucket_listing_restriction": "pending",
+    "human_media_accessibility_review": "pending",
+    "real_aal1_staging_denial": "pending",
+    "real_aal2_staging_success": "pending",
+    "immutable_staged_manifest": "pending",
+    "real_aal1_revocation_denial": "pending",
+    "real_aal2_revocation_success": "pending",
+    "revoked_authority_denial": "pending",
+    "database_object_inventory": "pending",
+    "encrypted_independent_backup": "pending",
+    "exact_byte_restore": "pending",
+    "orphan_detection": "pending",
+    "missing_object_detection": "pending",
+    "reconciliation": "pending",
+    "measured_recovery_time": "pending",
+    "observability": "pending",
+    "privacy": "pending",
+    "fixture_cleanup": "pending",
+    "failure_artifact_preservation": "pending",
+    "github_protection": "pending",
+    "required_checks_latest_head": "pending"
+  },
+  "artifacts": [],
+  "started_at_utc": "pending",
+  "completed_at_utc": "pending",
+  "owner_approval": {
+    "status": "standing_authority",
+    "owner": "neilgasson",
+    "approved_on": "2026-07-26",
+    "record": "Codex standing authority to complete and merge M2.1 through M2.3 only when required checks pass and existing security boundaries remain intact."
+  }
+}

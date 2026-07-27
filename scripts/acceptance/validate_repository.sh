@@ -103,6 +103,14 @@ json.loads(
         / "acceptance-record.template.json"
     ).read_text()
 )
+json.loads(
+    (
+        root
+        / "evidence"
+        / "m2"
+        / "acceptance-record.template.json"
+    ).read_text()
+)
 
 expected_migrations = [
     "202607241230_m0_governed_platform_kernel.sql",
@@ -122,7 +130,7 @@ observed_migrations = [
     for path in sorted((root / "supabase" / "migrations").glob("*.sql"))
 ]
 if observed_migrations != expected_migrations:
-    failures.append("the M2.2 repository migration inventory changed")
+    failures.append("the M2.3 repository migration inventory changed")
 
 if failures:
     for failure in failures:
