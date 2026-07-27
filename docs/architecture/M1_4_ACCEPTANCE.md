@@ -2,9 +2,10 @@
 
 ## Status
 
-Implementation candidate for protected review. M1.3 was accepted through
-owner-approved PR #16 at commit
-`64863271187dd02ca357a6b41bc854c4106c6640`.
+Accepted through owner-approved PR #17 at implementation head
+`d17343746017d495a33dc665c06607b45c315c78` and squash-merge commit
+`fbd4fef747a53c69622a5aed33322e5008bacf6d`. The canonical acceptance record is
+`evidence/m1/acceptance-record.json`.
 
 M1.4 adds acceptance proof only. It adds no product capability, schema
 migration, deployment, publication path, external AI provider, media
@@ -112,19 +113,19 @@ M1.4 does not claim those future UI checks.
 
 ## Evidence lifecycle
 
-`evidence/m1/acceptance-record.template.json` is the pending record contract.
-The record remains pending until:
+`evidence/m1/acceptance-record.template.json` defines the record contract. The
+accepted record at `evidence/m1/acceptance-record.json` binds:
 
-- local and remote jobs pass on the reviewed implementation;
-- exact workflow, job, artifact, migration, and recovery identifiers are
-  recorded;
-- protected checks pass on the final pull-request head;
-- failure-artifact preservation is demonstrated; and
-- Neil explicitly approves the final record.
+- the passing local and remote jobs on the reviewed implementation;
+- exact workflow, job, artifact, migration, and recovery identifiers;
+- protected checks on the final pull-request head and squash-merged `main`;
+- the preserved artifact from the initial failed acceptance run;
+- the active M1 branch-protection gates; and
+- the repository owner's explicit M1.4 merge and protection approvals.
 
-As with M0.2, the final accepted evidence record is delivered separately after
-the implementation evidence exists. M1.4 must not be merged or marked complete
-from placeholders.
+The committed record closes M1 only. It does not authorize M2 implementation,
+deployment, publication, production acceptance, an external AI provider, or a
+change to Strongr Daily. M2 requires its own owner-approved scope and gates.
 
 ## Rollback
 

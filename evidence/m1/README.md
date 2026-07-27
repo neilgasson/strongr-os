@@ -1,9 +1,9 @@
 # M1 Acceptance Evidence
 
-This directory defines the final M1 evidence contract. Generated logs and
-runtime artifacts belong in GitHub Actions artifacts, not in Git, and must
-never contain credentials, connection strings, temporary emails, passwords,
-draft bodies, or private database errors.
+This directory contains the final M1 evidence contract and canonical accepted
+record. Generated logs and runtime artifacts belong in GitHub Actions
+artifacts, not in Git, and must never contain credentials, connection strings,
+temporary emails, passwords, draft bodies, or private database errors.
 
 The committed acceptance record must bind:
 
@@ -23,6 +23,8 @@ The committed acceptance record must bind:
 - exact workflow, job, artifact, commit, PR, and UTC identifiers; and
 - explicit owner acceptance.
 
-`acceptance-record.template.json` remains pending while any gate or identifier
-is pending. The implementation pull request does not itself authorize
-deployment, publication, production acceptance, or changes to Strongr Daily.
+`acceptance-record.json` is the canonical accepted record.
+`acceptance-record.template.json` preserves the reusable pending shape. M1
+acceptance does not authorize M2 implementation, deployment, publication,
+production acceptance, external AI-provider access, or changes to Strongr
+Daily.
