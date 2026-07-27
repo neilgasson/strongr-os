@@ -15,7 +15,7 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M2.3 implementation — recovery and acceptance**
+**M2 accepted — governed media, recovery, and acceptance**
 
 M0.2 reliability and operational acceptance completed on July 26, 2026. The
 canonical record at evidence/m0-2/acceptance-record.json binds the accepted
@@ -43,11 +43,13 @@ The repository owner approved the M2 scope in PR #19 at
 `adeef0bff9e804e808a5e6e61beb4e832578072b`, accepted M2.0 through PR #20
 at `a07a258db216309d7667a9a8f52fdd6c966b492f`, accepted M2.1 through PR #21
 at `9bae01e039e575c5a2e7eb6308d680a6586eb96c`, and accepted M2.2 through PR
-#22 at `d55dc9cc383d44c3a6fed81b2ec41827dcd431e2`. M2.3 adds local and
+#22 at `d55dc9cc383d44c3a6fed81b2ec41827dcd431e2`. M2.3 was accepted through
+PRs #23 and #24 at `5df45797bc5502030982b182d2adeb8be54dd7ff`.
+`evidence/m2/acceptance-record.json` binds the clean local replay,
 non-production remote acceptance, complete object/database inventory,
 independent encrypted byte backup, exact restore and reconciliation proof,
-measured recovery time, failure artifacts, and final acceptance evidence.
-Publication and production deployment remain deferred.
+measured recovery time, failure artifacts, and governance evidence to exact
+identifiers. Publication and production deployment remain deferred.
 
 ## Current implementation boundary
 
@@ -111,8 +113,7 @@ The M0/M1 database foundation, M0.2 acceptance, M1.0 application foundation,
 M1.1 durable worker, M1.2 governed brief-to-draft flow, and M1.3 governed
 review-to-package flow are complete. M1.4 local and non-production remote
 acceptance is complete and recorded. The repository owner approved the M2
-scope, M2.0 through M2.2 are complete, and M2.3 recovery and acceptance is in
-progress. That approval does
+scope, and M2.0 through M2.3 are complete and recorded. That approval does
 not authorize public Storage, browser object upload, publication, production
 deployment, external media or AI providers, or any change to the current
 Strongr Daily application.
