@@ -15,7 +15,7 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M2 planning — governed media artifacts and release staging**
+**M2.0 implementation — governed media and private Storage foundation**
 
 M0.2 reliability and operational acceptance completed on July 26, 2026. The
 canonical record at evidence/m0-2/acceptance-record.json binds the accepted
@@ -39,10 +39,13 @@ migration, failure/recovery, governance, accessibility/privacy, and artifact
 evidence to exact identifiers. PR #18 committed that final record to protected
 `main` at `935adb08cd3f2f291facf3dfb986b8c7741bc666`.
 
-The proposed M2 scope is defined in `docs/architecture/M2_SCOPE.md` for
-repository-owner review. It is limited to converting an accepted M1 package
-into immutable, privately stored, recoverable synthetic media artifacts and a
-non-public staged release bundle.
+The repository owner approved the M2 scope in PR #19 at
+`adeef0bff9e804e808a5e6e61beb4e832578072b`. M2.0 implements only the approved
+data model, typed contracts, private-bucket configuration, explicit
+grants/policies, deterministic synthetic fixture, threat-model update, and CI
+boundary checks. Media execution, object upload, review commands, release
+staging, recovery acceptance, publication, and production deployment remain
+deferred to separately approved stages.
 
 ## Current implementation boundary
 
@@ -104,8 +107,8 @@ evidence/
 The M0/M1 database foundation, M0.2 acceptance, M1.0 application foundation,
 M1.1 durable worker, M1.2 governed brief-to-draft flow, and M1.3 governed
 review-to-package flow are complete. M1.4 local and non-production remote
-acceptance is complete and recorded. M2 implementation is not authorized until
-the repository owner accepts `docs/architecture/M2_SCOPE.md`. The proposed
-scope does not authorize public Storage, publication, production deployment,
-external media or AI providers, or any change to the current Strongr Daily
-application.
+acceptance is complete and recorded. The repository owner approved the M2
+scope, and M2.0 foundation implementation is in progress. That approval does
+not authorize public Storage, object upload, publication, production
+deployment, external media or AI providers, or any change to the current
+Strongr Daily application.
