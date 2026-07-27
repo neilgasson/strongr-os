@@ -13,9 +13,12 @@ export const browserCommands = Object.freeze({
   recordReview: "m1_record_review",
   recordRightsSnapshot: "m1_record_rights_snapshot",
   recordScriptureEvidence: "m1_record_scripture_evidence",
+  recordMediaReview: "m2_record_media_review",
   requestGeneration: "m1_request_generation",
   requestMedia: "m2_request_media",
   revokeApproval: "m1_revoke_approval",
+  revokeStagedRelease: "m2_revoke_staged_release",
+  stageRelease: "m2_stage_release",
   submitVersion: "m1_submit_version",
 } as const);
 
@@ -145,6 +148,33 @@ export interface RequestMediaArguments {
   readonly correlationId: Uuid;
 }
 
+export interface RecordMediaReviewArguments {
+  readonly organizationId: Uuid;
+  readonly mediaArtifactId: Uuid;
+  readonly decision: MediaReviewDecision;
+  readonly transcriptStatus: MediaTranscriptStatus;
+  readonly accessibilityStatus: MediaAccessibilityStatus;
+  readonly reasonCode: string;
+  readonly evidence: JsonObject;
+  readonly correlationId: Uuid;
+}
+
+export interface StageReleaseArguments {
+  readonly organizationId: Uuid;
+  readonly productionPackageId: Uuid;
+  readonly mediaArtifactId: Uuid;
+  readonly mediaReviewId: Uuid;
+  readonly configuration: JsonObject;
+  readonly correlationId: Uuid;
+}
+
+export interface RevokeStagedReleaseArguments {
+  readonly organizationId: Uuid;
+  readonly stagedReleaseBundleId: Uuid;
+  readonly reasonCode: string;
+  readonly correlationId: Uuid;
+}
+
 export interface BrowserCommandArguments {
   readonly m1_approve_version: ApproveVersionArguments;
   readonly m1_create_audio_brief: CreateAudioBriefArguments;
@@ -157,7 +187,10 @@ export interface BrowserCommandArguments {
   readonly m1_request_generation: RequestGenerationArguments;
   readonly m1_revoke_approval: RevokeApprovalArguments;
   readonly m1_submit_version: SubmitVersionArguments;
+  readonly m2_record_media_review: RecordMediaReviewArguments;
   readonly m2_request_media: RequestMediaArguments;
+  readonly m2_revoke_staged_release: RevokeStagedReleaseArguments;
+  readonly m2_stage_release: StageReleaseArguments;
 }
 
 export interface CreateAudioBriefResult {
@@ -177,7 +210,10 @@ export interface BrowserCommandResults {
   readonly m1_request_generation: Uuid;
   readonly m1_revoke_approval: Uuid;
   readonly m1_submit_version: undefined;
+  readonly m2_record_media_review: Uuid;
   readonly m2_request_media: Uuid;
+  readonly m2_revoke_staged_release: Uuid;
+  readonly m2_stage_release: Uuid;
 }
 
 export type BrowserCommandName = keyof BrowserCommandArguments;
@@ -519,6 +555,14 @@ export interface TenantReadGateway {
 }
 
 export interface M2TenantReadGateway {
+  getMediaArtifact(
+    organizationId: Uuid,
+    mediaArtifactId: Uuid,
+  ): Promise<TenantMediaArtifactSummary>;
+  downloadMediaArtifact(
+    organizationId: Uuid,
+    mediaArtifactId: Uuid,
+  ): Promise<VerifiedMediaArtifactDownload>;
   listMediaOutputSpecs(limit?: number): Promise<readonly MediaOutputSpecSummary[]>;
   listMediaJobs(organizationId: Uuid, limit?: number): Promise<readonly TenantMediaJobSummary[]>;
   listMediaArtifacts(
@@ -537,6 +581,12 @@ export interface M2TenantReadGateway {
     organizationId: Uuid,
     limit?: number,
   ): Promise<readonly TenantStagedReleaseRevocationSummary[]>;
+}
+
+export interface VerifiedMediaArtifactDownload {
+  readonly artifact: TenantMediaArtifactSummary;
+  readonly bytes: Uint8Array;
+  readonly sha256: string;
 }
 
 export interface AutomatedCheckResultInput {

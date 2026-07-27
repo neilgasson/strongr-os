@@ -1,6 +1,7 @@
 # M2.1 — Durable Synthetic-Media Worker
 
-- **Status:** Implemented for protected review
+- **Status:** Accepted through PR #21 at
+  `9bae01e039e575c5a2e7eb6308d680a6586eb96c`
 - **Scope authority:** `docs/architecture/M2_SCOPE.md`, approved through PR #19
 - **Foundation:** M2.0 accepted through PR #20 at
   `a07a258db216309d7667a9a8f52fdd6c966b492f`

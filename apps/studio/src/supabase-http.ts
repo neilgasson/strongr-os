@@ -11,6 +11,11 @@ import type {
   GenerationJobState,
   JsonObject,
   JsonValue,
+  MediaAccessibilityStatus,
+  MediaJobState,
+  MediaOutputSpecSummary,
+  MediaReviewDecision,
+  MediaTranscriptStatus,
   ReviewDecision,
   ReviewLane,
   RightsStatus,
@@ -22,12 +27,18 @@ import type {
   TenantCheckRunSummary,
   TenantContentVersionSummary,
   TenantGenerationJobSummary,
+  TenantMediaArtifactSummary,
+  TenantMediaJobSummary,
+  TenantMediaReviewSummary,
   TenantProductionPackageSummary,
   TenantReviewDecisionSummary,
   TenantReviewPolicySummary,
   TenantRightsSnapshotSummary,
   TenantScriptureEvidenceSummary,
+  TenantStagedReleaseBundleSummary,
+  TenantStagedReleaseRevocationSummary,
   Uuid,
+  VerifiedMediaArtifactDownload,
 } from "../../../packages/contracts/src/index.ts";
 
 import type { StudioEnvironment } from "./environment.ts";
@@ -321,6 +332,39 @@ function commandBody<Name extends BrowserCommandName>(
         p_production_package_id: input.productionPackageId,
       };
     }
+    case "m2_record_media_review": {
+      const input = arguments_ as BrowserCommandArguments["m2_record_media_review"];
+      return {
+        p_accessibility_status: input.accessibilityStatus,
+        p_correlation_id: input.correlationId,
+        p_decision: input.decision,
+        p_evidence: input.evidence,
+        p_media_artifact_id: input.mediaArtifactId,
+        p_organization_id: input.organizationId,
+        p_reason_code: input.reasonCode,
+        p_transcript_status: input.transcriptStatus,
+      };
+    }
+    case "m2_stage_release": {
+      const input = arguments_ as BrowserCommandArguments["m2_stage_release"];
+      return {
+        p_configuration: input.configuration,
+        p_correlation_id: input.correlationId,
+        p_media_artifact_id: input.mediaArtifactId,
+        p_media_review_id: input.mediaReviewId,
+        p_organization_id: input.organizationId,
+        p_production_package_id: input.productionPackageId,
+      };
+    }
+    case "m2_revoke_staged_release": {
+      const input = arguments_ as BrowserCommandArguments["m2_revoke_staged_release"];
+      return {
+        p_correlation_id: input.correlationId,
+        p_organization_id: input.organizationId,
+        p_reason_code: input.reasonCode,
+        p_staged_release_bundle_id: input.stagedReleaseBundleId,
+      };
+    }
   }
 }
 
@@ -368,6 +412,88 @@ async function readJson(response: Response): Promise<unknown> {
     return null;
   }
   return JSON.parse(text) as unknown;
+}
+
+function parseMediaArtifact(value: unknown, organizationId: Uuid): TenantMediaArtifactSummary {
+  const row = requireTenantRow(value, "media artifact", organizationId);
+  if (
+    requireString(row, "bucket_id") !== "strongr-os-media" ||
+    requireString(row, "mime_type") !== "audio/wav" ||
+    requireString(row, "container") !== "wav" ||
+    requireString(row, "codec") !== "pcm_s16le" ||
+    requireInteger(row, "channels") !== 1 ||
+    requireInteger(row, "sample_rate_hz") !== 16_000 ||
+    requireInteger(row, "bits_per_sample") !== 16 ||
+    requireString(row, "validation_schema_id") !== "strongr.media_validation.v1"
+  ) {
+    throw new Error("Invalid tenant media artifact response");
+  }
+  const id = requireUuid(row, "id");
+  const productionPackageId = requireUuid(row, "production_package_id");
+  const objectPath = requireString(row, "object_path");
+  const expectedPath = `${organizationId}/${productionPackageId}/${id}.wav`;
+  if (objectPath !== expectedPath) {
+    throw new Error("Invalid tenant media artifact path");
+  }
+  return Object.freeze({
+    bitsPerSample: 16 as const,
+    bucketId: "strongr-os-media" as const,
+    byteCount: requireInteger(row, "byte_count"),
+    channels: 1 as const,
+    codec: "pcm_s16le" as const,
+    container: "wav" as const,
+    createdAt: requireString(row, "created_at"),
+    durationMs: requireInteger(row, "duration_ms"),
+    id,
+    mediaJobId: requireUuid(row, "media_job_id"),
+    mimeType: "audio/wav" as const,
+    objectPath,
+    organizationId,
+    outputSpecId: requireUuid(row, "output_spec_id"),
+    productionPackageId,
+    sampleRateHz: 16_000 as const,
+    sha256: requireHash(row, "sha256"),
+    successfulAttemptId: requireUuid(row, "successful_attempt_id"),
+    validatedAt: requireString(row, "validated_at"),
+    validationSchemaId: "strongr.media_validation.v1" as const,
+  });
+}
+
+function mediaArtifactSelect(): string {
+  return [
+    "id",
+    "organization_id",
+    "media_job_id",
+    "production_package_id",
+    "output_spec_id",
+    "successful_attempt_id",
+    "bucket_id",
+    "object_path",
+    "mime_type",
+    "container",
+    "codec",
+    "channels",
+    "sample_rate_hz",
+    "bits_per_sample",
+    "duration_ms",
+    "byte_count",
+    "sha256",
+    "validation_schema_id",
+    "validated_at",
+    "created_at",
+  ].join(",");
+}
+
+function encodeMediaObjectPath(objectPath: string): string {
+  return objectPath
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer);
+  return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
 }
 
 export class StudioSupabaseGateway implements StudioCommandGateway {
@@ -855,6 +981,343 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
           manifestHash: requireHash(row, "manifest_hash"),
           manifestSchemaId: "strongr.production_package.v1" as const,
           organizationId,
+        });
+      }),
+    );
+  }
+
+  async getMediaArtifact(
+    organizationId: Uuid,
+    mediaArtifactId: Uuid,
+  ): Promise<TenantMediaArtifactSummary> {
+    const parameters = new URLSearchParams({
+      id: `eq.${mediaArtifactId}`,
+      limit: "1",
+      organization_id: `eq.${organizationId}`,
+      select: mediaArtifactSelect(),
+    });
+    const response = await this.#fetch(
+      `${this.#environment.supabaseUrl}/rest/v1/media_artifacts?${parameters.toString()}`,
+      {
+        headers: this.#headers(false),
+        method: "GET",
+      },
+    );
+    const value = await readJson(response);
+    if (!Array.isArray(value) || value.length !== 1) {
+      throw new StudioApiError(404, "media_artifact_not_found");
+    }
+    return parseMediaArtifact(value[0], organizationId);
+  }
+
+  async downloadMediaArtifact(
+    organizationId: Uuid,
+    mediaArtifactId: Uuid,
+  ): Promise<VerifiedMediaArtifactDownload> {
+    const artifact = await this.getMediaArtifact(organizationId, mediaArtifactId);
+    const response = await this.#fetch(
+      `${this.#environment.supabaseUrl}/storage/v1/object/authenticated/${encodeURIComponent(
+        artifact.bucketId,
+      )}/${encodeMediaObjectPath(artifact.objectPath)}`,
+      {
+        cache: "no-store",
+        headers: {
+          accept: artifact.mimeType,
+          apikey: this.#environment.supabasePublishableKey,
+          authorization: `Bearer ${this.#accessToken}`,
+        },
+        method: "GET",
+      },
+    );
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new StudioApiError(404, "media_object_not_found");
+      }
+      throw new StudioApiError(response.status, "storage_download_failed");
+    }
+    if (response.headers.get("content-type")?.split(";")[0]?.trim() !== artifact.mimeType) {
+      throw new StudioApiError(422, "media_content_type_mismatch");
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength !== artifact.byteCount) {
+      throw new StudioApiError(422, "media_byte_count_mismatch");
+    }
+    const observedSha256 = await sha256Hex(bytes);
+    if (observedSha256 !== artifact.sha256) {
+      throw new StudioApiError(422, "media_checksum_mismatch");
+    }
+    return Object.freeze({
+      artifact,
+      bytes,
+      sha256: observedSha256,
+    });
+  }
+
+  async listMediaOutputSpecs(limit = 50): Promise<readonly MediaOutputSpecSummary[]> {
+    const rows = await this.#readRows(
+      "media_output_specs",
+      [
+        "id",
+        "key",
+        "version",
+        "media_kind",
+        "container",
+        "codec",
+        "mime_type",
+        "channels",
+        "sample_rate_hz",
+        "bits_per_sample",
+        "max_duration_ms",
+        "max_bytes",
+        "spec_hash",
+        "created_at",
+      ].join(","),
+      null,
+      limit,
+      "key.asc,version.asc",
+    );
+    return Object.freeze(
+      rows.map((value) => {
+        const row = requireRecord(value, "media output specification");
+        if (
+          requireString(row, "key") !== "strongr.synthetic_audio" ||
+          requireInteger(row, "version") !== 1 ||
+          requireString(row, "media_kind") !== "audio" ||
+          requireString(row, "container") !== "wav" ||
+          requireString(row, "codec") !== "pcm_s16le" ||
+          requireString(row, "mime_type") !== "audio/wav" ||
+          requireInteger(row, "channels") !== 1 ||
+          requireInteger(row, "sample_rate_hz") !== 16_000 ||
+          requireInteger(row, "bits_per_sample") !== 16 ||
+          requireInteger(row, "max_duration_ms") !== 900_000 ||
+          requireInteger(row, "max_bytes") !== 26_214_400
+        ) {
+          throw new Error("Invalid media output specification response");
+        }
+        return Object.freeze({
+          bitsPerSample: 16 as const,
+          channels: 1 as const,
+          codec: "pcm_s16le" as const,
+          container: "wav" as const,
+          createdAt: requireString(row, "created_at"),
+          id: requireUuid(row, "id"),
+          key: "strongr.synthetic_audio" as const,
+          maxBytes: 26_214_400 as const,
+          maxDurationMs: 900_000 as const,
+          mediaKind: "audio" as const,
+          mimeType: "audio/wav" as const,
+          sampleRateHz: 16_000 as const,
+          specHash: requireHash(row, "spec_hash"),
+          version: 1 as const,
+        });
+      }),
+    );
+  }
+
+  async listMediaJobs(organizationId: Uuid, limit = 50): Promise<readonly TenantMediaJobSummary[]> {
+    const rows = await this.#readRows(
+      "media_jobs",
+      [
+        "id",
+        "organization_id",
+        "production_package_id",
+        "output_spec_id",
+        "requested_by_membership_id",
+        "adapter_key",
+        "adapter_version",
+        "request_schema_id",
+        "input_hash",
+        "correlation_id",
+        "state",
+        "attempt_count",
+        "max_attempts",
+        "available_at",
+        "started_at",
+        "finished_at",
+        "last_error_code",
+        "created_at",
+      ].join(","),
+      organizationId,
+      limit,
+    );
+    const states: readonly MediaJobState[] = [
+      "queued",
+      "running",
+      "succeeded",
+      "failed",
+      "dead_letter",
+      "cancelled",
+    ];
+    return Object.freeze(
+      rows.map((value) => {
+        const row = requireTenantRow(value, "media job", organizationId);
+        if (requireString(row, "request_schema_id") !== "strongr.media_request.v1") {
+          throw new Error("Invalid tenant media job response");
+        }
+        return Object.freeze({
+          adapterKey: requireString(row, "adapter_key"),
+          adapterVersion: requireString(row, "adapter_version"),
+          attemptCount: requireInteger(row, "attempt_count"),
+          availableAt: requireString(row, "available_at"),
+          correlationId: requireUuid(row, "correlation_id"),
+          createdAt: requireString(row, "created_at"),
+          finishedAt: requireNullableString(row, "finished_at"),
+          id: requireUuid(row, "id"),
+          inputHash: requireHash(row, "input_hash"),
+          lastErrorCode: requireNullableString(row, "last_error_code"),
+          maxAttempts: requireInteger(row, "max_attempts"),
+          organizationId,
+          outputSpecId: requireUuid(row, "output_spec_id"),
+          productionPackageId: requireUuid(row, "production_package_id"),
+          requestSchemaId: "strongr.media_request.v1" as const,
+          requestedByMembershipId: requireUuid(row, "requested_by_membership_id"),
+          startedAt: requireNullableString(row, "started_at"),
+          state: requireOneOf(row, "state", states),
+        });
+      }),
+    );
+  }
+
+  async listMediaArtifacts(
+    organizationId: Uuid,
+    limit = 50,
+  ): Promise<readonly TenantMediaArtifactSummary[]> {
+    const rows = await this.#readRows(
+      "media_artifacts",
+      mediaArtifactSelect(),
+      organizationId,
+      limit,
+    );
+    return Object.freeze(rows.map((value) => parseMediaArtifact(value, organizationId)));
+  }
+
+  async listMediaReviews(
+    organizationId: Uuid,
+    limit = 50,
+  ): Promise<readonly TenantMediaReviewSummary[]> {
+    const rows = await this.#readRows(
+      "media_reviews",
+      [
+        "id",
+        "organization_id",
+        "media_artifact_id",
+        "reviewer_membership_id",
+        "decision",
+        "transcript_status",
+        "accessibility_status",
+        "reason_code",
+        "evidence",
+        "evidence_hash",
+        "created_at",
+      ].join(","),
+      organizationId,
+      limit,
+    );
+    const decisions: readonly MediaReviewDecision[] = ["approved", "changes_requested", "rejected"];
+    const transcripts: readonly MediaTranscriptStatus[] = ["ready", "blocked"];
+    const accessibility: readonly MediaAccessibilityStatus[] = ["approved", "blocked"];
+    return Object.freeze(
+      rows.map((value) => {
+        const row = requireTenantRow(value, "media review", organizationId);
+        return Object.freeze({
+          accessibilityStatus: requireOneOf(row, "accessibility_status", accessibility),
+          createdAt: requireString(row, "created_at"),
+          decision: requireOneOf(row, "decision", decisions),
+          evidence: requireJsonObject(row.evidence, "evidence"),
+          evidenceHash: requireHash(row, "evidence_hash"),
+          id: requireUuid(row, "id"),
+          mediaArtifactId: requireUuid(row, "media_artifact_id"),
+          organizationId,
+          reasonCode: requireString(row, "reason_code"),
+          reviewerMembershipId: requireUuid(row, "reviewer_membership_id"),
+          transcriptStatus: requireOneOf(row, "transcript_status", transcripts),
+        });
+      }),
+    );
+  }
+
+  async listStagedReleaseBundles(
+    organizationId: Uuid,
+    limit = 50,
+  ): Promise<readonly TenantStagedReleaseBundleSummary[]> {
+    const rows = await this.#readRows(
+      "staged_release_bundles",
+      [
+        "id",
+        "organization_id",
+        "production_package_id",
+        "media_artifact_id",
+        "media_review_id",
+        "manifest_schema_id",
+        "manifest",
+        "manifest_hash",
+        "staged_by_membership_id",
+        "authentication_assurance",
+        "staged_at",
+      ].join(","),
+      organizationId,
+      limit,
+      "staged_at.desc,id.desc",
+    );
+    return Object.freeze(
+      rows.map((value) => {
+        const row = requireTenantRow(value, "staged release bundle", organizationId);
+        if (
+          requireString(row, "manifest_schema_id") !== "strongr.staged_release_bundle.v1" ||
+          requireString(row, "authentication_assurance") !== "aal2"
+        ) {
+          throw new Error("Invalid tenant staged release bundle response");
+        }
+        return Object.freeze({
+          authenticationAssurance: "aal2" as const,
+          id: requireUuid(row, "id"),
+          manifest: requireJsonObject(row.manifest, "manifest"),
+          manifestHash: requireHash(row, "manifest_hash"),
+          manifestSchemaId: "strongr.staged_release_bundle.v1" as const,
+          mediaArtifactId: requireUuid(row, "media_artifact_id"),
+          mediaReviewId: requireUuid(row, "media_review_id"),
+          organizationId,
+          productionPackageId: requireUuid(row, "production_package_id"),
+          stagedAt: requireString(row, "staged_at"),
+          stagedByMembershipId: requireUuid(row, "staged_by_membership_id"),
+        });
+      }),
+    );
+  }
+
+  async listStagedReleaseRevocations(
+    organizationId: Uuid,
+    limit = 50,
+  ): Promise<readonly TenantStagedReleaseRevocationSummary[]> {
+    const rows = await this.#readRows(
+      "staged_release_revocations",
+      [
+        "id",
+        "organization_id",
+        "staged_release_bundle_id",
+        "revoked_by_membership_id",
+        "reason_code",
+        "authentication_assurance",
+        "revoked_at",
+      ].join(","),
+      organizationId,
+      limit,
+      "revoked_at.desc,id.desc",
+    );
+    return Object.freeze(
+      rows.map((value) => {
+        const row = requireTenantRow(value, "staged release revocation", organizationId);
+        if (requireString(row, "authentication_assurance") !== "aal2") {
+          throw new Error("Invalid tenant staged release revocation response");
+        }
+        return Object.freeze({
+          authenticationAssurance: "aal2" as const,
+          id: requireUuid(row, "id"),
+          organizationId,
+          reasonCode: requireString(row, "reason_code"),
+          revokedAt: requireString(row, "revoked_at"),
+          revokedByMembershipId: requireUuid(row, "revoked_by_membership_id"),
+          stagedReleaseBundleId: requireUuid(row, "staged_release_bundle_id"),
         });
       }),
     );
