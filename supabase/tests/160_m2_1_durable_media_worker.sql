@@ -199,15 +199,14 @@ values
 
 insert into public.approval_revocations (
   id, organization_id, approval_snapshot_id, revoked_by_membership_id,
-  reason_code, correlation_id
+  reason_code
 )
 values (
   '27000000-0000-4000-8000-000000000061',
   '27000000-0000-4000-8000-000000000001',
   '27000000-0000-4000-8000-000000000052',
   '27000000-0000-4000-8000-000000000021',
-  'test_revocation',
-  '27000000-0000-4000-8000-000000000062'
+  'test_revocation'
 );
 set session_replication_role = origin;
 
