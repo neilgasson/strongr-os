@@ -4,5 +4,6 @@ artifacts/
 .env
 .env.*
 !.env.example
+!apps/studio/.env.browser-test
 __pycache__/
 *.pyc

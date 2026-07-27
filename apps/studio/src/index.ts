@@ -13,6 +13,18 @@ export type { StudioEnvironment, StudioEnvironmentSource } from "./environment.t
 export { createStudioFoundation } from "./foundation.ts";
 export type { StudioCommandGateway, StudioFoundation } from "./foundation.ts";
 export {
+  createStudioIdentityGateway,
+  StudioIdentityGateway,
+  studioCapabilityKeys,
+} from "./identity-gateway.ts";
+export type {
+  OperatorIdentity,
+  OperatorOrganization,
+  OperatorProfile,
+  StudioCapabilities,
+  StudioCapabilityKey,
+} from "./identity-gateway.ts";
+export {
   createReviewToPackageOperatorFlow,
   ReviewToPackageOperatorFlow,
 } from "./review-to-package-flow.ts";
@@ -26,3 +38,10 @@ export {
   StudioSupabaseGateway,
 } from "./supabase-http.ts";
 export type { StudioFetch } from "./supabase-http.ts";
+export { loadCanonicalWorkQueue } from "./work-queue.ts";
+export type {
+  StudioWorkQueueGateway,
+  WorkQueueLane,
+  WorkQueueLaneKey,
+  WorkQueueSnapshot,
+} from "./work-queue.ts";

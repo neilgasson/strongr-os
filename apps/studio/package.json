@@ -7,7 +7,7 @@
     "build": "vite build",
     "dev": "vite",
     "preview": "vite preview",
-    "test:browser": "vite build && playwright test",
+    "test:browser": "vite build --mode browser-test && playwright test",
     "typecheck": "tsc -p tsconfig.browser.json && tsc -p tsconfig.playwright.json"
   },
   "dependencies": {

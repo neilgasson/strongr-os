@@ -18,7 +18,7 @@ export function createStudioAuthClient(
     flowType: studioAuthPolicy.flowType,
     headers: {
       apikey: environment.supabasePublishableKey,
-      "X-Client-Info": "strongr-studio/m3.0",
+      "X-Client-Info": "strongr-studio/m3.1",
     },
     persistSession: studioAuthPolicy.persistSession,
     storageKey: "strongr-os-studio-auth",
