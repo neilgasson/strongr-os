@@ -588,7 +588,7 @@ select throws_ok(
     (select bundle_id from m22_bundle)
   ),
   '55000',
-  'append-only table',
+  'staged_release_bundles is append-only',
   'staged release bundles are immutable'
 );
 select throws_ok(
@@ -601,7 +601,7 @@ select throws_ok(
     (select review_id from m22_review)
   ),
   '55000',
-  'append-only table',
+  'media_reviews is append-only',
   'human media reviews are immutable'
 );
 
@@ -776,7 +776,7 @@ select throws_ok(
     (select revocation_id from m22_revocation)
   ),
   '55000',
-  'append-only table',
+  'staged_release_revocations is append-only',
   'staged release revocations are immutable'
 );
 select is(
