@@ -309,6 +309,18 @@ function commandBody<Name extends BrowserCommandName>(
         p_organization_id: input.organizationId,
       };
     }
+    case "m2_request_media": {
+      const input = arguments_ as BrowserCommandArguments["m2_request_media"];
+      return {
+        p_adapter_key: input.adapterKey,
+        p_adapter_version: input.adapterVersion,
+        p_correlation_id: input.correlationId,
+        p_idempotency_key: input.idempotencyKey,
+        p_organization_id: input.organizationId,
+        p_output_spec_id: input.outputSpecId,
+        p_production_package_id: input.productionPackageId,
+      };
+    }
   }
 }
 

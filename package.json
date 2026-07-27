@@ -15,7 +15,7 @@
     "lint": "biome lint apps packages scripts/acceptance scripts/ci",
     "schema:check": "node scripts/ci/generate-content-schemas.ts --check",
     "schema:generate": "node scripts/ci/generate-content-schemas.ts",
-    "test": "node --test apps/studio/test/environment.test.ts apps/studio/test/supabase-http.test.ts apps/studio/test/brief-to-draft-flow.test.ts apps/studio/test/review-to-package-flow.test.ts apps/worker/test/environment.test.ts apps/worker/test/durable-worker.test.ts apps/worker/test/supabase-rpc.test.ts apps/worker/test/automated-review-checks.test.ts packages/ai/test/deterministic-adapter.test.ts packages/content-schemas/test/audio-reflection.test.ts packages/testing/test/media-fixtures.test.ts",
+    "test": "node --test apps/studio/test/environment.test.ts apps/studio/test/supabase-http.test.ts apps/studio/test/brief-to-draft-flow.test.ts apps/studio/test/review-to-package-flow.test.ts apps/worker/test/environment.test.ts apps/worker/test/durable-worker.test.ts apps/worker/test/supabase-rpc.test.ts apps/worker/test/automated-review-checks.test.ts apps/worker/test/media-worker.test.ts apps/worker/test/supabase-media-worker-store.test.ts apps/worker/test/supabase-storage.test.ts packages/ai/test/deterministic-adapter.test.ts packages/content-schemas/test/audio-reflection.test.ts packages/media/test/media-adapter.test.ts packages/testing/test/media-fixtures.test.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

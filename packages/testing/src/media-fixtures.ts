@@ -1,4 +1,5 @@
 import { mediaStorageContract } from "../../contracts/src/index.ts";
+import { createSyntheticPcmWav } from "../../media/src/index.ts";
 
 export const mediaFixtureIds = Object.freeze({
   artifactId: "26000000-0000-4000-8000-000000000005",
@@ -25,36 +26,5 @@ export const syntheticAudioFixture = Object.freeze({
 });
 
 export function createSyntheticPcmWavFixture(): Uint8Array {
-  const sampleCount =
-    (syntheticAudioFixture.sampleRateHz * syntheticAudioFixture.durationMs) / 1_000;
-  const bytesPerSample = syntheticAudioFixture.bitsPerSample / 8;
-  const dataBytes = sampleCount * syntheticAudioFixture.channels * bytesPerSample;
-  const bytes = new Uint8Array(44 + dataBytes);
-  const view = new DataView(bytes.buffer);
-
-  const writeAscii = (offset: number, value: string): void => {
-    for (let index = 0; index < value.length; index += 1) {
-      view.setUint8(offset + index, value.charCodeAt(index));
-    }
-  };
-
-  writeAscii(0, "RIFF");
-  view.setUint32(4, 36 + dataBytes, true);
-  writeAscii(8, "WAVE");
-  writeAscii(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, syntheticAudioFixture.channels, true);
-  view.setUint32(24, syntheticAudioFixture.sampleRateHz, true);
-  view.setUint32(
-    28,
-    syntheticAudioFixture.sampleRateHz * syntheticAudioFixture.channels * bytesPerSample,
-    true,
-  );
-  view.setUint16(32, syntheticAudioFixture.channels * bytesPerSample, true);
-  view.setUint16(34, syntheticAudioFixture.bitsPerSample, true);
-  writeAscii(36, "data");
-  view.setUint32(40, dataBytes, true);
-
-  return bytes;
+  return createSyntheticPcmWav();
 }

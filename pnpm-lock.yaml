@@ -36,6 +36,8 @@ importers:
 
   packages/contracts: {}
 
+  packages/media: {}
+
   packages/testing: {}
 
 packages:

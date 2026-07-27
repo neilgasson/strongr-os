@@ -15,7 +15,7 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M2.0 implementation — governed media and private Storage foundation**
+**M2.1 implementation — durable synthetic-media worker**
 
 M0.2 reliability and operational acceptance completed on July 26, 2026. The
 canonical record at evidence/m0-2/acceptance-record.json binds the accepted
@@ -40,12 +40,13 @@ evidence to exact identifiers. PR #18 committed that final record to protected
 `main` at `935adb08cd3f2f291facf3dfb986b8c7741bc666`.
 
 The repository owner approved the M2 scope in PR #19 at
-`adeef0bff9e804e808a5e6e61beb4e832578072b`. M2.0 implements only the approved
-data model, typed contracts, private-bucket configuration, explicit
-grants/policies, deterministic synthetic fixture, threat-model update, and CI
-boundary checks. Media execution, object upload, review commands, release
-staging, recovery acceptance, publication, and production deployment remain
-deferred to separately approved stages.
+`adeef0bff9e804e808a5e6e61beb4e832578072b`, and accepted M2.0 through PR #20
+at `a07a258db216309d7667a9a8f52fdd6c966b492f`. M2.1 implements the approved
+AAL2 media request, durable lease-based worker, deterministic WAV adapter,
+strict byte validation, write-once private Storage upload, canonical artifact
+recording, bounded retry/dead-letter handling, and partial-failure
+reconciliation. Human media review, release staging, recovery acceptance,
+publication, and production deployment remain deferred.
 
 ## Current implementation boundary
 
@@ -76,6 +77,7 @@ packages/
   contracts/
   content-schemas/
   ai/
+  media/
   observability/
   testing/
   design-system/
@@ -108,7 +110,8 @@ The M0/M1 database foundation, M0.2 acceptance, M1.0 application foundation,
 M1.1 durable worker, M1.2 governed brief-to-draft flow, and M1.3 governed
 review-to-package flow are complete. M1.4 local and non-production remote
 acceptance is complete and recorded. The repository owner approved the M2
-scope, and M2.0 foundation implementation is in progress. That approval does
+scope, M2.0 is complete, and M2.1 durable worker implementation is in progress.
+That approval does
 not authorize public Storage, object upload, publication, production
 deployment, external media or AI providers, or any change to the current
 Strongr Daily application.
