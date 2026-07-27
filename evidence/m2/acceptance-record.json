@@ -1,0 +1,319 @@
+{
+  "schema": "strongr.m2_acceptance.v1",
+  "status": "accepted",
+  "implementation_baseline": "d55dc9cc383d44c3a6fed81b2ec41827dcd431e2",
+  "tested_commit": "5df45797bc5502030982b182d2adeb8be54dd7ff",
+  "pull_request": {
+    "repository": "neilgasson/strongr-os",
+    "number": 24,
+    "head_sha": "2b731172973b0ed97de738e1efcaaa8e3544eb75",
+    "merge_sha": "5df45797bc5502030982b182d2adeb8be54dd7ff",
+    "base_branch": "main",
+    "draft": false,
+    "merged": true,
+    "merged_at_utc": "2026-07-27T04:43:35Z"
+  },
+  "related_pull_requests": [
+    {
+      "number": 21,
+      "purpose": "M2.1 durable media worker",
+      "head_sha": "288ea08e14182db487180a88109aa208ce0d2247",
+      "merge_sha": "9bae01e039e575c5a2e7eb6308d680a6586eb96c"
+    },
+    {
+      "number": 22,
+      "purpose": "M2.2 governed review and release staging",
+      "head_sha": "797ac301324a7e5f5e9e6806102bcac8de26fdf2",
+      "merge_sha": "d55dc9cc383d44c3a6fed81b2ec41827dcd431e2"
+    },
+    {
+      "number": 23,
+      "purpose": "M2.3 recovery and acceptance workflow",
+      "head_sha": "1bf9efbcce7fa104eedd12ad2220407b21f0eb95",
+      "merge_sha": "35b386b762738123bb636d207a8d393a5f032ab6"
+    },
+    {
+      "number": 24,
+      "purpose": "hosted Storage missing-bucket compatibility correction",
+      "head_sha": "2b731172973b0ed97de738e1efcaaa8e3544eb75",
+      "merge_sha": "5df45797bc5502030982b182d2adeb8be54dd7ff"
+    }
+  ],
+  "environments": {
+    "local": {
+      "status": "pass",
+      "kind": "isolated Supabase on GitHub-hosted runner",
+      "workflow_run_id": 30237884139,
+      "job_id": 89889539020,
+      "head_sha": "5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "started_at_utc": "2026-07-27T04:48:04Z",
+      "completed_at_utc": "2026-07-27T04:51:46Z",
+      "artifact_id": 8642323089
+    },
+    "strongr-os-dev": {
+      "status": "pass",
+      "project_ref": "fifrlyddmjkogmdvyjdp",
+      "workflow_run_id": 30237884139,
+      "job_id": 89889539061,
+      "head_sha": "5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "started_at_utc": "2026-07-27T04:48:04Z",
+      "completed_at_utc": "2026-07-27T04:48:57Z",
+      "artifact_id": 8642290224
+    }
+  },
+  "migrations": {
+    "repository_count": 11,
+    "local_from_zero": "pass",
+    "local_recorded_history_count": 11,
+    "local_distinct_history_count": 11,
+    "remote_atomic_delta": "pass",
+    "remote_applied_exactly_once": true,
+    "remote_delta_versions": [
+      {
+        "version": "20260727015650",
+        "name": "m2_media_storage_foundation",
+        "history_rows": 1,
+        "final_action": "verified",
+        "atomic_history": true
+      },
+      {
+        "version": "20260727023903",
+        "name": "m2_1_durable_media_worker",
+        "history_rows": 1,
+        "final_action": "verified",
+        "atomic_history": true
+      },
+      {
+        "version": "20260727032345",
+        "name": "m2_2_review_release_staging",
+        "history_rows": 1,
+        "final_action": "verified",
+        "atomic_history": true
+      }
+    ],
+    "remote_verified_on": "2026-07-27"
+  },
+  "governance": {
+    "mode": "solo-maintainer-exception",
+    "exception_adr": "docs/adr/ADR-0002-solo-maintainer-governance-exception.md",
+    "independent_approval_required": false,
+    "owner_review_required": true,
+    "ruleset_verification": {
+      "status": "pass",
+      "ruleset_id": 19766424,
+      "ruleset_name": "main protection",
+      "target": "default branch",
+      "enforcement": "active",
+      "bypass_actors": [],
+      "current_user_can_bypass": "never",
+      "pull_request_required": true,
+      "required_approvals": 0,
+      "conversation_resolution_required": true,
+      "strict_required_checks": true,
+      "required_checks": [
+        "Database contract / test",
+        "M0.2 reliability proof / acceptance",
+        "M1 application / foundation",
+        "M1 acceptance / local",
+        "M2 acceptance / local"
+      ],
+      "remote_acceptance_required": false,
+      "force_pushes_blocked": true,
+      "deletions_blocked": true,
+      "verified_on": "2026-07-27"
+    }
+  },
+  "evidence": {
+    "strongr_daily_untouched": "pass",
+    "private_bucket_configuration": "pass",
+    "real_aal1_media_request_denial": "pass",
+    "durable_media_worker": "pass",
+    "byte_validation_and_provenance": "pass",
+    "two_tenant_isolation": "pass",
+    "anonymous_denial": "pass",
+    "exact_private_retrieval": "pass",
+    "bucket_listing_restriction": "pass",
+    "human_media_accessibility_review": "pass",
+    "real_aal1_staging_denial": "pass",
+    "real_aal2_staging_success": "pass",
+    "immutable_staged_manifest": "pass",
+    "real_aal1_revocation_denial": "pass",
+    "real_aal2_revocation_success": "pass",
+    "revoked_authority_denial": "pass",
+    "database_object_inventory": "pass",
+    "encrypted_independent_backup": "pass",
+    "exact_byte_restore": "pass",
+    "orphan_detection": "pass",
+    "missing_object_detection": "pass",
+    "reconciliation": "pass",
+    "measured_recovery_time": "pass",
+    "observability": "pass",
+    "privacy": "pass",
+    "fixture_cleanup": "pass",
+    "failure_artifact_preservation": "pass",
+    "github_protection": "pass",
+    "required_checks_latest_head": "pass"
+  },
+  "evidence_details": {
+    "remote_acceptance": {
+      "workflow_run_id": 30237884139,
+      "job_id": 89889539061,
+      "passed": 45,
+      "failed": 0,
+      "target": "strongr-os-dev",
+      "storage_cleanup": "pass",
+      "database_cleanup": "pass",
+      "auth_cleanup": "pass",
+      "health_status": "ok"
+    },
+    "local_clean_replay": {
+      "workflow_run_id": 30237884139,
+      "job_id": 89889539020,
+      "repository_migration_count": 11,
+      "recorded_history_count": 11,
+      "distinct_history_count": 11,
+      "pg_tap_files": 9,
+      "pg_tap_assertions": 263,
+      "application_acceptance": "pass",
+      "database_contracts": "pass"
+    },
+    "encrypted_byte_recovery": {
+      "backup_schema_id": "strongr.m2_media_backup.v1",
+      "encryption": "AES-256-GCM",
+      "plaintext_retained": false,
+      "encryption_key_retained": false,
+      "plaintext_byte_count": 3244,
+      "plaintext_sha256": "2976da01e205a110c9fa41d47659e238a5c6d3c3f3137582f2949853faa201dd",
+      "ciphertext_sha256": "d1302b4c387bedf6315c8dcfa3b4c817f8d03f100889cb7be30f8c695198fe68",
+      "inventory_sha256": "fa38fa9779a973d0fb78377699d4561d5e94b7352db196ea4960bf499fb214f7",
+      "measured_restore_milliseconds": 1,
+      "exact_byte_restore": "pass",
+      "orphan_detection": "pass",
+      "missing_object_detection": "pass",
+      "reconciliation": "pass"
+    },
+    "pull_request_checks": {
+      "head_sha": "2b731172973b0ed97de738e1efcaaa8e3544eb75",
+      "database_contract_run_id": 30237273196,
+      "database_contract_job_id": 89888541308,
+      "reliability_run_id": 30237273128,
+      "reliability_job_id": 89887347498,
+      "application_run_id": 30237273160,
+      "application_job_id": 89887347776,
+      "m1_local_acceptance_run_id": 30237273164,
+      "m1_local_acceptance_job_id": 89887347802,
+      "m2_local_acceptance_run_id": 30237273147,
+      "m2_local_acceptance_job_id": 89887347577
+    },
+    "post_merge_checks": {
+      "head_sha": "5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "reliability_run_id": 30237869455,
+      "m1_local_acceptance_run_id": 30237869450,
+      "m2_local_acceptance_run_id": 30237869459,
+      "m2_remote_dispatch_run_id": 30237884139
+    },
+    "failure_artifact_preservation": {
+      "workflow_run_id": 30236930609,
+      "job_id": 89886397541,
+      "head_sha": "35b386b762738123bb636d207a8d393a5f032ab6",
+      "workflow_conclusion": "failure",
+      "application_failure_code": "m2_private_bucket_read_failed",
+      "migration_delta": "pass",
+      "artifact_upload": "pass",
+      "storage_cleanup": "pass",
+      "database_cleanup": "pass",
+      "auth_cleanup": "pass",
+      "subsequent_correction": "PR #24 accepted the hosted Storage API missing-bucket response without changing bucket privacy or permissions"
+    },
+    "remote_evidence_applicability": {
+      "remote_evidence_head_sha": "5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "final_tested_commit": "5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "database_schema_changed_after_remote_run": false,
+      "migrations_changed_after_remote_run": false,
+      "remote_acceptance_runner_changed_after_remote_run": false,
+      "rls_or_permission_boundaries_changed_after_remote_run": false
+    }
+  },
+  "artifacts": [
+    {
+      "purpose": "proof that failed remote acceptance still preserved evidence and cleanup",
+      "artifact_id": 8641942332,
+      "workflow_run_id": 30236930609,
+      "name": "m2-acceptance-remote-35b386b762738123bb636d207a8d393a5f032ab6",
+      "head_sha": "35b386b762738123bb636d207a8d393a5f032ab6",
+      "size_bytes": 2392,
+      "digest": "sha256:e92f5e40df346773087d8a0f543ad774cc26eea8a76ad058303772ebda03eecf",
+      "created_at_utc": "2026-07-27T04:23:50Z",
+      "expires_at_utc": "2026-08-26T04:23:49Z",
+      "url": "https://github.com/neilgasson/strongr-os/actions/runs/30236930609/artifacts/8641942332"
+    },
+    {
+      "purpose": "protected pull-request local M2 acceptance",
+      "artifact_id": 8642102480,
+      "workflow_run_id": 30237273147,
+      "name": "m2-acceptance-local-cae31b693a01ff04b202f1a8b8c756b886cf56ab",
+      "head_sha": "2b731172973b0ed97de738e1efcaaa8e3544eb75",
+      "merge_ref_sha": "cae31b693a01ff04b202f1a8b8c756b886cf56ab",
+      "size_bytes": 22919,
+      "digest": "sha256:0d05a2a38faac36eec34e47cd4376d5249ffe1ec66817d92315dbda544f8a78e",
+      "created_at_utc": "2026-07-27T04:34:58Z",
+      "expires_at_utc": "2026-08-26T04:34:57Z",
+      "url": "https://github.com/neilgasson/strongr-os/actions/runs/30237273147/artifacts/8642102480"
+    },
+    {
+      "purpose": "post-merge protected-main local M2 acceptance",
+      "artifact_id": 8642272376,
+      "workflow_run_id": 30237869459,
+      "name": "m2-acceptance-local-5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "head_sha": "5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "size_bytes": 18407,
+      "digest": "sha256:672125efc7fedd7cd02e5bc90d73dfcbf15d684db5f139462ce5f52431336e06",
+      "created_at_utc": "2026-07-27T04:47:36Z",
+      "expires_at_utc": "2026-08-26T04:47:35Z",
+      "url": "https://github.com/neilgasson/strongr-os/actions/runs/30237869459/artifacts/8642272376"
+    },
+    {
+      "purpose": "non-production remote M2 acceptance and encrypted byte recovery",
+      "artifact_id": 8642290224,
+      "workflow_run_id": 30237884139,
+      "name": "m2-acceptance-remote-5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "head_sha": "5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "size_bytes": 8126,
+      "digest": "sha256:35b86476de5c554d9b735a56a110af0fc7ae0a91ddc57cc74078cb419f3e82bf",
+      "created_at_utc": "2026-07-27T04:48:55Z",
+      "expires_at_utc": "2026-08-26T04:48:54Z",
+      "url": "https://github.com/neilgasson/strongr-os/actions/runs/30237884139/artifacts/8642290224"
+    },
+    {
+      "purpose": "workflow-dispatch local acceptance on the remote-tested commit",
+      "artifact_id": 8642323089,
+      "workflow_run_id": 30237884139,
+      "name": "m2-acceptance-local-5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "head_sha": "5df45797bc5502030982b182d2adeb8be54dd7ff",
+      "size_bytes": 16836,
+      "digest": "sha256:264949e9dc6a7829e4e1bb6afadf6242405c73ef94afd8ad35428a59538c7f19",
+      "created_at_utc": "2026-07-27T04:51:21Z",
+      "expires_at_utc": "2026-08-26T04:51:20Z",
+      "url": "https://github.com/neilgasson/strongr-os/actions/runs/30237884139/artifacts/8642323089"
+    }
+  ],
+  "started_at_utc": "2026-07-27T03:10:06Z",
+  "completed_at_utc": "2026-07-27T04:51:47Z",
+  "reviewer": {
+    "mode": "solo-maintainer-exception",
+    "independent_reviewer": null,
+    "owner": "neilgasson",
+    "exception_adr": "docs/adr/ADR-0002-solo-maintainer-governance-exception.md"
+  },
+  "owner_approval": {
+    "status": "standing_authority",
+    "owner": "neilgasson",
+    "approved_on": "2026-07-26",
+    "scope": [
+      "M2.1 durable media worker",
+      "M2.2 governed review and release staging",
+      "M2.3 recovery and acceptance"
+    ],
+    "record": "The repository owner granted Codex standing authority to complete and merge M2.1 through M2.3 only when required checks pass and existing security boundaries remain intact."
+  }
+}

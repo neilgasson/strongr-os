@@ -1,6 +1,6 @@
 # M2.3 — Recovery and Acceptance
 
-- **Status:** Implemented for protected review
+- **Status:** Accepted on protected `main`
 - **Scope authority:** `docs/architecture/M2_SCOPE.md`, approved through PR #19
 - **Review/staging foundation:** M2.2 accepted through PR #22 at
   `d55dc9cc383d44c3a6fed81b2ec41827dcd431e2`
@@ -91,8 +91,9 @@ private text, encryption keys, and plaintext media are excluded.
 
 ## Completion sequence
 
-After this workflow is stable and green on protected `main`, the local M2
-check may be added to branch protection. The non-production remote job is then
-dispatched, its artifacts and identifiers are reviewed, and
-`evidence/m2/acceptance-record.json` is committed in a final protected closure
-pull request.
+The local M2 check is required by branch protection. Protected `main` and the
+explicit non-production remote dispatch passed at
+`5df45797bc5502030982b182d2adeb8be54dd7ff`. The immutable identifiers,
+checksums, migration-history proof, recovery measurement, failure artifact,
+and governance verification are recorded in
+`evidence/m2/acceptance-record.json`.

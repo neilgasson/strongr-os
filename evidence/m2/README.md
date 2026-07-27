@@ -14,3 +14,8 @@ The accepted record is created only after:
 The record contains identifiers, hashes, counts, timings, and outcomes. It
 must not contain database URLs, API keys, JWTs, passwords, encryption keys,
 plaintext media, private content, or personal data.
+
+`acceptance-record.json` is the canonical accepted record. It binds the exact
+protected-main commit to the required checks, clean local replay,
+non-production remote proof, encrypted byte-recovery evidence, preserved
+failure artifact, and active GitHub ruleset.
