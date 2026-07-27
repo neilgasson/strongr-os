@@ -1,9 +1,10 @@
 # M2 — Governed Media Artifacts and Release Staging
 
-- **Status:** Proposed
+- **Status:** Approved through PR #19
 - **Date:** July 26, 2026
 - **Owner:** Neil Gasson / Strongr Society
-- **Approval gate:** Repository-owner approval is required before implementation begins.
+- **Approval gate:** Satisfied by repository-owner approval and merge commit
+  `adeef0bff9e804e808a5e6e61beb4e832578072b`.
 
 ## Entry condition
 

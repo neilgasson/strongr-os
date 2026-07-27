@@ -330,6 +330,130 @@ export interface TenantProductionPackageSummary {
   readonly createdAt: string;
 }
 
+export const mediaStorageContract = Object.freeze({
+  allowedMimeTypes: ["audio/wav"] as const,
+  bucketId: "strongr-os-media",
+  maxBytes: 26_214_400,
+  public: false,
+} as const);
+
+export type MediaJobState =
+  | "queued"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "dead_letter"
+  | "cancelled";
+export type MediaReviewDecision = "approved" | "changes_requested" | "rejected";
+export type MediaTranscriptStatus = "ready" | "blocked";
+export type MediaAccessibilityStatus = "approved" | "blocked";
+export type MediaReconciliationEventType =
+  | "upload_ambiguous"
+  | "object_missing"
+  | "object_orphaned"
+  | "checksum_mismatch"
+  | "reconciled";
+export type MediaReconciliationOutcome = "detected" | "verified" | "blocked";
+
+export interface MediaOutputSpecSummary {
+  readonly id: Uuid;
+  readonly key: "strongr.synthetic_audio";
+  readonly version: 1;
+  readonly mediaKind: "audio";
+  readonly container: "wav";
+  readonly codec: "pcm_s16le";
+  readonly mimeType: "audio/wav";
+  readonly channels: 1;
+  readonly sampleRateHz: 16_000;
+  readonly bitsPerSample: 16;
+  readonly maxDurationMs: 900_000;
+  readonly maxBytes: 26_214_400;
+  readonly specHash: string;
+  readonly createdAt: string;
+}
+
+export interface TenantMediaJobSummary {
+  readonly id: Uuid;
+  readonly organizationId: Uuid;
+  readonly productionPackageId: Uuid;
+  readonly outputSpecId: Uuid;
+  readonly requestedByMembershipId: Uuid;
+  readonly adapterKey: string;
+  readonly adapterVersion: string;
+  readonly requestSchemaId: "strongr.media_request.v1";
+  readonly inputHash: string;
+  readonly correlationId: Uuid;
+  readonly state: MediaJobState;
+  readonly attemptCount: number;
+  readonly maxAttempts: number;
+  readonly availableAt: string;
+  readonly startedAt: string | null;
+  readonly finishedAt: string | null;
+  readonly lastErrorCode: string | null;
+  readonly createdAt: string;
+}
+
+export interface TenantMediaArtifactSummary {
+  readonly id: Uuid;
+  readonly organizationId: Uuid;
+  readonly mediaJobId: Uuid;
+  readonly productionPackageId: Uuid;
+  readonly outputSpecId: Uuid;
+  readonly successfulAttemptId: Uuid;
+  readonly bucketId: "strongr-os-media";
+  readonly objectPath: string;
+  readonly mimeType: "audio/wav";
+  readonly container: "wav";
+  readonly codec: "pcm_s16le";
+  readonly channels: 1;
+  readonly sampleRateHz: 16_000;
+  readonly bitsPerSample: 16;
+  readonly durationMs: number;
+  readonly byteCount: number;
+  readonly sha256: string;
+  readonly validationSchemaId: "strongr.media_validation.v1";
+  readonly validatedAt: string;
+  readonly createdAt: string;
+}
+
+export interface TenantMediaReviewSummary {
+  readonly id: Uuid;
+  readonly organizationId: Uuid;
+  readonly mediaArtifactId: Uuid;
+  readonly reviewerMembershipId: Uuid;
+  readonly decision: MediaReviewDecision;
+  readonly transcriptStatus: MediaTranscriptStatus;
+  readonly accessibilityStatus: MediaAccessibilityStatus;
+  readonly reasonCode: string;
+  readonly evidence: JsonObject;
+  readonly evidenceHash: string;
+  readonly createdAt: string;
+}
+
+export interface TenantStagedReleaseBundleSummary {
+  readonly id: Uuid;
+  readonly organizationId: Uuid;
+  readonly productionPackageId: Uuid;
+  readonly mediaArtifactId: Uuid;
+  readonly mediaReviewId: Uuid;
+  readonly manifestSchemaId: "strongr.staged_release_bundle.v1";
+  readonly manifest: JsonObject;
+  readonly manifestHash: string;
+  readonly stagedByMembershipId: Uuid;
+  readonly authenticationAssurance: "aal2";
+  readonly stagedAt: string;
+}
+
+export interface TenantStagedReleaseRevocationSummary {
+  readonly id: Uuid;
+  readonly organizationId: Uuid;
+  readonly stagedReleaseBundleId: Uuid;
+  readonly revokedByMembershipId: Uuid;
+  readonly reasonCode: string;
+  readonly authenticationAssurance: "aal2";
+  readonly revokedAt: string;
+}
+
 export interface TenantReadGateway {
   listBriefs(organizationId: Uuid, limit?: number): Promise<readonly TenantBriefSummary[]>;
   listCheckDefinitions(limit?: number): Promise<readonly CheckDefinitionSummary[]>;
@@ -374,6 +498,27 @@ export interface TenantReadGateway {
     organizationId: Uuid,
     limit?: number,
   ): Promise<readonly TenantProductionPackageSummary[]>;
+}
+
+export interface M2TenantReadGateway {
+  listMediaOutputSpecs(limit?: number): Promise<readonly MediaOutputSpecSummary[]>;
+  listMediaJobs(organizationId: Uuid, limit?: number): Promise<readonly TenantMediaJobSummary[]>;
+  listMediaArtifacts(
+    organizationId: Uuid,
+    limit?: number,
+  ): Promise<readonly TenantMediaArtifactSummary[]>;
+  listMediaReviews(
+    organizationId: Uuid,
+    limit?: number,
+  ): Promise<readonly TenantMediaReviewSummary[]>;
+  listStagedReleaseBundles(
+    organizationId: Uuid,
+    limit?: number,
+  ): Promise<readonly TenantStagedReleaseBundleSummary[]>;
+  listStagedReleaseRevocations(
+    organizationId: Uuid,
+    limit?: number,
+  ): Promise<readonly TenantStagedReleaseRevocationSummary[]>;
 }
 
 export interface AutomatedCheckResultInput {

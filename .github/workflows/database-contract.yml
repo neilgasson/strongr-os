@@ -21,17 +21,57 @@ jobs:
     name: Database contract / test
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
 
     steps:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Validate migrations and database contracts
+      - name: Prepare database evidence
         run: |
-          npx --yes supabase@2.109.1 start
-          npx --yes supabase@2.109.1 db reset --local
-          npx --yes supabase@2.109.1 test db
+          mkdir -p artifacts/database-contract
+          printf '{"check":"workflow_started","status":"pass","sha":"%s"}\n' \
+            "$GITHUB_SHA" >artifacts/database-contract/workflow.jsonl
+
+      - name: Start isolated Supabase
+        run: |
+          npx --yes supabase@2.109.1 start 2>&1 \
+            | tee artifacts/database-contract/supabase-start.log
+
+      - name: Apply every migration from zero
+        run: |
+          npx --yes supabase@2.109.1 db reset --local 2>&1 \
+            | tee artifacts/database-contract/database-reset.log
+
+      - name: Run database contracts
+        run: |
+          npx --yes supabase@2.109.1 test db 2>&1 \
+            | tee artifacts/database-contract/database-contracts.log
+
+      - name: Finalize database evidence
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          printf '{"check":"workflow_completed","status":"%s","sha":"%s"}\n' \
+            "$JOB_STATUS" "$GITHUB_SHA" \
+            >>artifacts/database-contract/workflow.jsonl
+          find artifacts/database-contract -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            >artifacts/database-contract/SHA256SUMS
 
       - name: Stop local Supabase
         if: always()
         run: npx --yes supabase@2.109.1 stop --no-backup
+
+      - name: Upload database evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: database-contract-evidence-${{ github.sha }}
+          path: artifacts/database-contract
+          if-no-files-found: error
+          retention-days: 30
