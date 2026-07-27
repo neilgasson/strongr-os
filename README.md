@@ -15,7 +15,7 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M1 accepted — M2 scope preparation**
+**M2 planning — governed media artifacts and release staging**
 
 M0.2 reliability and operational acceptance completed on July 26, 2026. The
 canonical record at evidence/m0-2/acceptance-record.json binds the accepted
@@ -36,7 +36,13 @@ review-to-package flow through PR #16 at commit
 at commit `fbd4fef747a53c69622a5aed33322e5008bacf6d`. The canonical record at
 `evidence/m1/acceptance-record.json` binds the local, non-production remote,
 migration, failure/recovery, governance, accessibility/privacy, and artifact
-evidence to exact identifiers.
+evidence to exact identifiers. PR #18 committed that final record to protected
+`main` at `935adb08cd3f2f291facf3dfb986b8c7741bc666`.
+
+The proposed M2 scope is defined in `docs/architecture/M2_SCOPE.md` for
+repository-owner review. It is limited to converting an accepted M1 package
+into immutable, privately stored, recoverable synthetic media artifacts and a
+non-public staged release bundle.
 
 ## Current implementation boundary
 
@@ -51,8 +57,8 @@ The existing Strongr Studio and M1 checkpoints are design and workflow reference
 - AI may assist with drafting and checks; authorized humans retain theological, editorial, approval, export, and publishing authority.
 - Tenant isolation, authorization, auditability, accessibility, recovery, and privacy are release requirements.
 - No database migration is executed before it is reviewed and committed.
-- M2 work may begin only after its scope and gates are explicitly approved and
-  remains inside the protected delivery sequence.
+- M2 implementation may begin only after its proposed scope and gates are
+  explicitly approved and remains inside the protected delivery sequence.
 
 ## Repository structure
 
@@ -99,7 +105,7 @@ The M0/M1 database foundation, M0.2 acceptance, M1.0 application foundation,
 M1.1 durable worker, M1.2 governed brief-to-draft flow, and M1.3 governed
 review-to-package flow are complete. M1.4 local and non-production remote
 acceptance is complete and recorded. M2 implementation is not authorized until
-the repository owner accepts an explicit M2 scope and gate definition. M1
-acceptance does not authorize deployment, publication, production acceptance,
-external AI-provider access, or any change to the current Strongr Daily
+the repository owner accepts `docs/architecture/M2_SCOPE.md`. The proposed
+scope does not authorize public Storage, publication, production deployment,
+external media or AI providers, or any change to the current Strongr Daily
 application.
