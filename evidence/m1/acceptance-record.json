@@ -1,0 +1,271 @@
+{
+  "schema": "strongr.m1_acceptance.v1",
+  "status": "accepted",
+  "implementation_baseline": "64863271187dd02ca357a6b41bc854c4106c6640",
+  "tested_commit": "fbd4fef747a53c69622a5aed33322e5008bacf6d",
+  "pull_request": {
+    "repository": "neilgasson/strongr-os",
+    "number": 17,
+    "head_sha": "d17343746017d495a33dc665c06607b45c315c78",
+    "merge_sha": "fbd4fef747a53c69622a5aed33322e5008bacf6d",
+    "base_branch": "main",
+    "draft": false,
+    "merged": true,
+    "merged_at_utc": "2026-07-26T23:25:10Z"
+  },
+  "environments": {
+    "local": {
+      "status": "pass",
+      "kind": "isolated Supabase on GitHub-hosted runner",
+      "workflow_run_id": 30225209534,
+      "job_id": 89854174616,
+      "head_sha": "fbd4fef747a53c69622a5aed33322e5008bacf6d",
+      "started_at_utc": "2026-07-26T23:25:16Z",
+      "completed_at_utc": "2026-07-26T23:29:26Z",
+      "artifact_id": 8638390582
+    },
+    "strongr-os-dev": {
+      "status": "pass",
+      "project_ref": "fifrlyddmjkogmdvyjdp",
+      "workflow_run_id": 30224870854,
+      "job_id": 89853307073,
+      "head_sha": "d17343746017d495a33dc665c06607b45c315c78",
+      "started_at_utc": "2026-07-26T23:15:51Z",
+      "completed_at_utc": "2026-07-26T23:16:27Z",
+      "artifact_id": 8638267874
+    }
+  },
+  "migrations": {
+    "repository_files": [
+      "202607241230_m0_governed_platform_kernel.sql",
+      "202607241330_m1_governed_audio_reflection.sql",
+      "202607242230_m1_restrict_check_worker_execute.sql",
+      "202607251200_m0_2_reliability_primitives.sql",
+      "202607251230_m0_2_request_idempotency_fingerprint.sql",
+      "202607251830_m0_2_restrict_anon_security_definer.sql",
+      "20260726161909_m1_1_durable_worker_commands.sql",
+      "20260726205703_m1_2_brief_to_draft.sql"
+    ],
+    "local_from_zero": "pass",
+    "local_repository_migration_count": 8,
+    "local_recorded_history_count": 8,
+    "local_distinct_history_count": 8,
+    "remote_accepted_m0_2_baseline": "pass",
+    "remote_atomic_delta": "pass",
+    "remote_applied_exactly_once": true,
+    "remote_delta_versions": [
+      {
+        "version": "20260726161909",
+        "name": "m1_1_durable_worker_commands",
+        "history_rows": 1,
+        "atomic_history": true
+      },
+      {
+        "version": "20260726205703",
+        "name": "m1_2_brief_to_draft",
+        "history_rows": 1,
+        "atomic_history": true
+      }
+    ],
+    "remote_verified_on": "2026-07-26"
+  },
+  "governance": {
+    "mode": "solo-maintainer-exception",
+    "exception_adr": "docs/adr/ADR-0002-solo-maintainer-governance-exception.md",
+    "independent_approval_required": false,
+    "owner_review_required": true,
+    "ruleset_verification": {
+      "status": "pass",
+      "ruleset_id": 19766424,
+      "ruleset_name": "main protection",
+      "target": "default branch",
+      "enforcement": "active",
+      "bypass_actors": [],
+      "pull_request_required": true,
+      "required_approvals": 0,
+      "conversation_resolution_required": true,
+      "strict_required_checks": true,
+      "required_checks": [
+        "Database contract / test",
+        "M0.2 reliability proof / acceptance",
+        "M1 application / foundation",
+        "M1 acceptance / local"
+      ],
+      "remote_acceptance_required": false,
+      "force_pushes_blocked": true,
+      "deletions_blocked": true,
+      "verified_on": "2026-07-26"
+    }
+  },
+  "evidence": {
+    "m0_2_entry_record": "pass",
+    "strongr_daily_untouched": "pass",
+    "two_tenant_isolation": "pass",
+    "anonymous_denial": "pass",
+    "browser_direct_write_denial": "pass",
+    "service_role_boundary": "pass",
+    "brief_and_idempotent_request": "pass",
+    "worker_transient_failure": "pass",
+    "worker_retry_recovery": "pass",
+    "immutable_generated_draft": "pass",
+    "submitted_version_integrity": "pass",
+    "versioned_automated_checks": "pass",
+    "human_governance": "pass",
+    "real_aal1_denial": "pass",
+    "real_aal2_success": "pass",
+    "package_integrity": "pass",
+    "revocation": "pass",
+    "observability": "pass",
+    "accessibility_transcript_contract": "pass",
+    "privacy": "pass",
+    "fixture_cleanup": "pass",
+    "failure_artifact_preservation": "pass",
+    "github_protection": "pass",
+    "required_checks_latest_head": "pass"
+  },
+  "evidence_details": {
+    "remote_acceptance": {
+      "workflow_run_id": 30224870854,
+      "job_id": 89853307073,
+      "passed": 24,
+      "failed": 0,
+      "target": "strongr-os-dev",
+      "database_cleanup": "pass",
+      "auth_cleanup": "pass"
+    },
+    "local_clean_replay": {
+      "workflow_run_id": 30225209534,
+      "job_id": 89854174616,
+      "repository_migration_count": 8,
+      "recorded_history_count": 8,
+      "distinct_history_count": 8,
+      "application_acceptance": "pass",
+      "database_contracts": "pass"
+    },
+    "pull_request_checks": {
+      "head_sha": "d17343746017d495a33dc665c06607b45c315c78",
+      "database_contract_run_id": 30224706818,
+      "database_contract_job_id": 89852902291,
+      "reliability_run_id": 30224706836,
+      "reliability_job_id": 89852902430,
+      "application_run_id": 30224706805,
+      "application_job_id": 89852902351,
+      "local_acceptance_run_id": 30224706806,
+      "local_acceptance_job_id": 89852902345
+    },
+    "post_merge_checks": {
+      "head_sha": "fbd4fef747a53c69622a5aed33322e5008bacf6d",
+      "database_contract_run_id": 30225209530,
+      "reliability_run_id": 30225209541,
+      "application_run_id": 30225209524,
+      "local_acceptance_run_id": 30225209534
+    },
+    "failure_artifact_preservation": {
+      "workflow_run_id": 30224113895,
+      "job_id": 89851442594,
+      "head_sha": "18463b1b24599732d14eebf618b052383b213749",
+      "workflow_conclusion": "failure",
+      "application_failure": "local TOTP enrollment and verification disabled",
+      "artifact_id": 8638110608,
+      "artifact_upload": "pass",
+      "cleanup": "pass"
+    },
+    "remote_database_verification": {
+      "project_ref": "fifrlyddmjkogmdvyjdp",
+      "m1_history_rows_per_version": 1,
+      "claim_command_present": true,
+      "completion_command_present": true,
+      "submit_command_present": true,
+      "verified_on": "2026-07-26"
+    },
+    "remote_evidence_applicability": {
+      "remote_evidence_head_sha": "d17343746017d495a33dc665c06607b45c315c78",
+      "final_tested_commit": "fbd4fef747a53c69622a5aed33322e5008bacf6d",
+      "subsequent_change": "squash merge of the accepted implementation tree",
+      "database_schema_changed_after_remote_run": false,
+      "migrations_changed_after_remote_run": false,
+      "remote_acceptance_runner_changed_after_remote_run": false,
+      "rls_or_permission_boundaries_changed_after_remote_run": false
+    }
+  },
+  "artifacts": [
+    {
+      "purpose": "proof that failed application acceptance still preserved evidence and cleanup",
+      "artifact_id": 8638110608,
+      "workflow_run_id": 30224113895,
+      "name": "m1-acceptance-local-de85d186e8bc13366f5e94943397a72ecec828bd",
+      "head_sha": "18463b1b24599732d14eebf618b052383b213749",
+      "size_bytes": 13065,
+      "digest": "sha256:31dbf1a700765224d2375913a503a6df172ca6580b500187de6ed57f68faf29b",
+      "created_at_utc": "2026-07-26T22:59:30Z",
+      "expires_at_utc": "2026-08-25T22:59:30Z",
+      "url": "https://github.com/neilgasson/strongr-os/actions/runs/30224113895/artifacts/8638110608"
+    },
+    {
+      "purpose": "protected pull-request local acceptance",
+      "artifact_id": 8638250086,
+      "workflow_run_id": 30224706806,
+      "name": "m1-acceptance-local-d6e81e3b597318460cd4636c28323d82d0345b70",
+      "head_sha": "d17343746017d495a33dc665c06607b45c315c78",
+      "size_bytes": 18823,
+      "digest": "sha256:298073b3b9eea915c4f6d5d2bffccddf50c18adb7c490ca87e8639778bf298db",
+      "created_at_utc": "2026-07-26T23:14:33Z",
+      "expires_at_utc": "2026-08-25T23:14:32Z",
+      "url": "https://github.com/neilgasson/strongr-os/actions/runs/30224706806/artifacts/8638250086"
+    },
+    {
+      "purpose": "non-production remote acceptance",
+      "artifact_id": 8638267874,
+      "workflow_run_id": 30224870854,
+      "name": "m1-acceptance-remote-d17343746017d495a33dc665c06607b45c315c78",
+      "head_sha": "d17343746017d495a33dc665c06607b45c315c78",
+      "size_bytes": 3056,
+      "digest": "sha256:e90062184bbd84a9f209771e88af587acfd3c75612d1701b85e681b53f6a05da",
+      "created_at_utc": "2026-07-26T23:16:25Z",
+      "expires_at_utc": "2026-08-25T23:16:25Z",
+      "url": "https://github.com/neilgasson/strongr-os/actions/runs/30224870854/artifacts/8638267874"
+    },
+    {
+      "purpose": "workflow-dispatch local acceptance on the remote-tested head",
+      "artifact_id": 8638292325,
+      "workflow_run_id": 30224870854,
+      "name": "m1-acceptance-local-d17343746017d495a33dc665c06607b45c315c78",
+      "head_sha": "d17343746017d495a33dc665c06607b45c315c78",
+      "size_bytes": 11125,
+      "digest": "sha256:6c3bbd677631e9ae58e12cb6b1635c94d587cdf24d37ef6d86dad021058dd0d9",
+      "created_at_utc": "2026-07-26T23:19:03Z",
+      "expires_at_utc": "2026-08-25T23:19:02Z",
+      "url": "https://github.com/neilgasson/strongr-os/actions/runs/30224870854/artifacts/8638292325"
+    },
+    {
+      "purpose": "post-merge main local acceptance",
+      "artifact_id": 8638390582,
+      "workflow_run_id": 30225209534,
+      "name": "m1-acceptance-local-fbd4fef747a53c69622a5aed33322e5008bacf6d",
+      "head_sha": "fbd4fef747a53c69622a5aed33322e5008bacf6d",
+      "size_bytes": 15661,
+      "digest": "sha256:09d304a454e4d5927e17d182db756ff34eb39ae93ec89f69fecafba61fa74e1d",
+      "created_at_utc": "2026-07-26T23:29:00Z",
+      "expires_at_utc": "2026-08-25T23:28:59Z",
+      "url": "https://github.com/neilgasson/strongr-os/actions/runs/30225209534/artifacts/8638390582"
+    }
+  ],
+  "started_at_utc": "2026-07-26T22:55:53Z",
+  "completed_at_utc": "2026-07-27T01:06:04Z",
+  "reviewer": {
+    "mode": "solo-maintainer-exception",
+    "independent_reviewer": null,
+    "owner": "neilgasson",
+    "exception_adr": "docs/adr/ADR-0002-solo-maintainer-governance-exception.md"
+  },
+  "owner_approval": {
+    "status": "approved",
+    "owner": "neilgasson",
+    "approved_on": "2026-07-26",
+    "scope": [
+      "PR #17 M1.4 governed application acceptance",
+      "M1 required-check branch-protection update"
+    ],
+    "record": "The repository owner explicitly directed the PR #17 merge and approved the M1 branch-protection update in the controlling Codex task."
+  }
+}

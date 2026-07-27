@@ -92,6 +92,14 @@ json.loads(
         root
         / "evidence"
         / "m1"
+        / "acceptance-record.json"
+    ).read_text()
+)
+json.loads(
+    (
+        root
+        / "evidence"
+        / "m1"
         / "acceptance-record.template.json"
     ).read_text()
 )
