@@ -1,4 +1,4 @@
-# M0.2 Observability Runbook
+# M0.2/M1/M2 Observability Runbook
 
 ## Signals
 
@@ -9,7 +9,13 @@ M0.2 exposes:
   dead letters, and delivery;
 - worker heartbeats;
 - `m0_operational_health()` for a single readiness result; and
-- `m0_operational_metrics()` for provider-neutral metrics.
+- `m0_operational_metrics()` for provider-neutral metrics;
+- M2 media-job state, attempts, latency, byte count, provider-neutral cost and
+  correlation identifiers;
+- append-only media reconciliation events for ambiguous upload, missing
+  object, orphan object, checksum mismatch, and verified repair; and
+- acceptance inventory, encrypted-backup checksum, restore duration, and
+  fixture-cleanup status.
 
 No personal journal, prayer, Scripture text, draft content, API key, JWT,
 database URL, email address, or password may enter logs, labels, or alerts.
@@ -84,3 +90,16 @@ platform, then confirm a fresh heartbeat before closing the incident.
 Provider-specific alert integration is deferred until a deployment platform is
 selected. The metrics names, thresholds, and response procedures are already
 fixed by this gate.
+
+## M2 media response
+
+- `dead_letter`: treat as critical and reconcile Storage before any replay.
+- `checksum_mismatch`: block staging, preserve both expected and observed
+  hashes, and investigate write authority; never overwrite the object.
+- `object_missing`: block staging and restore only from a checksum-verified
+  independent backup.
+- `object_orphaned`: do not adopt automatically; prove its intended job,
+  canonical path, and checksum first.
+- failed cleanup: retain the exact organization/object identifiers in the
+  private evidence artifact and remove only those fixtures through the
+  supported APIs.

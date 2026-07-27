@@ -1,6 +1,7 @@
 # M2.2 — Governed Review and Private Release Staging
 
-- **Status:** Implemented for protected review
+- **Status:** Accepted through PR #22 at
+  `d55dc9cc383d44c3a6fed81b2ec41827dcd431e2`
 - **Scope authority:** `docs/architecture/M2_SCOPE.md`, approved through PR #19
 - **Worker foundation:** M2.1 accepted through PR #21 at
   `9bae01e039e575c5a2e7eb6308d680a6586eb96c`

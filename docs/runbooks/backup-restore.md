@@ -95,20 +95,33 @@ archive as a complete Auth recovery.
 ## Storage objects
 
 Supabase database backups contain Storage metadata, not the stored object
-bytes. M0.2 creates no Strongr OS Storage bucket, so there is no object payload
-to restore in this milestone.
+bytes. M2 therefore adds a separate object-byte recovery layer.
 
-Before the first Strongr OS Storage feature is authorized:
+The M2 acceptance harness:
 
-1. Define bucket inventory and object-retention policy.
-2. Export object bytes to encrypted independent storage.
-3. Record object path, size, MIME type, version, and SHA-256.
-4. Restore into a disposable bucket.
-5. Compare every checksum and access policy.
-6. Test missing-object reconciliation against database metadata.
-7. Add the measured object restore time to the platform RTO.
+1. reads canonical artifact metadata from PostgreSQL;
+2. compares it with the read-only `storage.objects` inventory;
+3. downloads the exact object through the server-only Storage API;
+4. records path, bucket, MIME type, byte count, artifact checksum, manifest
+   hash, and schema versions;
+5. encrypts the bytes with AES-256-GCM outside Supabase;
+6. verifies the retained ciphertext and inventory checksums;
+7. decrypts into an isolated disposable restore workspace;
+8. verifies the restored byte count and SHA-256;
+9. detects synthetic missing and orphan object states;
+10. restores the exact canonical bytes without overwrite and re-verifies
+    authenticated private retrieval; and
+11. records elapsed recovery time.
 
-Do not use or modify the current Strongr Daily Storage project for this drill.
+The drill key is ephemeral, remains only in process memory, and is zeroed after
+verification. Retained CI evidence contains ciphertext but neither the key nor
+plaintext media. Operational backups must instead use a separately managed
+recovery key, restricted storage, retention policy, and tested key-recovery
+procedure.
+
+Object deletion in the drill is limited to the exact random fixture prefix and
+uses the supported Storage API. The current Strongr Daily Storage project is
+never used or modified.
 
 ## Failure handling
 

@@ -1,0 +1,303 @@
+name: M2 acceptance
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: ["main"]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "supabase/**"
+      - "scripts/acceptance/**"
+      - "scripts/ops/**"
+      - "evidence/m2/**"
+      - "docs/architecture/M2_3_RECOVERY_ACCEPTANCE.md"
+      - "docs/runbooks/backup-restore.md"
+      - "docs/runbooks/observability.md"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig*.json"
+      - "biome.json"
+      - ".nvmrc"
+      - ".github/workflows/m2-acceptance.yml"
+  workflow_dispatch:
+    inputs:
+      remote:
+        description: Run the non-production strongr-os-dev M2 acceptance
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m2-acceptance-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
+jobs:
+  local:
+    name: M2 acceptance / local
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Prepare evidence directory
+        run: |
+          mkdir -p artifacts/m2-acceptance-local
+          printf '{"test":"workflow_started","status":"pass","sha":"%s","target":"local"}\n' \
+            "$GITHUB_SHA" >artifacts/m2-acceptance-local/workflow.jsonl
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+          pnpm --version
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile 2>&1 \
+            | tee artifacts/m2-acceptance-local/install.log
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Validate acceptance sources
+        run: |
+          bash -n scripts/acceptance/*.sh
+          bash -n scripts/ops/*.sh
+          python3 -m py_compile scripts/acceptance/*.py
+          python3 -m unittest discover \
+            -s scripts/acceptance \
+            -p 'test_*.py'
+          pnpm format:check
+          pnpm lint
+          pnpm typecheck
+
+      - name: Start isolated Supabase
+        run: |
+          npx --yes supabase@2.109.1 start 2>&1 \
+            | tee artifacts/m2-acceptance-local/supabase-start.log
+
+      - name: Apply every migration from zero
+        run: |
+          npx --yes supabase@2.109.1 db reset --local 2>&1 \
+            | tee artifacts/m2-acceptance-local/database-reset.log
+
+      - name: Verify migration history and database contracts
+        run: |
+          eval "$(npx --yes supabase@2.109.1 status -o env)"
+          repository_count="$(find supabase/migrations -maxdepth 1 -name '*.sql' | wc -l)"
+          read -r recorded_count distinct_count < <(
+            psql "$DB_URL" -X -qAt -v ON_ERROR_STOP=1 -F ' ' \
+              -c "select count(*), count(distinct version)
+                  from supabase_migrations.schema_migrations"
+          )
+          if [[ "$recorded_count" != "$repository_count" \
+             || "$distinct_count" != "$repository_count" ]]; then
+            printf '%s\n' "ERROR: Local migration history is incomplete or duplicated." >&2
+            exit 1
+          fi
+          printf '{"test":"m2_clean_migration_replay","status":"pass","repository_count":%d,"recorded_count":%d,"distinct_count":%d}\n' \
+            "$repository_count" "$recorded_count" "$distinct_count" \
+            | tee artifacts/m2-acceptance-local/migrations.jsonl
+          npx --yes supabase@2.109.1 test db 2>&1 \
+            | tee artifacts/m2-acceptance-local/database-contracts.log
+
+      - name: Run governed M2 end to end
+        env:
+          STRONGR_OS_M1_ACCEPTANCE_TARGET: local
+          STRONGR_OS_PROJECT_REF: local
+          STRONGR_OS_M2_ARTIFACT_DIR: artifacts/m2-acceptance-local/media-backup
+        run: |
+          eval "$(npx --yes supabase@2.109.1 status -o env)"
+          STRONGR_OS_SUPABASE_URL="$API_URL" \
+          STRONGR_OS_SUPABASE_PUBLISHABLE_KEY="$ANON_KEY" \
+          STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          STRONGR_OS_DATABASE_URL="$DB_URL" \
+            node scripts/acceptance/run_m1_application_acceptance.ts 2>&1 \
+              | tee artifacts/m2-acceptance-local/application.jsonl
+
+      - name: Export observability evidence
+        run: |
+          eval "$(npx --yes supabase@2.109.1 status -o env)"
+          STRONGR_OS_DATABASE_URL="$DB_URL" \
+            scripts/ops/check_m0_2_health.sh \
+              >artifacts/m2-acceptance-local/health.jsonl
+          STRONGR_OS_DATABASE_URL="$DB_URL" \
+            scripts/ops/export_m0_2_metrics.sh \
+              >artifacts/m2-acceptance-local/metrics.prom
+
+      - name: Finalize local evidence
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          printf '{"test":"workflow_completed","status":"%s","sha":"%s","target":"local"}\n' \
+            "$JOB_STATUS" "$GITHUB_SHA" \
+            >>artifacts/m2-acceptance-local/workflow.jsonl
+          find artifacts/m2-acceptance-local -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            >artifacts/m2-acceptance-local/SHA256SUMS
+
+      - name: Upload local M2 acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: m2-acceptance-local-${{ github.sha }}
+          path: artifacts/m2-acceptance-local
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Stop local Supabase
+        if: always()
+        run: npx --yes supabase@2.109.1 stop --no-backup
+
+  remote:
+    name: M2 acceptance / strongr-os-dev
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.remote }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: m0-2-acceptance
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
+    env:
+      STRONGR_OS_PROJECT_REF: fifrlyddmjkogmdvyjdp
+      STRONGR_OS_M1_ACCEPTANCE_TARGET: strongr-os-dev
+      STRONGR_OS_MIGRATION_TARGET: strongr-os-dev
+      STRONGR_OS_MIGRATION_CONFIRM: strongr-os-dev-m2-migrations
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Prepare evidence directory
+        run: |
+          mkdir -p artifacts/m2-acceptance-remote
+          printf '{"test":"workflow_started","status":"pass","sha":"%s","target":"strongr-os-dev"}\n' \
+            "$GITHUB_SHA" >artifacts/m2-acceptance-remote/workflow.jsonl
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+          pnpm --version
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile 2>&1 \
+            | tee artifacts/m2-acceptance-remote/install.log
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ca-certificates curl
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --output \
+            /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          sudo tee /etc/apt/sources.list.d/pgdg.sources >/dev/null <<'EOF'
+          Types: deb
+          URIs: https://apt.postgresql.org/pub/repos/apt
+          Suites: noble-pgdg
+          Architectures: amd64
+          Components: main
+          Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          EOF
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client-17
+          echo "/usr/lib/postgresql/17/bin" >>"$GITHUB_PATH"
+
+      - name: Validate required secrets
+        env:
+          STRONGR_OS_SUPABASE_URL: ${{ secrets.STRONGR_OS_SUPABASE_URL }}
+          STRONGR_OS_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STRONGR_OS_SUPABASE_PUBLISHABLE_KEY }}
+          STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY }}
+          STRONGR_OS_DATABASE_URL: ${{ secrets.STRONGR_OS_DATABASE_URL }}
+        run: |
+          for name in \
+            STRONGR_OS_SUPABASE_URL \
+            STRONGR_OS_SUPABASE_PUBLISHABLE_KEY \
+            STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY \
+            STRONGR_OS_DATABASE_URL
+          do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is missing"
+              exit 1
+            fi
+          done
+          if [[ "$STRONGR_OS_SUPABASE_PUBLISHABLE_KEY" != sb_publishable_* ]]; then
+            echo "::error::The M2 Studio boundary requires a modern publishable key"
+            exit 1
+          fi
+
+      - name: Apply the reviewed M2 migration delta exactly once
+        env:
+          STRONGR_OS_DATABASE_URL: ${{ secrets.STRONGR_OS_DATABASE_URL }}
+        run: |
+          python3 scripts/acceptance/apply_m2_remote_migrations.py 2>&1 \
+            | tee artifacts/m2-acceptance-remote/migrations.jsonl
+
+      - name: Run governed M2 end to end and rehearse encrypted byte restore
+        env:
+          STRONGR_OS_SUPABASE_URL: ${{ secrets.STRONGR_OS_SUPABASE_URL }}
+          STRONGR_OS_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STRONGR_OS_SUPABASE_PUBLISHABLE_KEY }}
+          STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY }}
+          STRONGR_OS_DATABASE_URL: ${{ secrets.STRONGR_OS_DATABASE_URL }}
+          STRONGR_OS_M2_ARTIFACT_DIR: artifacts/m2-acceptance-remote/media-backup
+        run: |
+          node scripts/acceptance/run_m1_application_acceptance.ts 2>&1 \
+            | tee artifacts/m2-acceptance-remote/application.jsonl
+
+      - name: Export remote observability evidence
+        env:
+          STRONGR_OS_DATABASE_URL: ${{ secrets.STRONGR_OS_DATABASE_URL }}
+        run: |
+          scripts/ops/check_m0_2_health.sh \
+            >artifacts/m2-acceptance-remote/health.jsonl
+          scripts/ops/export_m0_2_metrics.sh \
+            >artifacts/m2-acceptance-remote/metrics.prom
+
+      - name: Finalize remote evidence
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          printf '{"test":"workflow_completed","status":"%s","sha":"%s","target":"strongr-os-dev"}\n' \
+            "$JOB_STATUS" "$GITHUB_SHA" \
+            >>artifacts/m2-acceptance-remote/workflow.jsonl
+          find artifacts/m2-acceptance-remote -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            >artifacts/m2-acceptance-remote/SHA256SUMS
+
+      - name: Upload remote M2 acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: m2-acceptance-remote-${{ github.sha }}
+          path: artifacts/m2-acceptance-remote
+          if-no-files-found: error
+          retention-days: 30

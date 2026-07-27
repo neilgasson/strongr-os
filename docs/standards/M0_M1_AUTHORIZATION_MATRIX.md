@@ -1,4 +1,4 @@
-# M0/M1/M2.2 Authorization Matrix
+# M0/M1/M2.3 Authorization Matrix
 
 | Operation | Required permission | AAL2 | Direct table write |
 |---|---|---:|---:|
@@ -27,6 +27,7 @@
 | Revoke staged release authority | `release.revoke` | Yes | No; `m2_revoke_staged_release` only |
 | Create media attempt/artifact/reconciliation evidence | `service_role` | Server | No; exact M2.1 worker commands only |
 | Upload media bytes | `service_role` worker | Server | Supported write-once Storage API only |
+| Inventory, back up, restore, and remove exact acceptance-fixture bytes | `service_role` acceptance runtime | Server | Supported Storage API; exact random fixture prefix only |
 | Upload, overwrite, delete, list, or obtain public media URL in browser | Not permitted | N/A | No |
 
 The UI is never an authorization boundary. Command functions re-evaluate the

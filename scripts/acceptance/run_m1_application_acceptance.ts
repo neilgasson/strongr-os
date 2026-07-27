@@ -1,12 +1,24 @@
 #!/usr/bin/env -S node --experimental-strip-types
 
-import { createHmac, randomUUID } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+  randomUUID,
+} from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { deterministicGenerationAdapter } from "../../packages/ai/src/index.ts";
 import { parseAudioReflection } from "../../packages/content-schemas/src/index.ts";
-import type { Uuid } from "../../packages/contracts/src/index.ts";
+import type {
+  TenantMediaArtifactSummary,
+  TenantStagedReleaseBundleSummary,
+  Uuid,
+} from "../../packages/contracts/src/index.ts";
 import { audioReflectionBriefFixture } from "../../packages/testing/src/index.ts";
 import {
   createBriefToDraftOperatorFlow,
@@ -18,11 +30,14 @@ import {
 } from "../../apps/studio/src/index.ts";
 import {
   AutomatedReviewCheckRunner,
+  createDurableMediaWorkerRuntime,
   createDurableWorkerRuntime,
   loadWorkerEnvironment,
+  SupabasePrivateMediaStorage,
   SupabaseReviewCheckStore,
   SupabaseRpcClient,
   type AutomatedReviewCheckEvidence,
+  type MediaWorkerEvidenceRecord,
   type WorkerEnvironment,
   type WorkerEvidenceRecord,
 } from "../../apps/worker/src/index.ts";
@@ -44,6 +59,7 @@ interface AcceptanceConfig {
   readonly serviceRoleKey: string;
   readonly databaseUrl: string;
   readonly workerId: string;
+  readonly m2ArtifactDirectory: string | null;
 }
 
 class AcceptanceFailure extends Error {
@@ -70,6 +86,7 @@ class AcceptanceHttpFailure extends Error {
 
 const evidence: EvidenceRecord[] = [];
 const workerEvidence: WorkerEvidenceRecord[] = [];
+const mediaWorkerEvidence: MediaWorkerEvidenceRecord[] = [];
 const checkEvidence: AutomatedReviewCheckEvidence[] = [];
 
 function requireEnvironment(name: string): string {
@@ -99,6 +116,7 @@ function loadAcceptanceConfig(): AcceptanceConfig {
   const serviceRoleKey = requireEnvironment("STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY");
   const databaseUrl = requireEnvironment("STRONGR_OS_DATABASE_URL");
   const workerId = `m1-acceptance-${randomUUID().replaceAll("-", "").slice(0, 24)}`;
+  const m2ArtifactDirectory = process.env.STRONGR_OS_M2_ARTIFACT_DIR?.trim() || null;
 
   if (target === "strongr-os-dev") {
     if (!/^[a-z0-9]{20}$/.test(projectRef)) {
@@ -134,6 +152,7 @@ function loadAcceptanceConfig(): AcceptanceConfig {
 
   return Object.freeze({
     databaseUrl,
+    m2ArtifactDirectory,
     projectRef,
     publishableKey,
     serviceRoleKey,
@@ -397,6 +416,151 @@ function createWorkerEnvironment(config: AcceptanceConfig): WorkerEnvironment {
   });
 }
 
+function sha256(value: Uint8Array | string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+async function ensurePrivateMediaBucket(config: AcceptanceConfig): Promise<void> {
+  const headers = {
+    "Content-Type": "application/json",
+    apikey: config.serviceRoleKey,
+    Authorization: `Bearer ${config.serviceRoleKey}`,
+  };
+  let response = await fetch(`${config.supabaseUrl}/storage/v1/bucket/strongr-os-media`, {
+    headers,
+    method: "GET",
+  });
+  if (response.status === 404) {
+    response = await fetch(`${config.supabaseUrl}/storage/v1/bucket`, {
+      body: JSON.stringify({
+        allowed_mime_types: ["audio/wav"],
+        file_size_limit: 26_214_400,
+        id: "strongr-os-media",
+        name: "strongr-os-media",
+        public: false,
+      }),
+      headers,
+      method: "POST",
+    });
+    if (!response.ok) {
+      throw new AcceptanceFailure("m2_private_bucket_creation_failed");
+    }
+    response = await fetch(`${config.supabaseUrl}/storage/v1/bucket/strongr-os-media`, {
+      headers,
+      method: "GET",
+    });
+  }
+  if (!response.ok) {
+    throw new AcceptanceFailure("m2_private_bucket_read_failed");
+  }
+  const bucket = requireRecord(await response.json(), "m2_private_bucket");
+  const allowedMimeTypes = bucket.allowed_mime_types;
+  if (
+    bucket.public !== false ||
+    Number(bucket.file_size_limit) !== 26_214_400 ||
+    !Array.isArray(allowedMimeTypes) ||
+    allowedMimeTypes.length !== 1 ||
+    allowedMimeTypes[0] !== "audio/wav"
+  ) {
+    throw new AcceptanceFailure("m2_private_bucket_configuration_mismatch");
+  }
+}
+
+async function deleteStorageObject(
+  config: AcceptanceConfig,
+  bucketId: string,
+  objectPath: string,
+): Promise<void> {
+  const response = await fetch(
+    `${config.supabaseUrl}/storage/v1/object/${encodeURIComponent(bucketId)}/${objectPath
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/")}`,
+    {
+      headers: {
+        apikey: config.serviceRoleKey,
+        Authorization: `Bearer ${config.serviceRoleKey}`,
+      },
+      method: "DELETE",
+    },
+  );
+  if (!response.ok && response.status !== 404) {
+    throw new AcceptanceFailure("m2_storage_cleanup_failed");
+  }
+}
+
+function writeEncryptedMediaBackup(
+  config: AcceptanceConfig,
+  artifact: TenantMediaArtifactSummary,
+  bundle: TenantStagedReleaseBundleSummary,
+  bytes: Uint8Array,
+): Uint8Array {
+  if (!config.m2ArtifactDirectory) {
+    throw new AcceptanceFailure("missing_strongr_os_m2_artifact_dir");
+  }
+  mkdirSync(config.m2ArtifactDirectory, { recursive: true });
+  const inventory = {
+    artifact: {
+      bucket_id: artifact.bucketId,
+      byte_count: artifact.byteCount,
+      id: artifact.id,
+      mime_type: artifact.mimeType,
+      object_path: artifact.objectPath,
+      organization_id: artifact.organizationId,
+      production_package_id: artifact.productionPackageId,
+      sha256: artifact.sha256,
+      validation_schema_id: artifact.validationSchemaId,
+    },
+    backup_schema_id: "strongr.m2_media_backup.v1",
+    staged_release: {
+      id: bundle.id,
+      manifest_hash: bundle.manifestHash,
+      manifest_schema_id: bundle.manifestSchemaId,
+    },
+  };
+  const inventoryBytes = Buffer.from(JSON.stringify(inventory, null, 2), "utf8");
+  const key = randomBytes(32);
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  cipher.setAAD(inventoryBytes);
+  const ciphertext = Buffer.concat([cipher.update(bytes), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  const encrypted = Buffer.concat([Buffer.from("SROSM2V1", "ascii"), iv, tag, ciphertext]);
+
+  writeFileSync(`${config.m2ArtifactDirectory}/media-inventory.json`, inventoryBytes, {
+    mode: 0o600,
+  });
+  writeFileSync(`${config.m2ArtifactDirectory}/media-backup.aes256gcm`, encrypted, {
+    mode: 0o600,
+  });
+  writeFileSync(
+    `${config.m2ArtifactDirectory}/media-backup-checksums.json`,
+    `${JSON.stringify(
+      {
+        backup_schema_id: "strongr.m2_media_backup.v1",
+        ciphertext_sha256: sha256(encrypted),
+        encryption: "AES-256-GCM",
+        inventory_sha256: sha256(inventoryBytes),
+        plaintext_byte_count: bytes.byteLength,
+        plaintext_sha256: artifact.sha256,
+      },
+      null,
+      2,
+    )}\n`,
+    { mode: 0o600 },
+  );
+
+  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAAD(inventoryBytes);
+  decipher.setAuthTag(tag);
+  const restored = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  key.fill(0);
+  if (restored.byteLength !== artifact.byteCount || sha256(restored) !== artifact.sha256) {
+    throw new AcceptanceFailure("m2_encrypted_backup_restore_mismatch");
+  }
+  return new Uint8Array(restored);
+}
+
 async function studioDenies(
   action: () => Promise<unknown>,
   expectedCodes: readonly string[] = ["42501"],
@@ -572,6 +736,8 @@ async function runAcceptance(config: AcceptanceConfig): Promise<void> {
   };
   const createdUsers: Uuid[] = [];
   let databaseSeeded = false;
+  let mediaObjectPath: string | null = null;
+  let orphanObjectPath: string | null = null;
 
   try {
     const readyOutboxEvents = Number.parseInt(
@@ -934,6 +1100,318 @@ where (
         productionPackage.manifestHash.length === 64,
     );
 
+    if (config.m2ArtifactDirectory) {
+      await ensurePrivateMediaBucket(config);
+      addEvidence("m2_private_bucket_configuration", true);
+      const outputSpec = (await gatewayOneAal1.listMediaOutputSpecs()).at(0);
+      if (!outputSpec) {
+        throw new AcceptanceFailure("m2_output_spec_missing");
+      }
+      const requestInput = {
+        adapterKey: "strongr.synthetic_audio",
+        adapterVersion: "1.0.0",
+        correlationId: randomUUID(),
+        idempotencyKey: `m2-acceptance-${runId}`,
+        organizationId: fixture.organizationOne,
+        outputSpecId: outputSpec.id,
+        productionPackageId,
+      } as const;
+      const aal1MediaRequestDenied = await studioDenies(() =>
+        gatewayOneAal1.invoke("m2_request_media", requestInput),
+      );
+      addEvidence("m2_real_aal1_media_request_denied", aal1MediaRequestDenied);
+
+      const mediaJobId = await gatewayOneAal2.invoke("m2_request_media", {
+        ...requestInput,
+        correlationId: randomUUID(),
+      });
+      const mediaRuntime = createDurableMediaWorkerRuntime(workerEnvironment, {
+        evidence: {
+          record(record) {
+            mediaWorkerEvidence.push(record);
+          },
+        },
+      });
+      const mediaSummary = await mediaRuntime.runOnce({
+        batchSize: 1,
+        retryAfterSeconds: 0,
+      });
+      addEvidence(
+        "m2_durable_media_worker_succeeded",
+        mediaSummary.succeeded === 1 &&
+          mediaSummary.retried === 0 &&
+          mediaSummary.deadLettered === 0,
+      );
+
+      const mediaJobs = await gatewayOneAal1.listMediaJobs(fixture.organizationOne);
+      const mediaArtifacts = await gatewayOneAal1.listMediaArtifacts(fixture.organizationOne);
+      const mediaJob = mediaJobs.find((item) => item.id === mediaJobId);
+      const mediaArtifact = mediaArtifacts.find((item) => item.mediaJobId === mediaJobId);
+      if (!mediaArtifact) {
+        throw new AcceptanceFailure("m2_canonical_artifact_missing");
+      }
+      mediaObjectPath = mediaArtifact.objectPath;
+      addEvidence(
+        "m2_canonical_artifact_integrity",
+        mediaJob?.state === "succeeded" &&
+          mediaJob.attemptCount === 1 &&
+          mediaArtifact.productionPackageId === productionPackageId &&
+          mediaArtifact.sha256.length === 64,
+        {
+          byte_count: mediaArtifact.byteCount,
+          duration_ms: mediaArtifact.durationMs,
+        },
+      );
+
+      const crossTenantMedia = await gatewayTwoAal1.listMediaArtifacts(fixture.organizationOne);
+      addEvidence("m2_two_tenant_artifact_metadata_isolation", crossTenantMedia.length === 0);
+      const exactDownload = await gatewayOneAal1.downloadMediaArtifact(
+        fixture.organizationOne,
+        mediaArtifact.id,
+      );
+      addEvidence(
+        "m2_exact_private_artifact_retrieval",
+        exactDownload.sha256 === mediaArtifact.sha256 &&
+          exactDownload.bytes.byteLength === mediaArtifact.byteCount,
+      );
+      const crossTenantObjectDenied = await studioDenies(
+        () => gatewayTwoAal1.downloadMediaArtifact(fixture.organizationOne, mediaArtifact.id),
+        ["media_artifact_not_found"],
+      );
+      addEvidence("m2_cross_tenant_private_object_denied", crossTenantObjectDenied);
+
+      const anonymousObjectResponse = await fetch(
+        `${config.supabaseUrl}/storage/v1/object/authenticated/${mediaArtifact.bucketId}/${mediaArtifact.objectPath}`,
+        {
+          headers: {
+            apikey: config.publishableKey,
+            Authorization: `Bearer ${config.publishableKey}`,
+          },
+          method: "GET",
+        },
+      );
+      addEvidence(
+        "m2_anonymous_private_object_denied",
+        [400, 401, 403, 404].includes(anonymousObjectResponse.status),
+      );
+
+      const listResponse = await fetch(
+        `${config.supabaseUrl}/storage/v1/object/list/${mediaArtifact.bucketId}`,
+        {
+          body: JSON.stringify({
+            limit: 100,
+            prefix: fixture.organizationOne,
+          }),
+          headers: {
+            "Content-Type": "application/json",
+            apikey: config.publishableKey,
+            Authorization: `Bearer ${tokenOneAal1}`,
+          },
+          method: "POST",
+        },
+      );
+      let listedObjects: unknown = null;
+      try {
+        listedObjects = await listResponse.json();
+      } catch {
+        listedObjects = null;
+      }
+      addEvidence(
+        "m2_browser_bucket_listing_restricted",
+        !listResponse.ok || (Array.isArray(listedObjects) && listedObjects.length === 0),
+      );
+
+      const mediaReviewId = await gatewayOneAal1.invoke("m2_record_media_review", {
+        accessibilityStatus: "approved",
+        correlationId: randomUUID(),
+        decision: "approved",
+        evidence: {
+          source: "m2_acceptance",
+          transcript_sha256: sha256("synthetic acceptance transcript"),
+        },
+        mediaArtifactId: mediaArtifact.id,
+        organizationId: fixture.organizationOne,
+        reasonCode: "m2_acceptance",
+        transcriptStatus: "ready",
+      });
+      const reviews = await gatewayOneAal1.listMediaReviews(fixture.organizationOne);
+      const mediaReview = reviews.find((item) => item.id === mediaReviewId);
+      addEvidence(
+        "m2_human_media_accessibility_evidence",
+        mediaReview?.decision === "approved" &&
+          mediaReview.transcriptStatus === "ready" &&
+          mediaReview.accessibilityStatus === "approved" &&
+          mediaReview.evidenceHash.length === 64,
+      );
+
+      const stageInput = {
+        configuration: {
+          release_channel: "private_acceptance",
+          target: config.target,
+        },
+        correlationId: randomUUID(),
+        mediaArtifactId: mediaArtifact.id,
+        mediaReviewId,
+        organizationId: fixture.organizationOne,
+        productionPackageId,
+      } as const;
+      const aal1StageDenied = await studioDenies(() =>
+        gatewayOneAal1.invoke("m2_stage_release", stageInput),
+      );
+      addEvidence("m2_real_aal1_release_staging_denied", aal1StageDenied);
+      const stagedReleaseId = await gatewayOneAal2.invoke("m2_stage_release", {
+        ...stageInput,
+        correlationId: randomUUID(),
+      });
+      const bundles = await gatewayOneAal1.listStagedReleaseBundles(fixture.organizationOne);
+      const bundle = bundles.find((item) => item.id === stagedReleaseId);
+      if (!bundle) {
+        throw new AcceptanceFailure("m2_staged_release_missing");
+      }
+      addEvidence(
+        "m2_immutable_staged_release_manifest",
+        bundle.authenticationAssurance === "aal2" &&
+          bundle.mediaArtifactId === mediaArtifact.id &&
+          bundle.mediaReviewId === mediaReviewId &&
+          bundle.productionPackageId === productionPackageId &&
+          bundle.manifestHash.length === 64,
+      );
+
+      const backupStarted = Date.now();
+      const restoredBytes = writeEncryptedMediaBackup(
+        config,
+        mediaArtifact,
+        bundle,
+        exactDownload.bytes,
+      );
+      addEvidence(
+        "m2_independent_encrypted_byte_restore",
+        restoredBytes.byteLength === mediaArtifact.byteCount &&
+          sha256(restoredBytes) === mediaArtifact.sha256,
+        {
+          duration_ms: Date.now() - backupStarted,
+        },
+      );
+
+      const inventoryCounts = runPsql(
+        config,
+        `
+select concat_ws(
+  ',',
+  (
+    select count(*)
+    from public.media_artifacts
+    where organization_id = '${fixture.organizationOne}'
+      and object_path = '${mediaArtifact.objectPath}'
+  ),
+  (
+    select count(*)
+    from storage.objects
+    where bucket_id = '${mediaArtifact.bucketId}'
+      and name = '${mediaArtifact.objectPath}'
+  )
+);
+`,
+      );
+      addEvidence("m2_database_object_inventory_exact", inventoryCounts === "1,1");
+
+      const storage = new SupabasePrivateMediaStorage(workerEnvironment);
+      orphanObjectPath = `${fixture.organizationOne}/${productionPackageId}/${randomUUID()}.wav`;
+      const orphanUpload = await storage.uploadWriteOnce(
+        mediaArtifact.bucketId,
+        orphanObjectPath,
+        restoredBytes,
+        "audio/wav",
+      );
+      const orphanCount = runPsql(
+        config,
+        `
+select count(*)
+from storage.objects as object
+left join public.media_artifacts as artifact
+  on artifact.bucket_id = object.bucket_id
+ and artifact.object_path = object.name
+where object.bucket_id = '${mediaArtifact.bucketId}'
+  and object.name = '${orphanObjectPath}'
+  and artifact.id is null;
+`,
+      );
+      addEvidence(
+        "m2_orphan_object_inventory_detection",
+        orphanUpload.disposition === "uploaded" && orphanCount === "1",
+      );
+      await deleteStorageObject(config, mediaArtifact.bucketId, orphanObjectPath);
+      orphanObjectPath = null;
+
+      await deleteStorageObject(config, mediaArtifact.bucketId, mediaArtifact.objectPath);
+      const missingCount = runPsql(
+        config,
+        `
+select count(*)
+from public.media_artifacts as artifact
+left join storage.objects as object
+  on object.bucket_id = artifact.bucket_id
+ and object.name = artifact.object_path
+where artifact.id = '${mediaArtifact.id}'
+  and object.id is null;
+`,
+      );
+      addEvidence("m2_missing_object_inventory_detection", missingCount === "1");
+      const repairUpload = await storage.uploadWriteOnce(
+        mediaArtifact.bucketId,
+        mediaArtifact.objectPath,
+        restoredBytes,
+        "audio/wav",
+      );
+      const repairedDownload = await gatewayOneAal1.downloadMediaArtifact(
+        fixture.organizationOne,
+        mediaArtifact.id,
+      );
+      addEvidence(
+        "m2_exact_byte_restore_reconciled",
+        repairUpload.disposition === "uploaded" &&
+          repairedDownload.sha256 === mediaArtifact.sha256 &&
+          repairedDownload.bytes.byteLength === mediaArtifact.byteCount,
+      );
+
+      const aal1RevocationDenied = await studioDenies(() =>
+        gatewayOneAal1.invoke("m2_revoke_staged_release", {
+          correlationId: randomUUID(),
+          organizationId: fixture.organizationOne,
+          reasonCode: "m2_acceptance_complete",
+          stagedReleaseBundleId: stagedReleaseId,
+        }),
+      );
+      addEvidence("m2_real_aal1_release_revocation_denied", aal1RevocationDenied);
+      const stagedRevocationId = await gatewayOneAal2.invoke("m2_revoke_staged_release", {
+        correlationId: randomUUID(),
+        organizationId: fixture.organizationOne,
+        reasonCode: "m2_acceptance_complete",
+        stagedReleaseBundleId: stagedReleaseId,
+      });
+      const revocations = await gatewayOneAal1.listStagedReleaseRevocations(
+        fixture.organizationOne,
+      );
+      addEvidence(
+        "m2_aal2_release_revocation_recorded",
+        revocations.some(
+          (item) =>
+            item.id === stagedRevocationId &&
+            item.stagedReleaseBundleId === stagedReleaseId &&
+            item.authenticationAssurance === "aal2",
+        ),
+      );
+      const revokedRestageDenied = await studioDenies(
+        () =>
+          gatewayOneAal2.invoke("m2_stage_release", {
+            ...stageInput,
+            correlationId: randomUUID(),
+          }),
+        ["55000"],
+      );
+      addEvidence("m2_revoked_staged_authority_cannot_restage", revokedRestageDenied);
+    }
+
     const accessibilityDefinition = preReviewWorkspace.checkDefinitions.find(
       (definition) => definition.key === "accessibility.transcript_ready",
     );
@@ -969,7 +1447,12 @@ where (
       health_status: typeof health.status === "string" ? health.status : "invalid",
     });
 
-    const serializedEvidence = JSON.stringify({ checkEvidence, evidence, workerEvidence });
+    const serializedEvidence = JSON.stringify({
+      checkEvidence,
+      evidence,
+      mediaWorkerEvidence,
+      workerEvidence,
+    });
     addEvidence(
       "m1_evidence_privacy",
       !serializedEvidence.includes(audioReflectionBriefFixture.title) &&
@@ -978,10 +1461,52 @@ where (
         ),
       {
         check_evidence_records: checkEvidence.length,
+        media_worker_evidence_records: mediaWorkerEvidence.length,
         worker_evidence_records: workerEvidence.length,
       },
     );
   } finally {
+    let mediaObjectCleanupPassed = true;
+    const mediaObjectPaths = new Set<string>(
+      [orphanObjectPath, mediaObjectPath].filter((value): value is string => Boolean(value)),
+    );
+    if (config.m2ArtifactDirectory && databaseSeeded) {
+      try {
+        const discoveredPaths = runPsql(
+          config,
+          `
+select object.name
+from storage.objects as object
+where object.bucket_id = 'strongr-os-media'
+  and object.name like '${fixture.organizationOne}/%';
+`,
+        );
+        for (const objectPath of discoveredPaths.split(/\r?\n/)) {
+          if (objectPath) {
+            mediaObjectPaths.add(objectPath);
+          }
+        }
+      } catch {
+        mediaObjectCleanupPassed = false;
+      }
+    }
+    for (const objectPath of mediaObjectPaths) {
+      if (!objectPath) {
+        continue;
+      }
+      try {
+        await deleteStorageObject(config, "strongr-os-media", objectPath);
+      } catch {
+        mediaObjectCleanupPassed = false;
+      }
+    }
+    if (config.m2ArtifactDirectory) {
+      evidence.push({
+        status: mediaObjectCleanupPassed ? "pass" : "fail",
+        test: "m2_fixture_storage_cleanup",
+      });
+    }
+
     let databaseCleanupPassed = !databaseSeeded;
     if (databaseSeeded) {
       try {
@@ -1047,14 +1572,18 @@ async function main(): Promise<void> {
   for (const record of checkEvidence) {
     process.stdout.write(`${JSON.stringify(record)}\n`);
   }
+  for (const record of mediaWorkerEvidence) {
+    process.stdout.write(`${JSON.stringify(record)}\n`);
+  }
 
   const failures = evidence.filter((record) => record.status !== "pass");
+  const milestone = process.env.STRONGR_OS_M2_ARTIFACT_DIR?.trim() ? "m2" : "m1";
   const summary = {
     failed: failures.length,
     passed: evidence.length - failures.length,
     status: failures.length === 0 && fatalCode === null ? "pass" : "fail",
     target,
-    test: "strongr_os_m1_acceptance_summary",
+    test: `strongr_os_${milestone}_acceptance_summary`,
   };
   process.stdout.write(`${JSON.stringify(summary)}\n`);
   process.exitCode = summary.status === "pass" ? 0 : 1;
