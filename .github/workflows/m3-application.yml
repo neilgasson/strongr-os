@@ -10,6 +10,7 @@ on:
       - "scripts/ci/**"
       - "docs/adr/ADR-0003-static-browser-studio.md"
       - "docs/architecture/M3_0_BROWSER_FOUNDATION.md"
+      - "docs/architecture/M3_1_IDENTITY_TENANT_WORK_QUEUE.md"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"

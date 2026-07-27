@@ -154,6 +154,90 @@ for (const path of bundleFiles) {
   }
 }
 
+const identitySource = await readFile(
+  resolve(repositoryRoot, "apps/studio/src/identity-gateway.ts"),
+  "utf8",
+);
+for (const requiredIdentityBoundary of [
+  "profile_id:",
+  "eq.",
+  'status: "eq.active"',
+  "/rest/v1/rpc/has_permission",
+  "membershipByOrganization.get(id)",
+]) {
+  record(
+    identitySource.includes(requiredIdentityBoundary),
+    `identity-gateway.ts: missing ${requiredIdentityBoundary}`,
+  );
+}
+record(
+  !identitySource.includes("user_metadata"),
+  "identity-gateway.ts: user metadata must not authorize identity or tenant context",
+);
+
+const sessionSource = await readFile(
+  resolve(repositoryRoot, "apps/studio/src/session-context.tsx"),
+  "utf8",
+);
+for (const requiredAuthOperation of [
+  "signInWithPassword",
+  'signOut({ scope: "local" })',
+  "mfa.enroll",
+  "mfa.challenge",
+  "mfa.verify",
+  "mfa.listFactors",
+  "mfa.unenroll",
+  "mfa.getAuthenticatorAssuranceLevel",
+  "refreshSession",
+]) {
+  record(
+    sessionSource.includes(requiredAuthOperation),
+    `session-context.tsx: missing supported Auth operation ${requiredAuthOperation}`,
+  );
+}
+record(
+  !sessionSource.includes("user_metadata"),
+  "session-context.tsx: user metadata must not authorize browser state",
+);
+
+const queueSource = await readFile(
+  resolve(repositoryRoot, "apps/studio/src/work-queue.ts"),
+  "utf8",
+);
+for (const requiredQueueRead of [
+  "listBriefs",
+  "listGenerationJobs",
+  "listContentVersions",
+  "listReviewDecisions",
+  "listApprovalSnapshots",
+  "listApprovalRevocations",
+  "listProductionPackages",
+  "listMediaJobs",
+  "listMediaArtifacts",
+  "listMediaReviews",
+  "listStagedReleaseBundles",
+  "listStagedReleaseRevocations",
+]) {
+  record(
+    queueSource.includes(requiredQueueRead),
+    `work-queue.ts: missing canonical read ${requiredQueueRead}`,
+  );
+}
+
+const browserTestEnvironment = await readFile(
+  resolve(repositoryRoot, "apps/studio/.env.browser-test"),
+  "utf8",
+);
+record(
+  browserTestEnvironment.includes("https://example.supabase.co") &&
+    browserTestEnvironment.includes("sb_publishable_browser_acceptance_fixture"),
+  "apps/studio/.env.browser-test: synthetic intercepted public configuration missing",
+);
+record(
+  !/\bsb_secret_/.test(browserTestEnvironment),
+  "apps/studio/.env.browser-test: privileged key forbidden",
+);
+
 console.log(
   JSON.stringify({
     bundle_files: bundleFiles.length,

@@ -508,7 +508,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
   }) {
     this.#accessToken = requireAccessToken(input.accessToken);
     this.#environment = input.environment;
-    this.#fetch = input.fetch ?? globalThis.fetch;
+    this.#fetch = input.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
   async invoke<Name extends BrowserCommandName>(
