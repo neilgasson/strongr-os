@@ -1,4 +1,4 @@
-# M0/M1/M2.1 Authorization Matrix
+# M0/M1/M2.2 Authorization Matrix
 
 | Operation | Required permission | AAL2 | Direct table write |
 |---|---|---:|---:|
@@ -22,9 +22,9 @@
 | Read own-tenant M2 job/artifact/review/staging metadata | Active membership | No | Read only |
 | Read one canonical private media object | Active membership plus exact canonical artifact path | No | Storage read only |
 | Request media for an exact package | `media.request` | Yes | No; `m2_request_media` only |
-| Record human media/accessibility review | `media.review` | Yes | No; command deferred to M2.2 |
-| Create staged release bundle | `release.stage` | Yes | No; command deferred to M2.2 |
-| Revoke staged release authority | `release.revoke` | Yes | No; command deferred to M2.2 |
+| Record human media/accessibility review | `media.review` | No | No; `m2_record_media_review` only |
+| Create staged release bundle | `release.stage` | Yes | No; `m2_stage_release` only |
+| Revoke staged release authority | `release.revoke` | Yes | No; `m2_revoke_staged_release` only |
 | Create media attempt/artifact/reconciliation evidence | `service_role` | Server | No; exact M2.1 worker commands only |
 | Upload media bytes | `service_role` worker | Server | Supported write-once Storage API only |
 | Upload, overwrite, delete, list, or obtain public media URL in browser | Not permitted | N/A | No |
@@ -33,7 +33,9 @@ The UI is never an authorization boundary. Command functions re-evaluate the
 active organization membership and permission inside the database transaction.
 `anon` and `authenticated` cannot execute worker or operational functions.
 
-M2.1 grants one AAL2 human request command to `authenticated` and the exact
-claim/begin/complete/fail/reconciliation commands to `service_role`. It grants
-no application Storage insert, update, or delete policy and no direct M2 table
-DML. M2.2 commands remain deferred to a separately reviewed migration.
+M2.2 grants human review at the assurance level approved in the M2 scope and
+requires real AAL2 for staging and revocation. Exact private object retrieval
+requires an authenticated operation, canonical artifact metadata, and current
+tenant membership. Bucket listing and all browser Storage mutation remain
+denied. No application role receives direct M2 table DML, and the service role
+does not receive human review, staging, or revocation authority.

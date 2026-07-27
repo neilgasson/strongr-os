@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createSyntheticPcmWav } from "../../../packages/media/src/index.ts";
 import { createStudioSupabaseGateway, StudioApiError } from "../src/index.ts";
 import type { StudioEnvironment } from "../src/index.ts";
 
@@ -20,7 +21,13 @@ const editorialReviewId = "00000000-0000-4000-8000-000000000013";
 const approvalId = "00000000-0000-4000-8000-000000000014";
 const packageId = "00000000-0000-4000-8000-000000000015";
 const outputSpecId = "00000000-0000-4000-8000-000000000016";
+const mediaArtifactId = "00000000-0000-4000-8000-000000000017";
+const mediaAttemptId = "00000000-0000-4000-8000-000000000018";
+const mediaReviewId = "00000000-0000-4000-8000-000000000019";
+const stagedReleaseId = "00000000-0000-4000-8000-000000000020";
+const stagedRevocationId = "00000000-0000-4000-8000-000000000021";
 const hash = "a".repeat(64);
+const mediaHash = "2976da01e205a110c9fa41d47659e238a5c6d3c3f3137582f2949853faa201dd";
 
 const environment: StudioEnvironment = Object.freeze({
   supabasePublishableKey: "sb_publishable_fixture_123456",
@@ -97,6 +104,143 @@ test("media requests remain an exact AAL2 browser RPC without direct Storage acc
     p_output_spec_id: outputSpecId,
     p_production_package_id: packageId,
   });
+});
+
+test("M2.2 human review, staging, and revocation map exact governed RPCs", async () => {
+  const requests: { readonly input: string; readonly init?: RequestInit }[] = [];
+  const results = [mediaReviewId, stagedReleaseId, stagedRevocationId];
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "fresh-aal2-user-jwt",
+    environment,
+    fetch(input, init) {
+      requests.push({ input: String(input), ...(init ? { init } : {}) });
+      return Promise.resolve(Response.json(results[requests.length - 1]));
+    },
+  });
+
+  await gateway.invoke("m2_record_media_review", {
+    accessibilityStatus: "approved",
+    correlationId,
+    decision: "approved",
+    evidence: { transcript_checksum: hash },
+    mediaArtifactId,
+    organizationId,
+    reasonCode: "human_media_accepted",
+    transcriptStatus: "ready",
+  });
+  await gateway.invoke("m2_stage_release", {
+    configuration: { release_channel: "private_acceptance" },
+    correlationId,
+    mediaArtifactId,
+    mediaReviewId,
+    organizationId,
+    productionPackageId: packageId,
+  });
+  await gateway.invoke("m2_revoke_staged_release", {
+    correlationId,
+    organizationId,
+    reasonCode: "evidence_changed",
+    stagedReleaseBundleId: stagedReleaseId,
+  });
+
+  assert.deepEqual(
+    requests.map(({ input }) => input),
+    [
+      "https://example.supabase.co/rest/v1/rpc/m2_record_media_review",
+      "https://example.supabase.co/rest/v1/rpc/m2_stage_release",
+      "https://example.supabase.co/rest/v1/rpc/m2_revoke_staged_release",
+    ],
+  );
+  assert.deepEqual(JSON.parse(String(requests[0]?.init?.body)), {
+    p_accessibility_status: "approved",
+    p_correlation_id: correlationId,
+    p_decision: "approved",
+    p_evidence: { transcript_checksum: hash },
+    p_media_artifact_id: mediaArtifactId,
+    p_organization_id: organizationId,
+    p_reason_code: "human_media_accepted",
+    p_transcript_status: "ready",
+  });
+  assert.deepEqual(JSON.parse(String(requests[1]?.init?.body)), {
+    p_configuration: { release_channel: "private_acceptance" },
+    p_correlation_id: correlationId,
+    p_media_artifact_id: mediaArtifactId,
+    p_media_review_id: mediaReviewId,
+    p_organization_id: organizationId,
+    p_production_package_id: packageId,
+  });
+  assert.deepEqual(JSON.parse(String(requests[2]?.init?.body)), {
+    p_correlation_id: correlationId,
+    p_organization_id: organizationId,
+    p_reason_code: "evidence_changed",
+    p_staged_release_bundle_id: stagedReleaseId,
+  });
+});
+
+test("exact private media retrieval is tenant-filtered and verifies canonical bytes", async () => {
+  const requestedUrls: string[] = [];
+  const bytes = createSyntheticPcmWav();
+  const objectPath = `${organizationId}/${packageId}/${mediaArtifactId}.wav`;
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch(input, init) {
+      const url = String(input);
+      requestedUrls.push(url);
+      if (url.includes("/rest/v1/media_artifacts?")) {
+        return Promise.resolve(
+          Response.json([
+            {
+              bits_per_sample: 16,
+              bucket_id: "strongr-os-media",
+              byte_count: bytes.byteLength,
+              channels: 1,
+              codec: "pcm_s16le",
+              container: "wav",
+              created_at: "2026-07-27T03:30:00Z",
+              duration_ms: 100,
+              id: mediaArtifactId,
+              media_job_id: jobId,
+              mime_type: "audio/wav",
+              object_path: objectPath,
+              organization_id: organizationId,
+              output_spec_id: outputSpecId,
+              production_package_id: packageId,
+              sample_rate_hz: 16_000,
+              sha256: mediaHash,
+              successful_attempt_id: mediaAttemptId,
+              validated_at: "2026-07-27T03:30:00Z",
+              validation_schema_id: "strongr.media_validation.v1",
+            },
+          ]),
+        );
+      }
+      const headers = init?.headers as Readonly<Record<string, string>>;
+      assert.equal(headers.apikey, environment.supabasePublishableKey);
+      assert.equal(headers.authorization, "Bearer authenticated-user-jwt");
+      assert.equal(init?.method, "GET");
+      return Promise.resolve(
+        new Response(Buffer.from(bytes), {
+          headers: { "content-type": "audio/wav" },
+          status: 200,
+        }),
+      );
+    },
+  });
+
+  const download = await gateway.downloadMediaArtifact(organizationId, mediaArtifactId);
+  assert.equal(download.artifact.objectPath, objectPath);
+  assert.equal(download.sha256, mediaHash);
+  assert.deepEqual(download.bytes, bytes);
+  const metadataUrl = new URL(requestedUrls[0] ?? "");
+  assert.equal(metadataUrl.searchParams.get("organization_id"), `eq.${organizationId}`);
+  assert.equal(metadataUrl.searchParams.get("id"), `eq.${mediaArtifactId}`);
+  assert.equal(metadataUrl.searchParams.get("limit"), "1");
+  assert.equal(
+    requestedUrls[1],
+    `https://example.supabase.co/storage/v1/object/authenticated/strongr-os-media/${objectPath}`,
+  );
+  assert.doesNotMatch(requestedUrls.join("\n"), /\/object\/list|\/storage\/v1\/object\/list/);
 });
 
 test("M1.3 governed RPCs map exact evidence identities without browser table writes", async () => {
