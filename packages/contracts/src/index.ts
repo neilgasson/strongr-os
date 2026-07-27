@@ -14,6 +14,7 @@ export const browserCommands = Object.freeze({
   recordRightsSnapshot: "m1_record_rights_snapshot",
   recordScriptureEvidence: "m1_record_scripture_evidence",
   requestGeneration: "m1_request_generation",
+  requestMedia: "m2_request_media",
   revokeApproval: "m1_revoke_approval",
   submitVersion: "m1_submit_version",
 } as const);
@@ -27,6 +28,11 @@ export const workerCommands = Object.freeze({
   failOutboxEvent: "m0_fail_outbox_event",
   heartbeat: "m0_heartbeat_worker",
   recordCheckRun: "m1_record_check_run",
+  beginMediaAttempt: "m2_begin_media_attempt",
+  claimMediaEvents: "m2_claim_media_events",
+  completeMediaAttempt: "m2_complete_media_attempt",
+  failMediaAttempt: "m2_fail_media_attempt",
+  recordMediaReconciliation: "m2_record_media_reconciliation",
 } as const);
 
 export interface CreateAudioBriefArguments {
@@ -129,6 +135,16 @@ export interface CreateProductionPackageArguments {
   readonly correlationId: Uuid;
 }
 
+export interface RequestMediaArguments {
+  readonly organizationId: Uuid;
+  readonly productionPackageId: Uuid;
+  readonly outputSpecId: Uuid;
+  readonly adapterKey: string;
+  readonly adapterVersion: string;
+  readonly idempotencyKey: string;
+  readonly correlationId: Uuid;
+}
+
 export interface BrowserCommandArguments {
   readonly m1_approve_version: ApproveVersionArguments;
   readonly m1_create_audio_brief: CreateAudioBriefArguments;
@@ -141,6 +157,7 @@ export interface BrowserCommandArguments {
   readonly m1_request_generation: RequestGenerationArguments;
   readonly m1_revoke_approval: RevokeApprovalArguments;
   readonly m1_submit_version: SubmitVersionArguments;
+  readonly m2_request_media: RequestMediaArguments;
 }
 
 export interface CreateAudioBriefResult {
@@ -160,6 +177,7 @@ export interface BrowserCommandResults {
   readonly m1_request_generation: Uuid;
   readonly m1_revoke_approval: Uuid;
   readonly m1_submit_version: undefined;
+  readonly m2_request_media: Uuid;
 }
 
 export type BrowserCommandName = keyof BrowserCommandArguments;

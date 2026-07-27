@@ -19,6 +19,7 @@ const theologyReviewId = "00000000-0000-4000-8000-000000000012";
 const editorialReviewId = "00000000-0000-4000-8000-000000000013";
 const approvalId = "00000000-0000-4000-8000-000000000014";
 const packageId = "00000000-0000-4000-8000-000000000015";
+const outputSpecId = "00000000-0000-4000-8000-000000000016";
 const hash = "a".repeat(64);
 
 const environment: StudioEnvironment = Object.freeze({
@@ -56,6 +57,45 @@ test("authenticated commands use the publishable key, user bearer token, and exa
     p_organization_id: organizationId,
     p_payload: { schema_id: "strongr.audio_reflection_brief.v1" },
     p_title: "Synthetic brief",
+  });
+});
+
+test("media requests remain an exact AAL2 browser RPC without direct Storage access", async () => {
+  const requests: { readonly input: string; readonly init?: RequestInit }[] = [];
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "fresh-aal2-user-jwt",
+    environment,
+    fetch(input, init) {
+      requests.push({ input: String(input), ...(init ? { init } : {}) });
+      return Promise.resolve(Response.json(jobId));
+    },
+  });
+
+  assert.equal(
+    await gateway.invoke("m2_request_media", {
+      adapterKey: "strongr.synthetic_audio",
+      adapterVersion: "1.0.0",
+      correlationId,
+      idempotencyKey: "m2-1-synthetic-request",
+      organizationId,
+      outputSpecId,
+      productionPackageId: packageId,
+    }),
+    jobId,
+  );
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0]?.input, "https://example.supabase.co/rest/v1/rpc/m2_request_media");
+  const headers = requests[0]?.init?.headers as Readonly<Record<string, string>>;
+  assert.equal(headers.apikey, environment.supabasePublishableKey);
+  assert.equal(headers.authorization, "Bearer fresh-aal2-user-jwt");
+  assert.deepEqual(JSON.parse(String(requests[0]?.init?.body)), {
+    p_adapter_key: "strongr.synthetic_audio",
+    p_adapter_version: "1.0.0",
+    p_correlation_id: correlationId,
+    p_idempotency_key: "m2-1-synthetic-request",
+    p_organization_id: organizationId,
+    p_output_spec_id: outputSpecId,
+    p_production_package_id: packageId,
   });
 });
 

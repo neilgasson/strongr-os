@@ -114,13 +114,14 @@ expected_migrations = [
     "20260726161909_m1_1_durable_worker_commands.sql",
     "20260726205703_m1_2_brief_to_draft.sql",
     "20260727015650_m2_media_storage_foundation.sql",
+    "20260727023903_m2_1_durable_media_worker.sql",
 ]
 observed_migrations = [
     path.name
     for path in sorted((root / "supabase" / "migrations").glob("*.sql"))
 ]
 if observed_migrations != expected_migrations:
-    failures.append("the M2.0 repository migration inventory changed")
+    failures.append("the M2.1 repository migration inventory changed")
 
 if failures:
     for failure in failures:
