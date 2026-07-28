@@ -1,0 +1,71 @@
+name: M4 staging contract
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/m4-staging-contract.yml"
+      - "docs/adr/ADR-0005-separate-staging-control-plane.md"
+      - "docs/architecture/M4_1_STAGING_RESOURCE_DECISION.md"
+      - "ops/staging/staging-resource-contract.json"
+      - "scripts/ci/validate-m4-staging-contract.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m4-staging-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resource-contract:
+    name: M4 staging / resource contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Prepare evidence directory
+        run: |
+          mkdir -p artifacts/m4-staging-contract
+          printf '{"check":"workflow_started","status":"pass","sha":"%s"}\n' \
+            "$GITHUB_SHA" >artifacts/m4-staging-contract/workflow.jsonl
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .nvmrc
+
+      - name: Validate proposed resource contract
+        env:
+          STRONGR_OS_M4_ARTIFACT_DIR: artifacts/m4-staging-contract
+        run: node scripts/ci/validate-m4-staging-contract.mjs
+
+      - name: Finalize evidence
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          printf '{"check":"workflow_completed","status":"%s","sha":"%s"}\n' \
+            "$JOB_STATUS" "$GITHUB_SHA" \
+            >>artifacts/m4-staging-contract/workflow.jsonl
+          find artifacts/m4-staging-contract -type f ! -name SHA256SUMS -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            >artifacts/m4-staging-contract/SHA256SUMS
+
+      - name: Upload M4 staging contract evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: m4-staging-contract-${{ github.sha }}
+          path: artifacts/m4-staging-contract
+          if-no-files-found: error
+          retention-days: 30

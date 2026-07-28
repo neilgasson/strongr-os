@@ -2,11 +2,12 @@
 
 ## Checkpoint identity
 
-- **Checkpoint:** M4 scope accepted — M4.0 architecture in progress
+- **Checkpoint:** M4.0 accepted — M4.1 staging decision awaiting owner acceptance
 - **Recorded:** 2026-07-28
 - **Repository:** `neilgasson/strongr-os`
 - **Protected branch:** `main`
-- **Protected-main checkpoint commit:** `957c7751f00d1196e3a0ab01235cb1d5ce6abb16`
+- **Protected-main checkpoint commit:** `3078e2fd3f94d3663648fc27664957af60ebe714`
+- **M4.0 implementation commit:** `b8c8b3383b6d896f3862c3a484790d7257a87603`
 - **M4 scope approval commit:** `957c7751f00d1196e3a0ab01235cb1d5ce6abb16`
 - **M3.4 implementation commit:** `d77aae3d69bf24e7278c7e45c79e6b72223260ff`
 - **M3 scope approval commit:** `001096279eaf1117b18ac213a3627d2a0d4ca44b`
@@ -19,11 +20,12 @@
   owner-only deployed Strongr Studio preview covering the authenticated governed
   workflow from tenant-scoped brief through checksum-verified private media,
   human media review, immutable non-public release staging, and append-only
-  revocation; M4 production-readiness architecture is underway, while staging,
-  production launch, live providers, and the wider product remain incomplete
+  revocation; M4.0 production-readiness architecture is accepted and the exact
+  M4.1 staging resource proposal is under review, while staging, production
+  launch, live providers, and the wider product remain incomplete
 
-This file is the durable restart point for Strongr OS work after M4 scope
-approval. If a
+This file is the durable restart point for Strongr OS work after M4.0
+acceptance. If a
 future task or conversation loses context, begin here and follow the restart
 procedure below. The canonical M0.2–M3 acceptance records remain the authority
 for detailed test, artifact, workflow, deployment, and commit identifiers.
@@ -389,35 +391,33 @@ The repository currently does **not** provide:
 The M3 browser check has been promoted into the strict protected-main required
 checks with no other protection weakened.
 
-The owner approved
-[`docs/architecture/M4_SCOPE.md`](docs/architecture/M4_SCOPE.md) on
-2026-07-28. The next safe action is M4.0: define the production-readiness
-architecture, operational threat model, measurable service/recovery/privacy/
-accessibility/performance/cost targets, and dependency failure inventory.
+M4.0 was owner-accepted and merged through PR #39 as protected-main commit
+`3078e2fd3f94d3663648fc27664957af60ebe714`. It defines the accepted environment,
+trust, credential, promotion, recovery, service-objective, dependency, and
+operational-threat boundaries without provisioning a resource.
 
-M4.0 is documentation and contract work only. It does not provision an
-environment, introduce a secret, connect a live provider, publish content,
-launch production, or change Strongr Daily.
+The next safe action is owner review of the exact M4.1 staging proposal:
 
-M4.0 is in progress on a protected branch from M4 scope commit `957c775`. Its
-proposed records define:
+- a new `Strongr OS Staging` Supabase Pro organization with one
+  `strongr-os-staging` Micro project in `ca-central-1`;
+- a protected owner-approved GitHub Environment and bounded staging worker;
+- a separate owner-only `Strongr Studio Staging` OpenAI Sites project;
+- private encrypted Backblaze B2 recovery storage in Canada East;
+- filtered Grafana Cloud Free telemetry in AWS `ca-central-1`;
+- expected USD $25/month and a hard USD $35/month ceiling before tax.
 
-- immutable protected-main artifact promotion;
-- separate development, staging, future production, and Strongr Daily trust
-  zones;
-- public, session, worker, database, management, deployment, telemetry, and
-  backup credential classes;
-- measurable service, recovery, security, privacy, accessibility, performance,
-  observability, and cost objectives;
-- current external dependency failures and fail-closed responses;
-- operational threats, misuse cases, stop conditions, and residual risks.
+The proposed machine-readable contract remains `proposed_unprovisioned` and
+`approved: false`. No staging resource, credential, provider integration,
+database change, host, production system, publication path, or Strongr Daily
+change may occur before the owner explicitly accepts the exact proposal and
+confirms the provider-reported Supabase recurring cost.
 
 ## Restart procedure
 
 When resuming Strongr OS work:
 
 1. Confirm protected `main` contains checkpoint commit
-   `957c7751f00d1196e3a0ab01235cb1d5ce6abb16` or a documented successor.
+   `3078e2fd3f94d3663648fc27664957af60ebe714` or a documented successor.
 2. Read this file, the approved M3 scope, and the four canonical acceptance
    records:
    - `docs/architecture/M3_SCOPE.md`
@@ -434,8 +434,9 @@ When resuming Strongr OS work:
 5. Confirm the current Strongr Daily application has not been changed.
 6. Confirm the owner-only preview remains private and bound only to
    `strongr-os-dev`; do not retain owner session or passkey material.
-7. Read `docs/architecture/M4_SCOPE.md` and implement only the current approved
-   M4 slice.
+7. Read `docs/architecture/M4_SCOPE.md`,
+   `docs/architecture/M4_0_PRODUCTION_READINESS_ARCHITECTURE.md`, and the current
+   M4.1 resource decision; implement only the owner-approved M4 slice.
 8. Start any approved work from current protected `main` on a new `agent/*`
    branch and preserve the M0–M3 security boundaries.
 

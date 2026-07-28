@@ -15,7 +15,7 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M4.0 in progress — production-readiness architecture**
+**M4.1 decision gate — exact staging resources proposed, none provisioned**
 
 M0.2 reliability and operational acceptance completed on July 26, 2026. The
 canonical record at evidence/m0-2/acceptance-record.json binds the accepted
@@ -59,9 +59,10 @@ revocation. The owner-only preview is deployed against isolated
 deployment, security, CI, artifact, and owner-approval evidence. All six
 M0.2–M3 checks are strict required checks on protected `main`.
 
-M4 is owner-approved and begins with production-readiness architecture and
-operational threat modeling before any staging resource, live provider, or
-production launch.
+M4.0 production-readiness architecture and operational threat modeling were
+owner-accepted through PR #39. M4.1 now has an exact staging resource, cost,
+secret, hosting, backup, and telemetry proposal under owner review. No staging
+resource, live provider, or production launch is authorized by that proposal.
 
 ## Current implementation boundary
 
