@@ -1,0 +1,187 @@
+{
+  "schema": "strongr.m3_acceptance.v1",
+  "status": "accepted",
+  "accepted_at_utc": "2026-07-28T05:59:38Z",
+  "implementation_baseline": "f2a609db170d847a71cd760db3964fb70ce41c61",
+  "tested_commit": "d77aae3d69bf24e7278c7e45c79e6b72223260ff",
+  "pull_request": {
+    "repository": "neilgasson/strongr-os",
+    "number": 36,
+    "head_sha": "1ad16b1b9bc4b98bc6a7ca0f8691c622e4988de4",
+    "merge_sha": "d77aae3d69bf24e7278c7e45c79e6b72223260ff",
+    "base_branch": "main",
+    "draft": false,
+    "merged": true,
+    "merged_at_utc": "2026-07-28T05:50:02Z"
+  },
+  "preview": {
+    "classification": "owner-only isolated non-production preview",
+    "provider": "OpenAI Sites",
+    "provider_region": "provider-managed global edge",
+    "project_id": "appgprj_6a6838cd73c88191aa6e1d1a806068ae",
+    "version_id": "appgprj_6a6838cd73c88191aa6e1d1a806068ae~appgver_e04e6344b1b48191bc07c5f4b4b90000",
+    "version_number": 1,
+    "deployment_id": "appgdep_6a683ba9c3e881919bc9f8fbfa398458",
+    "deployment_status": "succeeded",
+    "url": "https://strongr-studio-preview.meetwagon.chatgpt.site/",
+    "source_commit": "8a72ea087d9492d1184e3998e0d43e87e1c702b7",
+    "source_archive_sha256": "390b6607efd21738b7b950773d3932bfdf0add802a3188c29ba8a87f14d25abb",
+    "access_mode": "custom_owner_only",
+    "allowed_user_count": 1,
+    "allowed_group_count": 0,
+    "public_access": false,
+    "environment_revision": 1,
+    "environment_keys": [
+      "PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      "PUBLIC_SUPABASE_URL"
+    ],
+    "supabase_project_name": "strongr-os-dev",
+    "supabase_project_ref": "fifrlyddmjkogmdvyjdp",
+    "supabase_region": "ca-central-1",
+    "exact_auth_redirect_url": "https://strongr-studio-preview.meetwagon.chatgpt.site/",
+    "auth_redirect_wildcards": 0
+  },
+  "validation": {
+    "local": {
+      "unit_and_contract_tests": 68,
+      "browser_tests": 22,
+      "browser_viewports": [
+        "desktop Chromium",
+        "narrow Chromium"
+      ],
+      "preview_host_tests": 7,
+      "yaml_files_parsed": 7,
+      "shell_syntax": "pass",
+      "format": "pass",
+      "lint": "pass",
+      "typecheck": "pass",
+      "build": "pass",
+      "browser_boundary_scan": "pass"
+    },
+    "pull_request_checks": {
+      "head_sha": "1ad16b1b9bc4b98bc6a7ca0f8691c622e4988de4",
+      "database_contract_run_id": 30332276935,
+      "reliability_run_id": 30332276937,
+      "m1_application_run_id": 30332276938,
+      "m1_local_acceptance_run_id": 30332276973,
+      "m2_local_acceptance_run_id": 30332276963,
+      "m3_application_run_id": 30332276924,
+      "all_required_checks": "pass",
+      "m3_check": "pass"
+    },
+    "post_merge_checks": {
+      "head_sha": "d77aae3d69bf24e7278c7e45c79e6b72223260ff",
+      "m1_application_run_id": 30332827603,
+      "m1_local_acceptance_run_id": 30332827594,
+      "m2_local_acceptance_run_id": 30332827615,
+      "m3_application_run_id": 30332827727,
+      "all_triggered_checks": "pass"
+    },
+    "migration_reliability": {
+      "run_id": 30332276937,
+      "initial_attempt": "transient_local_supabase_restart_http_502",
+      "migration_application_before_transient_failure": "pass",
+      "failure_evidence_uploaded": true,
+      "failed_attempt_artifact_id": 8677866011,
+      "rerun_attempt": 2,
+      "rerun_result": "pass",
+      "clean_migration_application": "pass",
+      "migration_history": "pass",
+      "pg_tap_contracts": "pass",
+      "concurrent_idempotency": "pass",
+      "forward_repair_rehearsal": "pass",
+      "operational_health": "pass",
+      "successful_artifact_id": 8677975441
+    },
+    "deployed_preview": {
+      "deployment_state_reverified": "succeeded",
+      "owner_only_access_reverified": "pass",
+      "runtime_environment_allowlist_reverified": "pass",
+      "anonymous_access_denied": "pass",
+      "owner_sign_in_boundary": "pass",
+      "host_worker_header_and_routing_contract": "pass",
+      "live_usability": "owner_approved",
+      "automation_session_boundary": "The owner-only gateway requires the owner's passkey. Automation did not bypass the gateway or retain owner session material.",
+      "evidence_provenance": {
+        "machine_verified": [
+          "deployed artifact source and checksum",
+          "deployment success",
+          "owner-only access policy",
+          "public runtime environment allowlist",
+          "anonymous denial",
+          "host worker header, HTTPS, cache, CSP, method, and SPA fallback contracts",
+          "local and protected GitHub Actions browser suites"
+        ],
+        "owner_verified": [
+          "authenticated live preview usability"
+        ]
+      }
+    }
+  },
+  "artifacts": [
+    {
+      "purpose": "protected pull-request M3 browser and preview-host evidence",
+      "artifact_id": 8677825464,
+      "workflow_run_id": 30332276924,
+      "name": "m3-browser-foundation-ae6013aed1259260dbc3ab11ed0485d485f0504a",
+      "digest": "sha256:a26f6b022aea44d2d878949774e99acf0086f89da654314adedb1e4aeb44c0d2",
+      "expires_at_utc": "2026-08-27T05:40:40Z"
+    },
+    {
+      "purpose": "protected-main M3 browser and preview-host evidence",
+      "artifact_id": 8678015147,
+      "workflow_run_id": 30332827727,
+      "name": "m3-browser-foundation-d77aae3d69bf24e7278c7e45c79e6b72223260ff",
+      "digest": "sha256:f078dab3abf79ca6cb26ebdc2d02bab4c23b372691331aa8297d6745d821d09e",
+      "expires_at_utc": "2026-08-27T05:51:20Z"
+    },
+    {
+      "purpose": "proof that the transient reliability failure preserved evidence",
+      "artifact_id": 8677866011,
+      "workflow_run_id": 30332276937,
+      "name": "m0-2-reliability-evidence-ae6013aed1259260dbc3ab11ed0485d485f0504a",
+      "digest": "sha256:9621ccd84009b0be08c368b09e15dbb0bfe7229f66625f3b905d082edcfeab25",
+      "expires_at_utc": "2026-08-27T05:42:57Z"
+    },
+    {
+      "purpose": "successful rerun reliability evidence",
+      "artifact_id": 8677975441,
+      "workflow_run_id": 30332276937,
+      "name": "m0-2-reliability-evidence-ae6013aed1259260dbc3ab11ed0485d485f0504a",
+      "digest": "sha256:89fb2ec2bb820aebf2e8f1cf6e38eaeef7f78e643769afa43dc6ebbfed95b5af",
+      "expires_at_utc": "2026-08-27T05:49:10Z"
+    }
+  ],
+  "security_statement": {
+    "production_changed": false,
+    "public_storage_changed": false,
+    "publication_occurred": false,
+    "live_provider_added": false,
+    "service_role_exposed": false,
+    "strongr_daily_changed": false,
+    "database_migration_added": false,
+    "rls_or_grant_changed": false,
+    "storage_policy_changed": false,
+    "human_authority_changed": false
+  },
+  "governance": {
+    "mode": "solo-maintainer-exception",
+    "exception_adr": "docs/adr/ADR-0002-solo-maintainer-governance-exception.md",
+    "main_ruleset_id": 19766424,
+    "ruleset_status": "active",
+    "bypass_actors": [],
+    "pull_request_required": true,
+    "strict_required_checks": true,
+    "m3_required_check_promotion": "pending_separate_owner_decision"
+  },
+  "owner_approval": {
+    "status": "approved",
+    "owner": "neilgasson",
+    "approved_on": "2026-07-27",
+    "scope": [
+      "M3.4 owner-only isolated preview usability",
+      "final M3 acceptance"
+    ],
+    "record": "After the private preview was deployed and all pull-request and post-merge checks passed, the repository owner explicitly responded \"approved\" to the final preview approval gate in the controlling Codex task."
+  }
+}

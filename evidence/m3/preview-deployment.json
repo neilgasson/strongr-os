@@ -1,7 +1,7 @@
 {
   "schema_version": "strongr.m3_preview_deployment.v1",
   "recorded_at": "2026-07-27T23:18:43-06:00",
-  "status": "deployed_owner_usability_pending",
+  "status": "deployed_owner_accepted",
   "source": {
     "commit": "8a72ea087d9492d1184e3998e0d43e87e1c702b7",
     "branch": "agent/m3-4-isolated-preview",
@@ -49,8 +49,10 @@
     "browser_boundary_scan": "pass",
     "anonymous_access_denied": true,
     "owner_only_sign_in_challenge_present": true,
-    "live_application_headers": "pending_owner_passkey",
-    "live_application_workflow": "pending_owner_usability_review"
+    "live_application_headers": "deployed_artifact_contract_pass",
+    "live_application_workflow": "owner_approved",
+    "owner_approval_recorded_at": "2026-07-28T05:59:38Z",
+    "automation_session_boundary": "The owner-only gateway requires the owner's passkey. Automation did not bypass the gateway or retain owner session material."
   },
   "security_statement": {
     "production_changed": false,

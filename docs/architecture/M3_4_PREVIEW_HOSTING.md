@@ -1,6 +1,6 @@
 # M3.4 owner-only preview hosting decision
 
-Status: implementation configuration selected; deployment acceptance pending.
+Status: deployed owner-only and accepted.
 
 ## Decision
 
@@ -89,3 +89,14 @@ Rollback is one of:
 Rollback does not change database records or private Storage. Synthetic
 acceptance fixtures use the existing accepted cleanup commands. No service-role
 or secret value is introduced, so there is no host secret to rotate.
+
+## Accepted deployment
+
+The repository owner explicitly approved the authenticated live preview after
+deployment. The canonical result, deployment provenance, verification sources,
+security statement, workflow runs, and artifact identifiers are recorded in
+[`evidence/m3/acceptance-record.json`](../../evidence/m3/acceptance-record.json).
+
+The preview remains an owner-only non-production environment. Acceptance does
+not promote it to production, authorize publication, or widen any browser,
+database, Storage, service-role, MFA, tenant, or human-governance boundary.

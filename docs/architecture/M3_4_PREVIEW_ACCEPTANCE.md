@@ -1,7 +1,7 @@
 # M3.4 — Isolated preview and final M3 acceptance
 
-Status: owner-approved implementation gate; implementation and deployment have
-not started.
+Status: accepted. Implemented and deployed through PR #36; owner usability and
+final M3 acceptance were explicitly approved on 2026-07-27.
 
 ## Outcome
 
@@ -138,3 +138,16 @@ cleanup commands and evidence process.
 
 M3 is not complete until the canonical M3 acceptance record and owner usability
 review are explicitly accepted.
+
+## Final result
+
+M3 is accepted. The canonical result is
+[`evidence/m3/acceptance-record.json`](../../evidence/m3/acceptance-record.json).
+It binds the accepted implementation commit, owner-only Sites deployment,
+isolated `strongr-os-dev` configuration, local and protected GitHub Actions
+evidence, transient-failure artifact preservation, post-merge replays, security
+non-changes, and explicit owner approval.
+
+The record distinguishes machine-verified controls from owner-observed live
+usability. Automation did not bypass the owner-only passkey gateway or retain
+owner session material.
