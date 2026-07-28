@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import type { BrowserEnvironmentState } from "./browser-environment.ts";
+import { ContentWorkspacePage } from "./content-workspace-page.tsx";
 import {
   BoundariesPage,
   HomePage,
@@ -39,6 +40,14 @@ export function StudioApp({ environment }: StudioAppProps) {
                 </RequireOrganization>
               }
               path="work"
+            />
+            <Route
+              element={
+                <RequireOrganization>
+                  <ContentWorkspacePage />
+                </RequireOrganization>
+              }
+              path="content"
             />
             <Route element={<BoundariesPage />} path="boundaries" />
             <Route element={<NotFoundPage />} path="*" />

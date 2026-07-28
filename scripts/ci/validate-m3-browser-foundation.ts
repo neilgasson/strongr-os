@@ -200,6 +200,50 @@ record(
   "session-context.tsx: user metadata must not authorize browser state",
 );
 
+const governedContentSource = await readFile(
+  resolve(repositoryRoot, "apps/studio/src/content-workspace-page.tsx"),
+  "utf8",
+);
+for (const requiredGovernedOperation of [
+  "createBriefAndRequestGeneration",
+  "GenerationRequestDeferredError",
+  "createManualDraft",
+  "submitDraft",
+  "activateReviewPolicy",
+  "recordScriptureEvidence",
+  "recordRightsSnapshot",
+  "recordReview",
+  "approveVersion",
+  "createProductionPackage",
+  "revokeApproval",
+  "newIdempotencyKey",
+  "mutationLock",
+  "confirmation-label",
+]) {
+  record(
+    governedContentSource.includes(requiredGovernedOperation),
+    `content-workspace-page.tsx: missing governed operation ${requiredGovernedOperation}`,
+  );
+}
+for (const forbiddenGovernedToken of [
+  "service_role",
+  "SUPABASE_SECRET",
+  "/storage/v1/",
+  "/rest/v1/content_briefs",
+  "/rest/v1/content_versions",
+  "/rest/v1/approval_snapshots",
+  "/rest/v1/production_packages",
+]) {
+  record(
+    !governedContentSource.includes(forbiddenGovernedToken),
+    `content-workspace-page.tsx: direct or privileged browser token ${forbiddenGovernedToken}`,
+  );
+}
+record(
+  sessionSource.includes("createStudioFoundation(gateway, gateway)"),
+  "session-context.tsx: governed workspace must use the authenticated Studio gateway",
+);
+
 const queueSource = await readFile(
   resolve(repositoryRoot, "apps/studio/src/work-queue.ts"),
   "utf8",
