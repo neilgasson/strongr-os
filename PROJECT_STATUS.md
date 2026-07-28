@@ -387,12 +387,15 @@ The repository currently does **not** provide:
 The M3 browser check has been promoted into the strict protected-main required
 checks with no other protection weakened.
 
-The next safe action is owner review of
-[`docs/architecture/M4_SCOPE_PROPOSAL.md`](docs/architecture/M4_SCOPE_PROPOSAL.md).
-The proposal recommends production-readiness foundations before live providers:
-environment and secret boundaries, observability, alerts, scheduled recovery,
-load and failure proof, release/rollback rehearsal, and an evidence-backed
-readiness decision. It does not authorize implementation or production launch.
+The owner approved
+[`docs/architecture/M4_SCOPE.md`](docs/architecture/M4_SCOPE.md) on
+2026-07-28. The next safe action is M4.0: define the production-readiness
+architecture, operational threat model, measurable service/recovery/privacy/
+accessibility/performance/cost targets, and dependency failure inventory.
+
+M4.0 is documentation and contract work only. It does not provision an
+environment, introduce a secret, connect a live provider, publish content,
+launch production, or change Strongr Daily.
 
 ## Restart procedure
 
@@ -416,8 +419,8 @@ When resuming Strongr OS work:
 5. Confirm the current Strongr Daily application has not been changed.
 6. Confirm the owner-only preview remains private and bound only to
    `strongr-os-dev`; do not retain owner session or passkey material.
-7. Review `docs/architecture/M4_SCOPE_PROPOSAL.md` and obtain explicit owner
-   approval before implementing the next milestone.
+7. Read `docs/architecture/M4_SCOPE.md` and implement only the current approved
+   M4 slice.
 8. Start any approved work from current protected `main` on a new `agent/*`
    branch and preserve the M0–M3 security boundaries.
 

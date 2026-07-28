@@ -59,8 +59,9 @@ revocation. The owner-only preview is deployed against isolated
 deployment, security, CI, artifact, and owner-approval evidence. All six
 M0.2–M3 checks are strict required checks on protected `main`.
 
-M4 is not approved or underway. The current proposal recommends
-production-readiness foundations before live providers or production launch.
+M4 is owner-approved and begins with production-readiness architecture and
+operational threat modeling before any staging resource, live provider, or
+production launch.
 
 ## Current implementation boundary
 

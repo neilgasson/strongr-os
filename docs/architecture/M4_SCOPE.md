@@ -1,6 +1,7 @@
-# M4 scope proposal — production-readiness foundations
+# M4 scope — production-readiness foundations
 
-Status: proposed; owner approval required before implementation.
+Status: owner-approved on 2026-07-28. Implementation may proceed only through
+the protected delivery sequence and stop conditions below.
 
 ## Recommendation
 
@@ -166,12 +167,11 @@ Stop and require a new protected decision if implementation would require:
 - weakening any accepted M0–M3 control to meet a performance, deployment, cost,
   or convenience target.
 
-## Decision required
+## Owner approval
 
-The owner must explicitly choose one of:
-
-1. approve this production-readiness-first M4 scope;
-2. request amendments; or
-3. defer production readiness and define a different bounded milestone.
-
-No M4 implementation authority is granted by committing this proposal.
+The repository owner explicitly approved this production-readiness-first M4
+scope in the controlling Codex task on 2026-07-28 after reviewing draft PR #38.
+That approval authorizes the protected M4.0–M4.4 implementation sequence inside
+this document. It does not authorize production launch, publication, live
+providers, Strongr Daily changes, bypassing required checks, or work outside the
+defined gates.
