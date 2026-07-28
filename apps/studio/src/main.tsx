@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { StudioApp } from "./app.tsx";
-import { readBrowserEnvironment } from "./browser-environment.ts";
+import { loadBrowserEnvironment } from "./browser-environment.ts";
 import { AppErrorBoundary } from "./error-boundary.tsx";
 import "./styles/tokens.css";
 import "./styles/studio.css";
@@ -12,10 +12,12 @@ if (!root) {
   throw new Error("Strongr Studio root element is missing");
 }
 
+const environment = await loadBrowserEnvironment(import.meta.env);
+
 createRoot(root).render(
   <StrictMode>
     <AppErrorBoundary>
-      <StudioApp environment={readBrowserEnvironment(import.meta.env)} />
+      <StudioApp environment={environment} />
     </AppErrorBoundary>
   </StrictMode>,
 );

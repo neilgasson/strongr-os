@@ -34,6 +34,8 @@ run_check unit pnpm test
 run_check build pnpm build
 run_check boundaries pnpm boundaries:check
 run_check browser_contract node scripts/ci/validate-m3-browser-foundation.ts
+run_check preview_build pnpm studio:preview:build
+run_check preview_contract pnpm studio:preview:test
 run_check browser pnpm studio:test:browser
 
 exit "$failed"

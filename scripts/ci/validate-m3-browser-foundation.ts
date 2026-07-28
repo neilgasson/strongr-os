@@ -70,11 +70,13 @@ const security = JSON.parse(await readFile(securityPath, "utf8")) as {
   readonly public_environment_allowlist?: readonly string[];
   readonly required_headers?: Readonly<Record<string, string>>;
   readonly runtime_scripts?: string;
+  readonly runtime_configuration?: string;
   readonly spa_fallback?: string;
+  readonly supabase_project_ref?: string;
 };
 record(
-  security.deployment_status === "deferred_to_m3_4",
-  "preview-security.json: M3.0 must not claim a deployment",
+  security.deployment_status === "m3_4_owner_only_preview",
+  "preview-security.json: M3.4 owner-only preview status missing",
 );
 record(security.spa_fallback === "/index.html", "preview-security.json: SPA fallback missing");
 record(
@@ -85,6 +87,14 @@ record(
   JSON.stringify(security.public_environment_allowlist) ===
     JSON.stringify(["PUBLIC_SUPABASE_PUBLISHABLE_KEY", "PUBLIC_SUPABASE_URL"]),
   "preview-security.json: public environment allowlist changed",
+);
+record(
+  security.supabase_project_ref === "fifrlyddmjkogmdvyjdp",
+  "preview-security.json: preview must remain bound to strongr-os-dev",
+);
+record(
+  security.runtime_configuration === "same_origin_no_store_json",
+  "preview-security.json: reviewed runtime configuration missing",
 );
 
 const headers = security.required_headers ?? {};
@@ -123,6 +133,21 @@ record(
   !/<script\b[^>]*\bsrc=["']https?:/i.test(sourceIndex),
   "apps/studio/index.html: remote runtime script",
 );
+
+const browserEnvironmentSource = await readFile(
+  resolve(repositoryRoot, "apps/studio/src/browser-environment.ts"),
+  "utf8",
+);
+for (const runtimeBoundary of [
+  '"/runtime-config.json"',
+  'cache: "no-store"',
+  'credentials: "same-origin"',
+]) {
+  record(
+    browserEnvironmentSource.includes(runtimeBoundary),
+    `browser-environment.ts: missing runtime boundary ${runtimeBoundary}`,
+  );
+}
 
 const bundleFiles = await collectFiles(resolve(repositoryRoot, "apps/studio/dist"));
 record(bundleFiles.length > 0, "apps/studio/dist: built browser artifact missing");
