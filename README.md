@@ -15,7 +15,7 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M3 accepted — owner-only non-production Strongr Studio preview**
+**M4.0 in progress — production-readiness architecture**
 
 M0.2 reliability and operational acceptance completed on July 26, 2026. The
 canonical record at evidence/m0-2/acceptance-record.json binds the accepted
@@ -67,7 +67,8 @@ production launch.
 
 The current Strongr Daily application must remain unchanged during the parallel Strongr OS build.
 
-The existing Strongr Studio and M1 checkpoints are design and workflow references only. They are not the production foundation.
+The accepted Strongr Studio preview and M0–M3 checkpoints are pre-production
+evidence. They are not a production launch or production operating commitment.
 
 ## Governing rules
 
