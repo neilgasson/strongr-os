@@ -1,6 +1,7 @@
 # M3.3 — Governed media and release staging
 
-Status: implementation candidate pending browser acceptance and human approval.
+Status: owner-accepted and merged through PR #34 as protected-main commit
+`f2a609db170d847a71cd760db3964fb70ce41c61`.
 
 ## Outcome
 
@@ -65,6 +66,12 @@ Acceptance must demonstrate:
 - build, typecheck, lint, format, boundary, unit, and browser checks.
 
 The M3 workflow uploads evidence even when a check fails.
+
+The accepted implementation passed 66 unit and contract tests, 22 Playwright
+tests across desktop and narrow Chromium, all six pull-request checks, and the
+four protected-main regression workflows. It changed no migration, RLS policy,
+grant, Storage policy, Supabase project, deployment, production system, or
+Strongr Daily file.
 
 ## Rollback
 
