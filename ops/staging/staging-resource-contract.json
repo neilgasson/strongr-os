@@ -1,0 +1,125 @@
+{
+  "schema_version": "strongr.m4_staging_resource_contract.v1",
+  "status": "approved_unprovisioned",
+  "environment": "strongr-os-staging",
+  "approved": true,
+  "approved_on": "2026-07-28",
+  "production_authorized": false,
+  "strongr_daily_connection_authorized": false,
+  "pricing_checked_on": "2026-07-28",
+  "budget": {
+    "currency": "USD",
+    "expected_monthly_before_tax": 25,
+    "hard_monthly_ceiling_before_tax": 35,
+    "provider_cost_confirmation_required": true
+  },
+  "supabase": {
+    "organization_name": "Strongr OS Staging",
+    "organization_id": null,
+    "organization_plan": "pro",
+    "billing": "direct_supabase",
+    "spend_cap": "enabled",
+    "project_name": "strongr-os-staging",
+    "project_ref": null,
+    "region": "ca-central-1",
+    "compute": "micro",
+    "release_channel": "ga",
+    "add_ons": [],
+    "expected_monthly_usd": 25,
+    "allowed_monthly_usd": 34
+  },
+  "github": {
+    "repository": "neilgasson/strongr-os",
+    "environment": "strongr-os-staging",
+    "required_reviewers": ["neilgasson"],
+    "prevent_self_review": false,
+    "deployment_branch_policy": "protected_branches_only",
+    "secret_bearing_triggers": ["workflow_dispatch"],
+    "default_job_permissions": {
+      "contents": "read"
+    },
+    "concurrency_group": "strongr-os-staging",
+    "public_variables": [
+      "STAGING_B2_BUCKET",
+      "STAGING_B2_ENDPOINT",
+      "STAGING_GRAFANA_METRICS_ENDPOINT",
+      "STAGING_SUPABASE_PROJECT_REF",
+      "STAGING_SUPABASE_PUBLISHABLE_KEY",
+      "STAGING_SUPABASE_URL"
+    ],
+    "encrypted_secrets": [
+      "STAGING_B2_APPLICATION_KEY",
+      "STAGING_B2_KEY_ID",
+      "STAGING_BACKUP_ENCRYPTION_KEY",
+      "STAGING_GRAFANA_METRICS_WRITE_TOKEN",
+      "STAGING_SUPABASE_ACCESS_TOKEN",
+      "STAGING_SUPABASE_DB_PASSWORD",
+      "STAGING_SUPABASE_WORKER_SECRET_KEY",
+      "STAGING_TELEMETRY_DATABASE_URL"
+    ]
+  },
+  "hosting": {
+    "provider": "openai_sites",
+    "project_name": "Strongr Studio Staging",
+    "project_id": null,
+    "access_mode": "custom_owner_only",
+    "allowed_users": ["neilgasson"],
+    "allowed_groups": [],
+    "public_access": false,
+    "runtime_public_values": ["PUBLIC_SUPABASE_PUBLISHABLE_KEY", "PUBLIC_SUPABASE_URL"],
+    "server_secrets": [],
+    "incremental_monthly_usd": 0
+  },
+  "worker": {
+    "provider": "github_hosted_actions",
+    "mode": "bounded_approved_job",
+    "always_on": false,
+    "production_suitable": false,
+    "environment": "strongr-os-staging"
+  },
+  "backup": {
+    "provider": "backblaze_b2",
+    "account_label": "Strongr OS Staging Recovery",
+    "data_region": "canada_east",
+    "bucket_name": "strongr-os-staging-recovery-20260728",
+    "bucket_id": null,
+    "bucket_name_availability_verified": false,
+    "access": "private",
+    "object_lock": "enabled_at_creation",
+    "server_side_encryption": "enabled",
+    "client_side_encryption": "AES-256-GCM",
+    "scheduled_retention_days": 35,
+    "encryption_key_custody": "github_environment_and_owner_offline_encrypted_escrow",
+    "expected_monthly_usd": 0,
+    "allowed_monthly_usd": 1
+  },
+  "telemetry": {
+    "provider": "grafana_cloud",
+    "plan": "free",
+    "stack_name": "strongrosstaging",
+    "region": "aws_ca-central-1",
+    "direct_supabase_integration": false,
+    "collector": "protected_github_actions",
+    "source_authentication": "restricted_postgres_telemetry_login",
+    "source_table_access": false,
+    "source_bypass_rls": false,
+    "destination_token_scope": "metrics_write_only",
+    "allowed_data": [
+      "bounded_error_codes",
+      "counts",
+      "durations",
+      "health_states",
+      "saturation_ratios"
+    ],
+    "forbidden_data": [
+      "credentials",
+      "governed_content",
+      "personal_data",
+      "private_media",
+      "sessions",
+      "totp_material"
+    ],
+    "expected_monthly_usd": 0,
+    "allowed_monthly_usd": 0
+  }
+}
