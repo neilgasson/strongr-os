@@ -13,6 +13,11 @@ export type { StudioEnvironment, StudioEnvironmentSource } from "./environment.t
 export { createStudioFoundation } from "./foundation.ts";
 export type { StudioCommandGateway, StudioFoundation } from "./foundation.ts";
 export {
+  createMediaReleaseOperatorFlow,
+  MediaReleaseOperatorFlow,
+} from "./media-release-flow.ts";
+export type { MediaReleaseWorkspace } from "./media-release-flow.ts";
+export {
   createStudioIdentityGateway,
   StudioIdentityGateway,
   studioCapabilityKeys,

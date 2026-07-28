@@ -1,8 +1,11 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { createSyntheticPcmWav } from "../../../packages/media/src/index.ts";
 
 const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const distRoot = resolve(repositoryRoot, "apps/studio/dist");
@@ -49,6 +52,15 @@ const editorialReviewId = "00000000-0000-4000-8000-000000000506";
 const approvalSnapshotId = "00000000-0000-4000-8000-000000000601";
 const productionPackageId = "00000000-0000-4000-8000-000000000602";
 const approvalRevocationId = "00000000-0000-4000-8000-000000000603";
+const mediaOutputSpecId = "00000000-0000-4000-8000-000000000801";
+const mediaJobId = "00000000-0000-4000-8000-000000000802";
+const mediaAttemptId = "00000000-0000-4000-8000-000000000803";
+const mediaArtifactId = "00000000-0000-4000-8000-000000000804";
+const mediaReviewId = "00000000-0000-4000-8000-000000000805";
+const stagedReleaseId = "00000000-0000-4000-8000-000000000806";
+const stagedRevocationId = "00000000-0000-4000-8000-000000000807";
+const mediaBytes = createSyntheticPcmWav();
+const mediaSha256 = createHash("sha256").update(mediaBytes).digest("hex");
 const nowSeconds = Math.floor(Date.now() / 1000);
 
 interface MockState {
@@ -56,8 +68,13 @@ interface MockState {
   approvalRevoked: boolean;
   expired: boolean;
   factorPresent: boolean;
+  mediaReady: boolean;
+  mediaReviewed: boolean;
   packageCreated: boolean;
+  releaseRevoked: boolean;
+  releaseStaged: boolean;
   readonly rpcCalls: Array<Readonly<{ body: Readonly<Record<string, unknown>>; command: string }>>;
+  readonly storageRequests: string[];
   readonly tenantReads: string[];
 }
 
@@ -131,7 +148,11 @@ function governedRows(
   if (pathname === "/rest/v1/content_briefs") {
     return briefRows(organizationId);
   }
-  if (organizationId !== organizationA && pathname !== "/rest/v1/check_definitions") {
+  if (
+    organizationId !== organizationA &&
+    pathname !== "/rest/v1/check_definitions" &&
+    pathname !== "/rest/v1/media_output_specs"
+  ) {
     return [];
   }
   const createdAt = "2026-07-27T00:10:00.000Z";
@@ -305,6 +326,127 @@ function governedRows(
             },
           ]
         : [];
+    case "/rest/v1/media_output_specs":
+      return [
+        {
+          bits_per_sample: 16,
+          channels: 1,
+          codec: "pcm_s16le",
+          container: "wav",
+          created_at: createdAt,
+          id: mediaOutputSpecId,
+          key: "strongr.synthetic_audio",
+          max_bytes: 26_214_400,
+          max_duration_ms: 900_000,
+          media_kind: "audio",
+          mime_type: "audio/wav",
+          sample_rate_hz: 16_000,
+          spec_hash: hash("3"),
+          version: 1,
+        },
+      ];
+    case "/rest/v1/media_jobs":
+      return state.mediaReady
+        ? [
+            {
+              adapter_key: "strongr.synthetic_audio",
+              adapter_version: "1.0.0",
+              attempt_count: 1,
+              available_at: createdAt,
+              correlation_id: checkRunId,
+              created_at: createdAt,
+              finished_at: createdAt,
+              id: mediaJobId,
+              input_hash: hash("4"),
+              last_error_code: null,
+              max_attempts: 3,
+              organization_id: organizationA,
+              output_spec_id: mediaOutputSpecId,
+              production_package_id: productionPackageId,
+              request_schema_id: "strongr.media_request.v1",
+              requested_by_membership_id: membershipA,
+              started_at: createdAt,
+              state: "succeeded",
+            },
+          ]
+        : [];
+    case "/rest/v1/media_artifacts":
+      return state.mediaReady
+        ? [
+            {
+              bits_per_sample: 16,
+              bucket_id: "strongr-os-media",
+              byte_count: mediaBytes.byteLength,
+              channels: 1,
+              codec: "pcm_s16le",
+              container: "wav",
+              created_at: createdAt,
+              duration_ms: 1_000,
+              id: mediaArtifactId,
+              media_job_id: mediaJobId,
+              mime_type: "audio/wav",
+              object_path: `${organizationA}/${productionPackageId}/${mediaArtifactId}.wav`,
+              organization_id: organizationA,
+              output_spec_id: mediaOutputSpecId,
+              production_package_id: productionPackageId,
+              sample_rate_hz: 16_000,
+              sha256: mediaSha256,
+              successful_attempt_id: mediaAttemptId,
+              validated_at: createdAt,
+              validation_schema_id: "strongr.media_validation.v1",
+            },
+          ]
+        : [];
+    case "/rest/v1/media_reviews":
+      return state.mediaReviewed
+        ? [
+            {
+              accessibility_status: "approved",
+              created_at: createdAt,
+              decision: "approved",
+              evidence: { fixture: true },
+              evidence_hash: hash("5"),
+              id: mediaReviewId,
+              media_artifact_id: mediaArtifactId,
+              organization_id: organizationA,
+              reason_code: "m3_3_operator_media_review",
+              reviewer_membership_id: membershipA,
+              transcript_status: "ready",
+            },
+          ]
+        : [];
+    case "/rest/v1/staged_release_bundles":
+      return state.releaseStaged
+        ? [
+            {
+              authentication_assurance: "aal2",
+              id: stagedReleaseId,
+              manifest: { fixture: true },
+              manifest_hash: hash("6"),
+              manifest_schema_id: "strongr.staged_release_bundle.v1",
+              media_artifact_id: mediaArtifactId,
+              media_review_id: mediaReviewId,
+              organization_id: organizationA,
+              production_package_id: productionPackageId,
+              staged_at: createdAt,
+              staged_by_membership_id: membershipA,
+            },
+          ]
+        : [];
+    case "/rest/v1/staged_release_revocations":
+      return state.releaseRevoked
+        ? [
+            {
+              authentication_assurance: "aal2",
+              id: stagedRevocationId,
+              organization_id: organizationA,
+              reason_code: "m3_3_release_withdrawn",
+              revoked_at: createdAt,
+              revoked_by_membership_id: membershipA,
+              staged_release_bundle_id: stagedReleaseId,
+            },
+          ]
+        : [];
     default:
       return [];
   }
@@ -316,13 +458,32 @@ async function installMockSupabase(page: Page): Promise<MockState> {
     approvalRevoked: false,
     expired: false,
     factorPresent: true,
+    mediaReady: false,
+    mediaReviewed: false,
     packageCreated: false,
+    releaseRevoked: false,
+    releaseStaged: false,
     rpcCalls: [],
+    storageRequests: [],
     tenantReads: [],
   };
   await page.route("https://example.supabase.co/**", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
+
+    if (
+      url.pathname ===
+      `/storage/v1/object/authenticated/strongr-os-media/${organizationA}/${productionPackageId}/${mediaArtifactId}.wav`
+    ) {
+      state.storageRequests.push(url.pathname);
+      await route.fulfill({
+        body: Buffer.from(mediaBytes),
+        contentType: "audio/wav",
+        headers: { "cache-control": "no-store" },
+        status: 200,
+      });
+      return;
+    }
 
     if (url.pathname === "/auth/v1/token") {
       await route.fulfill({ json: authSession(state.aal, state), status: 200 });
@@ -462,6 +623,26 @@ async function installMockSupabase(page: Page): Promise<MockState> {
       if (command === "m1_revoke_approval") {
         state.approvalRevoked = true;
         await route.fulfill({ json: approvalRevocationId, status: 200 });
+        return;
+      }
+      if (command === "m2_request_media") {
+        state.mediaReady = true;
+        await route.fulfill({ json: mediaJobId, status: 200 });
+        return;
+      }
+      if (command === "m2_record_media_review") {
+        state.mediaReviewed = true;
+        await route.fulfill({ json: mediaReviewId, status: 200 });
+        return;
+      }
+      if (command === "m2_stage_release") {
+        state.releaseStaged = true;
+        await route.fulfill({ json: stagedReleaseId, status: 200 });
+        return;
+      }
+      if (command === "m2_revoke_staged_release") {
+        state.releaseRevoked = true;
+        await route.fulfill({ json: stagedRevocationId, status: 200 });
         return;
       }
       const syntheticResult =
@@ -785,7 +966,114 @@ test("AAL2 authority targets canonical evidence, packages without publishing, an
   );
 });
 
-test("M3.2 routes have no automatically detectable WCAG 2.2 A or AA violations", async ({
+test("private media is checksum verified, human reviewed, staged, and revoked by exact identity", async ({
+  page,
+}, testInfo) => {
+  const state = await installMockSupabase(page);
+  state.packageCreated = true;
+  await signIn(page);
+  await page.getByRole("link", { name: "Security" }).click();
+  await page.getByLabel("Six-digit authenticator code").fill("123456");
+  await page.getByRole("button", { name: "Step up session" }).click();
+  await expect(page.getByText("AAL2", { exact: true })).toBeVisible();
+
+  await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
+  await page.getByRole("link", { name: "Governed media" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Private audio through revocable release staging." }),
+  ).toBeVisible();
+
+  await page
+    .getByRole("checkbox", { name: /I confirm the exact package and output specification/ })
+    .check();
+  await page.getByRole("button", { name: "Request exact media" }).click();
+  await expect(page.getByText(new RegExp(`Job ${mediaJobId} · succeeded`))).toBeVisible();
+
+  await page.getByRole("button", { name: "Verify private artifact" }).click();
+  await expect(page.getByText(new RegExp(`Verified ${mediaBytes.byteLength} bytes`))).toBeVisible();
+  await expect(page.locator("audio")).toHaveCount(1);
+
+  await page
+    .getByRole("checkbox", { name: /I confirm this human decision targets artifact/ })
+    .check();
+  await page.getByRole("button", { name: "Record exact media review" }).click();
+  await expect(page.getByText(new RegExp(`Review ${mediaReviewId} · approved`))).toBeVisible();
+
+  await page
+    .getByRole("checkbox", {
+      name: /I confirm these exact package, artifact, and review identities/,
+    })
+    .check();
+  await page.getByRole("button", { name: "Stage exact release bundle" }).click();
+  await expect(page.getByText(new RegExp(`Bundle ${stagedReleaseId}`))).toContainText(
+    "staged, not published",
+  );
+
+  await page
+    .getByRole("checkbox", { name: /I confirm this append-only revocation targets/ })
+    .check();
+  await page.getByRole("button", { name: "Revoke exact staged bundle" }).click();
+  await expect(page.getByText(new RegExp(`Bundle ${stagedReleaseId}`))).toContainText("revoked");
+
+  expect(state.rpcCalls.find(({ command }) => command === "m2_request_media")?.body).toEqual(
+    expect.objectContaining({
+      p_adapter_key: "strongr.synthetic_audio",
+      p_adapter_version: "1.0.0",
+      p_idempotency_key: expect.stringMatching(/^studio-m3-3-/),
+      p_organization_id: organizationA,
+      p_output_spec_id: mediaOutputSpecId,
+      p_production_package_id: productionPackageId,
+    }),
+  );
+  expect(state.rpcCalls.find(({ command }) => command === "m2_record_media_review")?.body).toEqual(
+    expect.objectContaining({
+      p_accessibility_status: "approved",
+      p_decision: "approved",
+      p_media_artifact_id: mediaArtifactId,
+      p_organization_id: organizationA,
+      p_transcript_status: "ready",
+    }),
+  );
+  expect(state.rpcCalls.find(({ command }) => command === "m2_stage_release")?.body).toEqual(
+    expect.objectContaining({
+      p_media_artifact_id: mediaArtifactId,
+      p_media_review_id: mediaReviewId,
+      p_organization_id: organizationA,
+      p_production_package_id: productionPackageId,
+    }),
+  );
+  expect(
+    state.rpcCalls.find(({ command }) => command === "m2_revoke_staged_release")?.body,
+  ).toEqual(
+    expect.objectContaining({
+      p_organization_id: organizationA,
+      p_reason_code: "m3_3_release_withdrawn",
+      p_staged_release_bundle_id: stagedReleaseId,
+    }),
+  );
+  expect(state.storageRequests).toEqual([
+    `/storage/v1/object/authenticated/strongr-os-media/${organizationA}/${productionPackageId}/${mediaArtifactId}.wav`,
+  ]);
+
+  await writeFile(
+    resolve(evidenceRoot, `governed-media-${testInfo.project.name}.json`),
+    `${JSON.stringify(
+      {
+        artifact_id: mediaArtifactId,
+        byte_count: mediaBytes.byteLength,
+        checksum_verified: mediaSha256,
+        private_exact_download_count: state.storageRequests.length,
+        release_revoked: state.releaseRevoked,
+        release_staged_without_publication: state.releaseStaged,
+        status: "pass",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+});
+
+test("M3.3 routes have no automatically detectable WCAG 2.2 A or AA violations", async ({
   page,
 }, testInfo) => {
   const routeResults: Record<string, unknown> = {};
@@ -803,7 +1091,15 @@ test("M3.2 routes have no automatically detectable WCAG 2.2 A or AA violations",
 
   await signIn(page);
   await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
-  for (const route of ["/", "/work", "/content", "/security", "/boundaries", "/missing-screen"]) {
+  for (const route of [
+    "/",
+    "/work",
+    "/content",
+    "/media",
+    "/security",
+    "/boundaries",
+    "/missing-screen",
+  ]) {
     await page.goto(route);
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -827,12 +1123,14 @@ test("M3.2 routes have no automatically detectable WCAG 2.2 A or AA violations",
   expect(violations).toEqual([]);
 });
 
-test("authenticated M3.2 remains usable without horizontal overflow", async ({ page }) => {
-  await installMockSupabase(page);
+test("authenticated M3.3 remains usable without horizontal overflow", async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.packageCreated = true;
+  state.mediaReady = true;
   await signIn(page);
   await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
   await page.setViewportSize({ height: 844, width: 390 });
-  await page.goto("/content");
+  await page.goto("/media");
   const dimensions = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,

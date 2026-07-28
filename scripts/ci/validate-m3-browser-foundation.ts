@@ -240,9 +240,48 @@ for (const forbiddenGovernedToken of [
   );
 }
 record(
-  sessionSource.includes("createStudioFoundation(gateway, gateway)"),
+  sessionSource.includes("createStudioFoundation(gateway, gateway, gateway)"),
   "session-context.tsx: governed workspace must use the authenticated Studio gateway",
 );
+
+const governedMediaSource = await readFile(
+  resolve(repositoryRoot, "apps/studio/src/media-release-page.tsx"),
+  "utf8",
+);
+for (const requiredMediaOperation of [
+  "requestMedia",
+  "downloadArtifact",
+  "recordReview",
+  "stageRelease",
+  "revokeStagedRelease",
+  "URL.createObjectURL",
+  "URL.revokeObjectURL",
+  "newIdempotencyKey",
+  "mutationLock",
+  "confirmation-label",
+]) {
+  record(
+    governedMediaSource.includes(requiredMediaOperation),
+    `media-release-page.tsx: missing governed operation ${requiredMediaOperation}`,
+  );
+}
+for (const forbiddenMediaToken of [
+  "service_role",
+  "SUPABASE_SECRET",
+  "/storage/v1/",
+  "/rest/v1/media_",
+  "/rest/v1/staged_",
+  "localStorage",
+  "sessionStorage",
+  "caches.open",
+  "getPublicUrl",
+  "createSignedUrl",
+]) {
+  record(
+    !governedMediaSource.includes(forbiddenMediaToken),
+    `media-release-page.tsx: direct, persistent, or privileged browser token ${forbiddenMediaToken}`,
+  );
+}
 
 const queueSource = await readFile(
   resolve(repositoryRoot, "apps/studio/src/work-queue.ts"),

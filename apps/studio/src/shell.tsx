@@ -49,6 +49,17 @@ export function StudioShell({ environment }: StudioShellProps) {
           capabilities.value["role.manage"]),
       to: "/content",
     },
+    {
+      label: "Governed media",
+      show:
+        Boolean(activeOrganization) &&
+        capabilities.status === "ready" &&
+        (capabilities.value["media.request"] ||
+          capabilities.value["media.review"] ||
+          capabilities.value["release.stage"] ||
+          capabilities.value["release.revoke"]),
+      to: "/media",
+    },
     { label: "Security", show: isSignedIn, to: "/security" },
     { label: "Boundaries", show: true, to: "/boundaries" },
   ] as const;
