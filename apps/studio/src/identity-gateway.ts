@@ -32,6 +32,7 @@ export const studioCapabilityKeys = [
   "approval.grant",
   "approval.revoke",
   "export.request",
+  "role.manage",
   "media.request",
   "media.review",
   "release.stage",

@@ -34,12 +34,30 @@ const membershipB = "00000000-0000-4000-8000-000000000003";
 const organizationA = "00000000-0000-4000-8000-000000000010";
 const organizationB = "00000000-0000-4000-8000-000000000020";
 const factorId = "00000000-0000-4000-8000-000000000030";
+const contentItemId = "00000000-0000-4000-8000-000000000101";
+const briefId = "00000000-0000-4000-8000-000000000201";
+const contentVersionId = "00000000-0000-4000-8000-000000000301";
+const checkDefinitionId = "00000000-0000-4000-8000-000000000401";
+const checkRunId = "00000000-0000-4000-8000-000000000402";
+const checkResultId = "00000000-0000-4000-8000-000000000403";
+const scriptureEvidenceId = "00000000-0000-4000-8000-000000000501";
+const rightsSnapshotId = "00000000-0000-4000-8000-000000000502";
+const reviewPolicyId = "00000000-0000-4000-8000-000000000503";
+const scriptureReviewId = "00000000-0000-4000-8000-000000000504";
+const theologyReviewId = "00000000-0000-4000-8000-000000000505";
+const editorialReviewId = "00000000-0000-4000-8000-000000000506";
+const approvalSnapshotId = "00000000-0000-4000-8000-000000000601";
+const productionPackageId = "00000000-0000-4000-8000-000000000602";
+const approvalRevocationId = "00000000-0000-4000-8000-000000000603";
 const nowSeconds = Math.floor(Date.now() / 1000);
 
 interface MockState {
   aal: "aal1" | "aal2";
+  approvalRevoked: boolean;
   expired: boolean;
   factorPresent: boolean;
+  packageCreated: boolean;
+  readonly rpcCalls: Array<Readonly<{ body: Readonly<Record<string, unknown>>; command: string }>>;
   readonly tenantReads: string[];
 }
 
@@ -105,11 +123,201 @@ function briefRows(organizationId: string | null) {
   }));
 }
 
+function governedRows(
+  pathname: string,
+  organizationId: string | null,
+  state: MockState,
+): unknown[] {
+  if (pathname === "/rest/v1/content_briefs") {
+    return briefRows(organizationId);
+  }
+  if (organizationId !== organizationA && pathname !== "/rest/v1/check_definitions") {
+    return [];
+  }
+  const createdAt = "2026-07-27T00:10:00.000Z";
+  const hash = (character: string) => character.repeat(64);
+  switch (pathname) {
+    case "/rest/v1/generation_jobs":
+      return [];
+    case "/rest/v1/content_versions":
+      return [
+        {
+          brief_id: briefId,
+          content_item_id: contentItemId,
+          created_at: createdAt,
+          id: contentVersionId,
+          organization_id: organizationA,
+          payload: {
+            closing: "A synthetic closing for browser acceptance.",
+            opening: "A synthetic opening for browser acceptance.",
+            reflection: "A synthetic reflection that is never production content.",
+            reflection_questions: ["What did this deterministic fixture demonstrate?"],
+            schema_id: "strongr.audio_reflection.v1",
+            scripture_references: [
+              {
+                reference: "Synthetic Reference 1:1",
+                source_citation: "Synthetic fixture; not a Scripture quotation",
+                translation: "TEST",
+              },
+            ],
+            title: "Synthetic Governed Reflection",
+          },
+          payload_hash: hash("b"),
+          schema_id: "strongr.audio_reflection.v1",
+          source: "ai_assisted",
+          source_job_id: null,
+          state: "submitted",
+          submitted_at: createdAt,
+          version_number: 1,
+        },
+      ];
+    case "/rest/v1/check_definitions":
+      return [
+        {
+          blocks_approval: true,
+          id: checkDefinitionId,
+          key: "synthetic.schema",
+          lane: "editorial",
+          name: "Synthetic schema check",
+          version: 1,
+        },
+      ];
+    case "/rest/v1/check_runs":
+      return [
+        {
+          artifact_hash: hash("c"),
+          content_version_id: contentVersionId,
+          correlation_id: "00000000-0000-4000-8000-000000000404",
+          created_at: createdAt,
+          engine_key: "synthetic.checks",
+          engine_version: "1.0.0",
+          id: checkRunId,
+          organization_id: organizationA,
+          status: "completed",
+        },
+      ];
+    case "/rest/v1/check_results":
+      return [
+        {
+          check_definition_id: checkDefinitionId,
+          check_run_id: checkRunId,
+          created_at: createdAt,
+          detail_code: "synthetic_pass",
+          evidence: { fixture: true },
+          id: checkResultId,
+          organization_id: organizationA,
+          outcome: "pass",
+        },
+      ];
+    case "/rest/v1/scripture_evidence":
+      return [
+        {
+          content_version_id: contentVersionId,
+          created_at: createdAt,
+          evidence_hash: hash("d"),
+          id: scriptureEvidenceId,
+          organization_id: organizationA,
+          reference: "Synthetic Reference 1:1",
+          source_citation: "Synthetic fixture; not a Scripture quotation",
+          translation: "TEST",
+          verification_status: "verified",
+        },
+      ];
+    case "/rest/v1/rights_snapshots":
+      return [
+        {
+          content_version_id: contentVersionId,
+          created_at: createdAt,
+          id: rightsSnapshotId,
+          organization_id: organizationA,
+          snapshot_hash: hash("e"),
+          source_summary: "Synthetic acceptance material",
+          status: "cleared",
+        },
+      ];
+    case "/rest/v1/review_policies":
+      return [
+        {
+          created_at: createdAt,
+          id: reviewPolicyId,
+          is_active: true,
+          key: "synthetic_acceptance",
+          organization_id: organizationA,
+          policy_hash: hash("f"),
+          version: 1,
+        },
+      ];
+    case "/rest/v1/review_decisions":
+      return [
+        [scriptureReviewId, "scripture"],
+        [theologyReviewId, "theology"],
+        [editorialReviewId, "editorial"],
+      ].map(([id, lane]) => ({
+        content_version_id: contentVersionId,
+        created_at: createdAt,
+        decision: "approved",
+        evidence: { fixture: true },
+        id,
+        lane,
+        organization_id: organizationA,
+        reason_code: "synthetic_acceptance",
+      }));
+    case "/rest/v1/approval_snapshots":
+      return [
+        {
+          approved_at: createdAt,
+          authentication_assurance: "aal2",
+          check_run_id: checkRunId,
+          content_version_id: contentVersionId,
+          evidence_bundle_hash: hash("1"),
+          id: approvalSnapshotId,
+          organization_id: organizationA,
+          reason_code: "synthetic_acceptance",
+          review_policy_id: reviewPolicyId,
+          rights_snapshot_id: rightsSnapshotId,
+          scripture_evidence_id: scriptureEvidenceId,
+          version_payload_hash: hash("b"),
+        },
+      ];
+    case "/rest/v1/approval_revocations":
+      return state.approvalRevoked
+        ? [
+            {
+              approval_snapshot_id: approvalSnapshotId,
+              id: approvalRevocationId,
+              organization_id: organizationA,
+              reason_code: "evidence_changed",
+              revoked_at: "2026-07-27T00:20:00.000Z",
+            },
+          ]
+        : [];
+    case "/rest/v1/production_packages":
+      return state.packageCreated
+        ? [
+            {
+              approval_snapshot_id: approvalSnapshotId,
+              created_at: "2026-07-27T00:15:00.000Z",
+              id: productionPackageId,
+              manifest: { fixture: true },
+              manifest_hash: hash("2"),
+              manifest_schema_id: "strongr.production_package.v1",
+              organization_id: organizationA,
+            },
+          ]
+        : [];
+    default:
+      return [];
+  }
+}
+
 async function installMockSupabase(page: Page): Promise<MockState> {
   const state: MockState = {
     aal: "aal1",
+    approvalRevoked: false,
     expired: false,
     factorPresent: true,
+    packageCreated: false,
+    rpcCalls: [],
     tenantReads: [],
   };
   await page.route("https://example.supabase.co/**", async (route) => {
@@ -228,7 +436,41 @@ async function installMockSupabase(page: Page): Promise<MockState> {
     }
     if (url.pathname === "/rest/v1/rpc/has_permission") {
       const body = request.postDataJSON() as { readonly p_permission_key?: string };
-      await route.fulfill({ json: body.p_permission_key === "content.create", status: 200 });
+      await route.fulfill({ json: Boolean(body.p_permission_key), status: 200 });
+      return;
+    }
+    if (url.pathname.startsWith("/rest/v1/rpc/") && request.method() === "POST") {
+      const command = url.pathname.slice("/rest/v1/rpc/".length);
+      const body = request.postDataJSON() as Readonly<Record<string, unknown>>;
+      state.rpcCalls.push({ body, command });
+      if (command === "m1_create_audio_brief") {
+        await route.fulfill({
+          json: [{ brief_id: briefId, content_item_id: contentItemId }],
+          status: 200,
+        });
+        return;
+      }
+      if (command === "m1_submit_version") {
+        await route.fulfill({ json: null, status: 200 });
+        return;
+      }
+      if (command === "m1_create_production_package") {
+        state.packageCreated = true;
+        await route.fulfill({ json: productionPackageId, status: 200 });
+        return;
+      }
+      if (command === "m1_revoke_approval") {
+        state.approvalRevoked = true;
+        await route.fulfill({ json: approvalRevocationId, status: 200 });
+        return;
+      }
+      const syntheticResult =
+        command === "m1_request_generation"
+          ? "00000000-0000-4000-8000-000000000701"
+          : command === "m1_approve_version"
+            ? approvalSnapshotId
+            : "00000000-0000-4000-8000-000000000702";
+      await route.fulfill({ json: syntheticResult, status: 200 });
       return;
     }
     if (url.pathname.startsWith("/rest/v1/")) {
@@ -237,7 +479,7 @@ async function installMockSupabase(page: Page): Promise<MockState> {
         state.tenantReads.push(organizationId);
       }
       await route.fulfill({
-        json: url.pathname.endsWith("/content_briefs") ? briefRows(organizationId) : [],
+        json: governedRows(url.pathname, organizationId, state),
         status: 200,
       });
       return;
@@ -430,7 +672,120 @@ test("sign-out clears the browser session without exposing a governed route", as
   await expect(page).toHaveURL(/\/sign-in$/);
 });
 
-test("M3.1 routes have no automatically detectable WCAG 2.2 A or AA violations", async ({
+test("a brief request keeps one stable idempotency key across its two durable commands", async ({
+  page,
+}) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+  await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
+  await page.getByRole("link", { name: "Governed content" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Brief through immutable package." }),
+  ).toBeVisible();
+
+  const requestButton = page.getByRole("button", {
+    name: "Create brief and request generation",
+  });
+  await requestButton.click();
+  await expect(page.getByText(/Brief created and generation requested/i)).toBeVisible();
+
+  const createCalls = state.rpcCalls.filter(({ command }) => command === "m1_create_audio_brief");
+  const generationCalls = state.rpcCalls.filter(
+    ({ command }) => command === "m1_request_generation",
+  );
+  expect(createCalls).toHaveLength(1);
+  expect(generationCalls).toHaveLength(1);
+  expect(generationCalls[0]?.body).toEqual(
+    expect.objectContaining({
+      p_brief_id: briefId,
+      p_idempotency_key: expect.stringMatching(/^studio-m3-2-/),
+      p_organization_id: organizationA,
+    }),
+  );
+  expect(createCalls[0]?.body.p_correlation_id).toBe(generationCalls[0]?.body.p_correlation_id);
+});
+
+test("AAL2 authority targets canonical evidence, packages without publishing, and revokes append-only", async ({
+  page,
+}, testInfo) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+  await page.getByRole("link", { name: "Security" }).click();
+  await page.getByLabel("Six-digit authenticator code").fill("123456");
+  await page.getByRole("button", { name: "Step up session" }).click();
+  await expect(page.getByText("AAL2", { exact: true })).toBeVisible();
+
+  await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
+  await page.getByRole("link", { name: "Governed content" }).click();
+  await expect(page.getByRole("heading", { name: "Approve exact evidence bundle" })).toBeVisible();
+
+  await page.getByRole("checkbox", { name: /I confirm approval targets version 1/ }).check();
+  await page.getByRole("button", { name: "Approve exact version" }).click();
+  await expect(page.getByText(/Version 1 approval completed/i)).toBeVisible();
+
+  await page
+    .getByRole("checkbox", { name: /I confirm this creates an immutable package manifest only/ })
+    .check();
+  await page.getByRole("button", { name: "Create immutable package" }).click();
+  await expect(page.getByText(/Immutable production package created/i)).toBeVisible();
+  await expect(
+    page.getByText(new RegExp(`Package already exists: ${productionPackageId}`)),
+  ).toBeVisible();
+
+  await page.getByRole("checkbox", { name: /I confirm this append-only revocation/ }).check();
+  await page.getByRole("button", { name: "Revoke exact approval" }).click();
+  await expect(page.getByText(/Approval revocation recorded/i)).toBeVisible();
+
+  const approvalCall = state.rpcCalls.find(({ command }) => command === "m1_approve_version");
+  expect(approvalCall?.body).toEqual(
+    expect.objectContaining({
+      p_check_run_id: checkRunId,
+      p_content_version_id: contentVersionId,
+      p_editorial_review_id: editorialReviewId,
+      p_organization_id: organizationA,
+      p_review_policy_id: reviewPolicyId,
+      p_rights_snapshot_id: rightsSnapshotId,
+      p_scripture_evidence_id: scriptureEvidenceId,
+      p_scripture_review_id: scriptureReviewId,
+      p_theology_review_id: theologyReviewId,
+    }),
+  );
+  expect(
+    state.rpcCalls.find(({ command }) => command === "m1_create_production_package")?.body,
+  ).toEqual(
+    expect.objectContaining({
+      p_approval_snapshot_id: approvalSnapshotId,
+      p_organization_id: organizationA,
+    }),
+  );
+  expect(state.rpcCalls.find(({ command }) => command === "m1_revoke_approval")?.body).toEqual(
+    expect.objectContaining({
+      p_approval_snapshot_id: approvalSnapshotId,
+      p_organization_id: organizationA,
+      p_reason_code: "evidence_changed",
+    }),
+  );
+  expect(state.packageCreated).toBe(true);
+  expect(state.approvalRevoked).toBe(true);
+
+  await writeFile(
+    resolve(evidenceRoot, `governed-authority-${testInfo.project.name}.json`),
+    `${JSON.stringify(
+      {
+        approval_snapshot_id: approvalSnapshotId,
+        content_version_id: contentVersionId,
+        package_created_without_publication: state.packageCreated,
+        revocation_append_only: state.approvalRevoked,
+        rpc_commands: state.rpcCalls.map(({ command }) => command),
+        status: "pass",
+      },
+      null,
+      2,
+    )}\n`,
+  );
+});
+
+test("M3.2 routes have no automatically detectable WCAG 2.2 A or AA violations", async ({
   page,
 }, testInfo) => {
   const routeResults: Record<string, unknown> = {};
@@ -448,7 +803,7 @@ test("M3.1 routes have no automatically detectable WCAG 2.2 A or AA violations",
 
   await signIn(page);
   await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
-  for (const route of ["/", "/work", "/security", "/boundaries", "/missing-screen"]) {
+  for (const route of ["/", "/work", "/content", "/security", "/boundaries", "/missing-screen"]) {
     await page.goto(route);
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
@@ -472,11 +827,12 @@ test("M3.1 routes have no automatically detectable WCAG 2.2 A or AA violations",
   expect(violations).toEqual([]);
 });
 
-test("authenticated M3.1 remains usable without horizontal overflow", async ({ page }) => {
+test("authenticated M3.2 remains usable without horizontal overflow", async ({ page }) => {
   await installMockSupabase(page);
   await signIn(page);
   await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
-  await page.goto("/work");
+  await page.setViewportSize({ height: 844, width: 390 });
+  await page.goto("/content");
   const dimensions = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,

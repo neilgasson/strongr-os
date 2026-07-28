@@ -33,6 +33,22 @@ export function StudioShell({ environment }: StudioShellProps) {
   const navigation = [
     { label: "Home", show: true, to: "/" },
     { label: "Work queue", show: Boolean(activeOrganization), to: "/work" },
+    {
+      label: "Governed content",
+      show:
+        Boolean(activeOrganization) &&
+        capabilities.status === "ready" &&
+        (capabilities.value["content.create"] ||
+          capabilities.value["content.submit"] ||
+          capabilities.value["review.scripture"] ||
+          capabilities.value["review.theology"] ||
+          capabilities.value["review.editorial"] ||
+          capabilities.value["approval.grant"] ||
+          capabilities.value["approval.revoke"] ||
+          capabilities.value["export.request"] ||
+          capabilities.value["role.manage"]),
+      to: "/content",
+    },
     { label: "Security", show: isSignedIn, to: "/security" },
     { label: "Boundaries", show: true, to: "/boundaries" },
   ] as const;
@@ -40,6 +56,8 @@ export function StudioShell({ environment }: StudioShellProps) {
     capabilities.status === "ready"
       ? Object.values(capabilities.value).filter(Boolean).length
       : null;
+  const capabilityCount =
+    capabilities.status === "ready" ? Object.keys(capabilities.value).length : null;
 
   return (
     <div className="app-frame">
@@ -126,7 +144,7 @@ export function StudioShell({ environment }: StudioShellProps) {
                 <p>
                   {enabledCapabilityCount === null
                     ? "Checking governed capabilities. The database remains authoritative."
-                    : `${enabledCapabilityCount} of 12 governed capabilities available. Server checks remain authoritative.`}
+                    : `${enabledCapabilityCount} of ${capabilityCount} governed capabilities available. Server checks remain authoritative.`}
                 </p>
               </>
             ) : null}

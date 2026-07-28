@@ -14,6 +14,7 @@ import type { Uuid } from "../../../packages/contracts/src/index.ts";
 
 import { createStudioAuthClient } from "./auth-client.ts";
 import type { BrowserEnvironmentState } from "./browser-environment.ts";
+import { createStudioFoundation, type StudioFoundation } from "./foundation.ts";
 import {
   createStudioIdentityGateway,
   type OperatorIdentity,
@@ -52,14 +53,17 @@ export interface StudioSessionContextValue {
     | Readonly<{ status: "initializing" | "unconfigured" | "signed_out" }>
     | Readonly<{ email: string; status: "signed_in" }>;
   readonly capabilities: Loadable<StudioCapabilities>;
+  readonly foundation: StudioFoundation | null;
   readonly identity: Loadable<OperatorIdentity>;
   readonly mfa: Loadable<MfaState>;
   readonly notice: string | null;
   readonly totpEnrollment: TotpEnrollment | null;
   readonly workQueue: Loadable<WorkQueueSnapshot>;
+  announce(message: string): void;
   clearNotice(): void;
   enrollTotp(friendlyName: string): Promise<boolean>;
   refreshWorkQueue(): Promise<void>;
+  reportWorkflowFailure(error: unknown, fallback: string): void;
   selectOrganization(organizationId: Uuid): void;
   signIn(email: string, password: string): Promise<boolean>;
   signOut(): Promise<void>;
@@ -123,6 +127,16 @@ export function StudioSessionProvider({
   const [mfa, setMfa] = useState<Loadable<MfaState>>({ status: "idle" });
   const [notice, setNotice] = useState<string | null>(null);
   const [totpEnrollment, setTotpEnrollment] = useState<TotpEnrollment | null>(null);
+  const foundation = useMemo<StudioFoundation | null>(() => {
+    if (!session || environment.status !== "configured") {
+      return null;
+    }
+    const gateway = createStudioSupabaseGateway({
+      accessToken: session.access_token,
+      environment: environment.value,
+    });
+    return createStudioFoundation(gateway, gateway);
+  }, [environment, session]);
 
   const clearSignedInState = useCallback(() => {
     setIdentity({ status: "idle" });
@@ -142,6 +156,21 @@ export function StudioSessionProvider({
       }
     },
     [clearSignedInState, client],
+  );
+  const announce = useCallback((message: string) => setNotice(message), []);
+  const reportWorkflowFailure = useCallback(
+    (error: unknown, fallback: string) => {
+      if (isExpiredRequest(error)) {
+        expireLocalSession("Your session expired during governed work. Please sign in again.");
+        return;
+      }
+      setNotice(
+        error instanceof StudioApiError && /^[A-Za-z0-9_.-]{1,80}$/.test(error.code)
+          ? `${fallback} (${error.code}). Canonical state will be reloaded.`
+          : `${fallback}. Canonical state will be reloaded.`,
+      );
+    },
+    [expireLocalSession],
   );
 
   useEffect(() => {
@@ -359,6 +388,7 @@ export function StudioSessionProvider({
   const value = useMemo<StudioSessionContextValue>(
     () => ({
       activeOrganization,
+      announce,
       authentication:
         environment.status !== "configured"
           ? { status: "unconfigured" }
@@ -401,9 +431,11 @@ export function StudioSessionProvider({
         return true;
       },
       identity,
+      foundation,
       mfa,
       notice,
       refreshWorkQueue: loadWork,
+      reportWorkflowFailure,
       selectOrganization: (organizationId) => {
         if (identity.status !== "ready") {
           return;
@@ -531,15 +563,18 @@ export function StudioSessionProvider({
     }),
     [
       activeOrganization,
+      announce,
       capabilities,
       clearSignedInState,
       client,
       environment.status,
+      foundation,
       identity,
       loadWork,
       mfa,
       notice,
       reloadMfa,
+      reportWorkflowFailure,
       session,
       totpEnrollment,
       workQueue,
