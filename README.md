@@ -15,7 +15,7 @@ It will provide the shared foundation for:
 
 ## Current phase
 
-**M2 accepted — governed media, recovery, and acceptance**
+**M3 accepted — owner-only non-production Strongr Studio preview**
 
 M0.2 reliability and operational acceptance completed on July 26, 2026. The
 canonical record at evidence/m0-2/acceptance-record.json binds the accepted
@@ -50,6 +50,17 @@ non-production remote acceptance, complete object/database inventory,
 independent encrypted byte backup, exact restore and reconciliation proof,
 measured recovery time, failure artifacts, and governance evidence to exact
 identifiers. Publication and production deployment remain deferred.
+
+The repository owner accepted M3 through PRs #27–#37. Strongr Studio now
+provides an authenticated, tenant-scoped browser workflow from brief through
+private checksum-verified media, human review, immutable non-public staging, and
+revocation. The owner-only preview is deployed against isolated
+`strongr-os-dev`; `evidence/m3/acceptance-record.json` binds the implementation,
+deployment, security, CI, artifact, and owner-approval evidence. All six
+M0.2–M3 checks are strict required checks on protected `main`.
+
+M4 is not approved or underway. The current proposal recommends
+production-readiness foundations before live providers or production launch.
 
 ## Current implementation boundary
 
@@ -105,15 +116,15 @@ ops/
 evidence/
   m0-2/
   m1/
+  m2/
+  m3/
 ```
 
 ## Status
 
-The M0/M1 database foundation, M0.2 acceptance, M1.0 application foundation,
-M1.1 durable worker, M1.2 governed brief-to-draft flow, and M1.3 governed
-review-to-package flow are complete. M1.4 local and non-production remote
-acceptance is complete and recorded. The repository owner approved the M2
-scope, and M2.0 through M2.3 are complete and recorded. That approval does
-not authorize public Storage, browser object upload, publication, production
-deployment, external media or AI providers, or any change to the current
-Strongr Daily application.
+M0–M3 are complete and recorded. Strongr OS has an accepted governed
+audio-content platform, durable generation and media workers, private Storage,
+review and staging controls, recovery evidence, and an owner-only authenticated
+Strongr Studio preview. This does not authorize public Storage, browser object
+upload, publication, production deployment, external media or AI providers, or
+any change to the current Strongr Daily application.

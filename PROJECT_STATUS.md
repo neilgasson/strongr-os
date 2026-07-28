@@ -6,7 +6,7 @@
 - **Recorded:** 2026-07-27
 - **Repository:** `neilgasson/strongr-os`
 - **Protected branch:** `main`
-- **Protected-main checkpoint commit:** `d77aae3d69bf24e7278c7e45c79e6b72223260ff`
+- **Protected-main checkpoint commit:** `be9533cf5060139211f5e6efc4996e74151c5e30`
 - **M3.4 implementation commit:** `d77aae3d69bf24e7278c7e45c79e6b72223260ff`
 - **M3 scope approval commit:** `001096279eaf1117b18ac213a3627d2a0d4ca44b`
 - **M3.3 implementation commit:** `f33b15ca7ea75101976b31d5708be991638c27ff`
@@ -384,22 +384,22 @@ The repository currently does **not** provide:
 
 ## Next action
 
-The next safe action is to promote
-`M3 application / browser foundation` into the strict protected-main required
-checks after separate owner approval, then define the next milestone without
-starting implementation.
+The M3 browser check has been promoted into the strict protected-main required
+checks with no other protection weakened.
 
-No M4 scope currently exists. A new scope must select one bounded objective,
-document non-goals and stop conditions, preserve the accepted M0–M3 security and
-human-authority boundaries, and receive explicit owner approval before code,
-schema, hosting, production, provider, publication, or Strongr Daily work begins.
+The next safe action is owner review of
+[`docs/architecture/M4_SCOPE_PROPOSAL.md`](docs/architecture/M4_SCOPE_PROPOSAL.md).
+The proposal recommends production-readiness foundations before live providers:
+environment and secret boundaries, observability, alerts, scheduled recovery,
+load and failure proof, release/rollback rehearsal, and an evidence-backed
+readiness decision. It does not authorize implementation or production launch.
 
 ## Restart procedure
 
 When resuming Strongr OS work:
 
 1. Confirm protected `main` contains checkpoint commit
-   `d77aae3d69bf24e7278c7e45c79e6b72223260ff` or a documented successor.
+   `be9533cf5060139211f5e6efc4996e74151c5e30` or a documented successor.
 2. Read this file, the approved M3 scope, and the four canonical acceptance
    records:
    - `docs/architecture/M3_SCOPE.md`
@@ -416,8 +416,8 @@ When resuming Strongr OS work:
 5. Confirm the current Strongr Daily application has not been changed.
 6. Confirm the owner-only preview remains private and bound only to
    `strongr-os-dev`; do not retain owner session or passkey material.
-7. Obtain explicit owner approval before promoting the M3 check or defining and
-   implementing the next milestone.
+7. Review `docs/architecture/M4_SCOPE_PROPOSAL.md` and obtain explicit owner
+   approval before implementing the next milestone.
 8. Start any approved work from current protected `main` on a new `agent/*`
    branch and preserve the M0–M3 security boundaries.
 
@@ -430,9 +430,10 @@ The active strict required checks are:
 3. `M1 application / foundation`
 4. `M1 acceptance / local`
 5. `M2 acceptance / local`
+6. `M3 application / browser foundation`
 
-`M3 application / browser foundation` is green on protected `main` and final
-M3.4 acceptance is recorded, but it is not yet an active required status check.
-Promoting it remains a separate owner-approved branch-protection action. The
-non-production remote acceptance workflows provide additional explicit evidence
-and are recorded in the canonical milestone records.
+The `main protection` ruleset is active and strict with no bypass actors. Pull
+requests and resolved conversations remain required; force pushes and deletions
+remain blocked. The non-production remote acceptance workflows provide
+additional explicit evidence and are recorded in the canonical milestone
+records.

@@ -172,7 +172,25 @@
     "bypass_actors": [],
     "pull_request_required": true,
     "strict_required_checks": true,
-    "m3_required_check_promotion": "pending_separate_owner_decision"
+    "m3_required_check_promotion": {
+      "status": "completed",
+      "verified_at_utc": "2026-07-28T06:20:45Z",
+      "required_check_count": 6,
+      "required_checks": [
+        "Database contract / test",
+        "M0.2 reliability proof / acceptance",
+        "M1 application / foundation",
+        "M1 acceptance / local",
+        "M2 acceptance / local",
+        "M3 application / browser foundation"
+      ],
+      "bypass_actor_count": 0,
+      "strict": true,
+      "pull_request_required": true,
+      "conversation_resolution_required": true,
+      "force_pushes_blocked": true,
+      "deletions_blocked": true
+    }
   },
   "owner_approval": {
     "status": "approved",
