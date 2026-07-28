@@ -1,8 +1,9 @@
 {
   "schema_version": "strongr.m4_staging_resource_contract.v1",
-  "status": "proposed_unprovisioned",
+  "status": "approved_unprovisioned",
   "environment": "strongr-os-staging",
-  "approved": false,
+  "approved": true,
+  "approved_on": "2026-07-28",
   "production_authorized": false,
   "strongr_daily_connection_authorized": false,
   "pricing_checked_on": "2026-07-28",
@@ -65,10 +66,7 @@
     "allowed_users": ["neilgasson"],
     "allowed_groups": [],
     "public_access": false,
-    "runtime_public_values": [
-      "PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-      "PUBLIC_SUPABASE_URL"
-    ],
+    "runtime_public_values": ["PUBLIC_SUPABASE_PUBLISHABLE_KEY", "PUBLIC_SUPABASE_URL"],
     "server_secrets": [],
     "incremental_monthly_usd": 0
   },

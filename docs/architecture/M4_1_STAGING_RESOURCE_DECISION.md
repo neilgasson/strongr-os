@@ -1,7 +1,7 @@
 # M4.1 staging resource decision gate
 
-Status: proposed and machine-validated; no staging resource or credential
-exists.
+Status: owner-approved and machine-validated; no staging resource or credential
+exists, and provider cost confirmation remains pending.
 
 ## Purpose
 
@@ -178,16 +178,17 @@ forbidden because it requires a Supabase secret API key.
   tenant, audit, or human-governance authority;
 - silently selecting a substitute provider, plan, region, name, or paid add-on.
 
-## Acceptance required
+## Acceptance recorded
 
-To authorize provisioning, the owner must explicitly accept:
+On 2026-07-28, the owner explicitly accepted:
 
 - [`ADR-0005`](../adr/ADR-0005-separate-staging-control-plane.md);
 - the exact provider/resource table;
 - the USD $25 expected and USD $35 hard monthly ceiling;
 - the secret, host, worker, backup, telemetry, and solo-reviewer boundaries.
 
-That acceptance still does not complete M4.1. M4.1 completes only after the
-separate resources are created and the immutable deployment, migration,
-isolation, rollback, secret-lifecycle, backup, telemetry, evidence, and cleanup
-contracts pass.
+This acceptance still does not complete M4.1 or authorize Supabase project
+creation without the separate provider-reported recurring-cost confirmation.
+M4.1 completes only after the separate resources are created and the immutable
+deployment, migration, isolation, rollback, secret-lifecycle, backup, telemetry,
+evidence, and cleanup contracts pass.

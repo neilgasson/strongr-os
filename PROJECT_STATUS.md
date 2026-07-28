@@ -2,7 +2,7 @@
 
 ## Checkpoint identity
 
-- **Checkpoint:** M4.0 accepted — M4.1 staging decision awaiting owner acceptance
+- **Checkpoint:** M4.1 staging decision accepted — provider cost confirmation pending
 - **Recorded:** 2026-07-28
 - **Repository:** `neilgasson/strongr-os`
 - **Protected branch:** `main`
@@ -20,9 +20,10 @@
   owner-only deployed Strongr Studio preview covering the authenticated governed
   workflow from tenant-scoped brief through checksum-verified private media,
   human media review, immutable non-public release staging, and append-only
-  revocation; M4.0 production-readiness architecture is accepted and the exact
-  M4.1 staging resource proposal is under review, while staging, production
-  launch, live providers, and the wider product remain incomplete
+  revocation; M4.0 production-readiness architecture and the exact M4.1 staging
+  resource proposal are accepted, while provider cost confirmation,
+  provisioning, staging acceptance, production launch, live providers, and the
+  wider product remain incomplete
 
 This file is the durable restart point for Strongr OS work after M4.0
 acceptance. If a
@@ -396,7 +397,7 @@ M4.0 was owner-accepted and merged through PR #39 as protected-main commit
 trust, credential, promotion, recovery, service-objective, dependency, and
 operational-threat boundaries without provisioning a resource.
 
-The next safe action is owner review of the exact M4.1 staging proposal:
+The owner accepted the exact M4.1 staging proposal on 2026-07-28:
 
 - a new `Strongr OS Staging` Supabase Pro organization with one
   `strongr-os-staging` Micro project in `ca-central-1`;
@@ -406,11 +407,11 @@ The next safe action is owner review of the exact M4.1 staging proposal:
 - filtered Grafana Cloud Free telemetry in AWS `ca-central-1`;
 - expected USD $25/month and a hard USD $35/month ceiling before tax.
 
-The proposed machine-readable contract remains `proposed_unprovisioned` and
-`approved: false`. No staging resource, credential, provider integration,
-database change, host, production system, publication path, or Strongr Daily
-change may occur before the owner explicitly accepts the exact proposal and
-confirms the provider-reported Supabase recurring cost.
+The machine-readable contract is now `approved_unprovisioned` and
+`approved: true`. The named Supabase staging organization does not yet exist.
+No staging resource, credential, provider integration, database change, host,
+production system, publication path, or Strongr Daily change may occur before
+the owner separately confirms the provider-reported Supabase recurring cost.
 
 ## Restart procedure
 

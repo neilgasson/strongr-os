@@ -60,9 +60,10 @@ deployment, security, CI, artifact, and owner-approval evidence. All six
 M0.2–M3 checks are strict required checks on protected `main`.
 
 M4.0 production-readiness architecture and operational threat modeling were
-owner-accepted through PR #39. M4.1 now has an exact staging resource, cost,
-secret, hosting, backup, and telemetry proposal under owner review. No staging
-resource, live provider, or production launch is authorized by that proposal.
+owner-accepted through PR #39. The owner accepted the exact M4.1 staging
+resource, cost, secret, hosting, backup, and telemetry proposal on 2026-07-28.
+It remains unprovisioned pending the separate provider-reported Supabase cost
+confirmation. No live provider or production launch is authorized.
 
 ## Current implementation boundary
 

@@ -2,8 +2,9 @@
 
 ## Status
 
-Proposed for owner acceptance. No resource in this decision has been
-provisioned.
+Accepted by the owner on 2026-07-28. No resource in this decision has been
+provisioned, and the separate provider-reported Supabase cost confirmation
+remains required.
 
 ## Context
 
@@ -126,10 +127,10 @@ public access, live providers, real content, Strongr Daily changes, or any
 weakened database, Storage, MFA, tenant, service-role, or human-governance
 boundary.
 
-Provisioning must not begin until the owner explicitly accepts this ADR and the
-machine-readable contract. Supabase project creation additionally requires the
-owner to confirm the exact provider-reported recurring cost immediately before
-the create operation.
+The owner accepted this ADR and the machine-readable contract on 2026-07-28,
+including the expected USD $25/month cost and USD $35/month ceiling before tax.
+Supabase project creation still requires the owner to confirm the exact
+provider-reported recurring cost immediately before the create operation.
 
 ## References
 

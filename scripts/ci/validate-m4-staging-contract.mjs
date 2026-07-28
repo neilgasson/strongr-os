@@ -36,9 +36,10 @@ async function validate() {
   const contract = JSON.parse(contractText);
 
   record(contract.schema_version === "strongr.m4_staging_resource_contract.v1", "schema_version");
-  record(contract.status === "proposed_unprovisioned", "proposal_status");
+  record(contract.status === "approved_unprovisioned", "approved_unprovisioned_status");
   record(contract.environment === "strongr-os-staging", "environment_name");
-  record(contract.approved === false, "owner_approval_not_fabricated");
+  record(contract.approved === true, "owner_approval_recorded");
+  record(contract.approved_on === "2026-07-28", "owner_approval_date");
   record(contract.production_authorized === false, "production_forbidden");
   record(
     contract.strongr_daily_connection_authorized === false,
