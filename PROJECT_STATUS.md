@@ -2,23 +2,24 @@
 
 ## Checkpoint identity
 
-- **Checkpoint:** M3.2 accepted — brief through governed package
+- **Checkpoint:** M3.3 accepted — governed media through private release staging
 - **Recorded:** 2026-07-27
 - **Repository:** `neilgasson/strongr-os`
 - **Protected branch:** `main`
-- **Protected-main checkpoint commit:** `3426f6c10b35e732cdcddbd609c47919bfd68907`
+- **Protected-main checkpoint commit:** `f2a609db170d847a71cd760db3964fb70ce41c61`
 - **M3 scope approval commit:** `001096279eaf1117b18ac213a3627d2a0d4ca44b`
+- **M3.3 implementation commit:** `f33b15ca7ea75101976b31d5708be991638c27ff`
 - **M3.2 implementation commit:** `fa512a76e355cc7a0297d6128b4acfa240576bb9`
 - **M3.1 implementation commit:** `a618a227e9eb40ee0844c6df38c6f1b5d01a7a86`
 - **M3.0 implementation commit:** `ff597682c242f5ae58e5866c443f58486de0ce73`
 - **M2 remotely tested implementation commit:** `5df45797bc5502030982b182d2adeb8be54dd7ff`
 - **Overall status:** Acceptance-proven pre-production platform core with an
   accessible authenticated Strongr Studio workflow from tenant-scoped brief
-  through immutable non-public production package and append-only approval
-  revocation; browser media/release operation, deployment, and a finished
-  user-facing product remain incomplete
+  through checksum-verified private media, human media review, immutable
+  non-public release staging, and append-only revocation; deployment, final M3
+  acceptance, and a finished user-facing product remain incomplete
 
-This file is the durable restart point for Strongr OS work after M3.2. If a
+This file is the durable restart point for Strongr OS work after M3.3. If a
 future task or conversation loses context, begin here and follow the restart
 procedure below. The canonical M0.2–M2 acceptance records remain the authority
 for detailed backend test, artifact, workflow, and commit identifiers.
@@ -44,8 +45,11 @@ for schema-valid briefs, durable generation requests, immutable versions,
 separate automated evidence and human review, exact AAL2 approval, immutable
 non-public package creation, and append-only approval revocation while retaining
 database authorization as the authority. Governed media and release actions are
-not yet exposed in the browser. The Studio is not deployed, does not use live
-external AI or voice providers, and does not publish content.
+now exposed through authenticated exact-object retrieval, browser-side
+byte-count and SHA-256 verification, human transcript/accessibility review,
+non-public staging, and append-only staged-release revocation. The Studio is not
+deployed, does not use live external AI or voice providers, and does not publish
+content.
 
 ## Completed and accepted
 
@@ -139,6 +143,19 @@ external AI or voice providers, and does not publish content.
 - Recorded the M3.2 boundary in
   [`docs/architecture/M3_2_BRIEF_TO_GOVERNED_PACKAGE.md`](docs/architecture/M3_2_BRIEF_TO_GOVERNED_PACKAGE.md).
 - M3.2 was owner-accepted and squash-merged through PR #32.
+- M3.3 added AAL2 deterministic media requests, canonical durable media status,
+  exact authenticated private-object retrieval with byte-count and SHA-256
+  verification before playback, short-lived in-memory playback URLs, human
+  transcript/accessibility review evidence, AAL2 immutable non-public release
+  staging, and append-only staged-release revocation.
+- M3.3 uses only accepted tenant reads, the four narrow `m2_*` browser commands,
+  and the exact authenticated Storage object endpoint. It added no migration,
+  grant, RLS or Storage-policy change, service credential, direct browser
+  mutation, public or signed media URL, upload, deployment, publication,
+  production configuration, or Strongr Daily change.
+- Recorded the M3.3 boundary in
+  [`docs/architecture/M3_3_MEDIA_RELEASE_STAGING.md`](docs/architecture/M3_3_MEDIA_RELEASE_STAGING.md).
+- M3.3 was owner-accepted and squash-merged through PR #34.
 
 ## Verified checkpoint evidence
 
@@ -212,6 +229,28 @@ external AI or voice providers, and does not publish content.
     passed.
   - [M2 acceptance run 30326422310](https://github.com/neilgasson/strongr-os/actions/runs/30326422310)
     passed.
+- M3.3 governed media through private release staging:
+  [PR #34](https://github.com/neilgasson/strongr-os/pull/34), merged to protected
+  `main` as `f2a609db170d847a71cd760db3964fb70ce41c61`.
+  - 66 unit and contract tests passed.
+  - 22 Playwright tests passed across desktop and narrow Chromium.
+  - Exact AAL2 media request payloads, stable idempotency, canonical job and
+    artifact status, one exact authenticated private-object request, byte-count
+    and SHA-256 verification before playback, short-lived object URL cleanup,
+    human transcript/accessibility review, immutable non-public staging,
+    append-only revocation, accessibility, and responsive operation passed.
+  - All six pull-request checks passed before merge.
+  - No migration, RLS, grant, Storage policy, Supabase project, deployment,
+    production, or Strongr Daily file changed.
+- Protected-main replays after M3.3:
+  - [M3 application run 30328834197](https://github.com/neilgasson/strongr-os/actions/runs/30328834197)
+    passed.
+  - [M1 application run 30328834233](https://github.com/neilgasson/strongr-os/actions/runs/30328834233)
+    passed.
+  - [M1 acceptance run 30328834211](https://github.com/neilgasson/strongr-os/actions/runs/30328834211)
+    passed.
+  - [M2 acceptance run 30328834244](https://github.com/neilgasson/strongr-os/actions/runs/30328834244)
+    passed.
 - Final M2 remote acceptance:
   [workflow run 30237884139](https://github.com/neilgasson/strongr-os/actions/runs/30237884139)
   - Local acceptance passed.
@@ -267,15 +306,14 @@ expiry, support TOTP MFA, show only RLS-visible active organizations, keep the
 selected tenant explicit, reconstruct a canonical work queue, and guide an
 authorized operator from a schema-valid brief through immutable versions,
 separate evidence and human review, exact AAL2 approval, immutable non-public
-package creation, and append-only approval revocation. It does not yet operate
-the governed media and release workflow and is not a complete Strongr Society
-operating system or a user-facing production product.
+package creation, AAL2 deterministic media request, durable media status, exact
+checksum-verified private playback, human transcript/accessibility review,
+immutable non-public release staging, and append-only staged-release
+revocation. It is not deployed and is not a complete Strongr Society operating
+system or a user-facing production product.
 
 The repository currently does **not** provide:
 
-- Browser operation of deterministic media request, exact private playback,
-  transcript/accessibility review, release staging, and staged-release
-  revocation.
 - An owner-accessible deployed non-production Strongr Studio preview.
 - Production hosting, domains, secrets, release operations, or a public launch.
 - Live external AI writing or media/voice generation providers.
@@ -289,69 +327,66 @@ The repository currently does **not** provide:
 
 ## Work remaining
 
-1. M3.3 — implement deterministic media request and status, exact private
-   checksum-verified playback, transcript/accessibility review, immutable
-   staging, and revocation.
-2. M3.4 — deliver the owner-accessible isolated non-production preview, complete
+1. M3.4 — deliver the owner-accessible isolated non-production preview, complete
    browser acceptance evidence, canonical M3 acceptance record, and explicit
    owner acceptance.
-3. Decide whether and when to introduce live AI and media providers. Each must
+2. Decide whether and when to introduce live AI and media providers. Each must
    preserve deterministic test adapters, provenance, privacy, retries, cost
    controls, and human authority.
-4. Define production architecture and operations: deployment environments,
+3. Define production architecture and operations: deployment environments,
    secret management, monitoring, alerting, scheduled backups, restore drills,
    release procedures, and incident response.
-5. Add performance, load, concurrency, failure-injection, and longer-running
+4. Add performance, load, concurrency, failure-injection, and longer-running
    reliability evidence appropriate to the approved production target.
-6. Define publication and distribution only after private staging and revocation
+5. Define publication and distribution only after private staging and revocation
    controls remain proven end to end.
-7. Plan each additional Strongr Society product as a separately governed scope
+6. Plan each additional Strongr Society product as a separately governed scope
    built on the shared platform.
 
 ## Next action
 
-The next safe action is **M3.3 — governed media and release staging** on a new
-protected branch from checkpoint commit `3426f6c`.
+The next safe action is **M3.4 — isolated preview and final M3 acceptance** on a
+new protected branch from checkpoint commit `f2a609d`.
 
-M3.3 should guide an authorized operator through a deterministic media request
-for an exact unrevoked production package, canonical durable job status, exact
-private checksum-verified playback, transcript and accessibility review,
-explicit AAL2 staging of an immutable release manifest, and append-only staged
-release revocation. Every governed mutation must use the existing narrow command
-boundary with an explicit active organization, exact target identity,
-idempotency key, confirmation, and canonical reread after completion or
-uncertainty.
+Before implementation, follow
+[`docs/architecture/M3_4_PREVIEW_ACCEPTANCE.md`](docs/architecture/M3_4_PREVIEW_ACCEPTANCE.md).
+Select a static host only if it can enforce the exact reviewed header contract,
+SPA fallback, HTTPS, explicit Auth redirect allowlist, synthetic-only
+configuration, failure-preserving evidence, and rollback. Bind the preview only
+to the isolated `strongr-os-dev` Supabase project using its URL and publishable
+key. No secret or service-role value may enter the browser or host.
 
-M3.3 must not grant the browser direct table or Storage writes, service
-credentials, public media access, publication, production configuration,
-deployment, live external providers, or Strongr Daily changes. If the accepted
-M0–M2 contracts reveal a genuine database gap, stop and use the separately
-approved append-only migration process instead of broadening the browser
-boundary.
+M3.4 must prove the complete browser workflow locally and through the deployed
+preview, preserve the canonical evidence artifacts, create
+`evidence/m3/acceptance-record.json`, and obtain explicit owner acceptance. It
+must not authorize production deployment, publication, public Storage, live
+providers, a generic backend, or Strongr Daily changes.
 
 ## Restart procedure
 
 When resuming Strongr OS work:
 
 1. Confirm protected `main` contains checkpoint commit
-   `3426f6c10b35e732cdcddbd609c47919bfd68907` or a documented successor.
+   `f2a609db170d847a71cd760db3964fb70ce41c61` or a documented successor.
 2. Read this file, the approved M3 scope, and the three canonical acceptance
    records:
    - `docs/architecture/M3_SCOPE.md`
    - `evidence/m0-2/acceptance-record.json`
    - `evidence/m1/acceptance-record.json`
    - `evidence/m2/acceptance-record.json`
-3. Review `README.md`, `docs/architecture/M3_2_BRIEF_TO_GOVERNED_PACKAGE.md`,
-   `docs/architecture/M2_1_DURABLE_MEDIA_WORKER.md`,
-   `docs/architecture/M2_2_REVIEW_RELEASE_STAGING.md`, and the accepted Studio
-   gateway, private-media read, and command contracts that M3.3 will consume.
+3. Review `README.md`, `docs/architecture/M3_3_MEDIA_RELEASE_STAGING.md`,
+   `docs/architecture/M3_4_PREVIEW_ACCEPTANCE.md`,
+   `docs/adr/ADR-0003-static-browser-studio.md`, and the accepted Studio
+   environment, browser-security, Auth, private-media, and command contracts.
 4. Confirm the `main protection` ruleset remains active with no bypass actors and
    the required checks remain strict.
 5. Confirm the current Strongr Daily application has not been changed.
 6. Start from current protected `main` on a new `agent/*` branch.
-7. Implement M3.3 only; do not begin M3.4 until M3.3 is owner-accepted.
-8. Run all existing required checks plus the M3 application check and new
-   M3.3-specific acceptance checks before merge.
+7. Implement only the protected M3.4 preview and acceptance slice. Stop if the
+   selected host or environment cannot satisfy every defined gate.
+8. Run every existing required check, M3 browser acceptance, deployed-preview
+   acceptance, privacy/security checks, cleanup, and evidence finalization
+   before proposing the canonical M3 acceptance record.
 
 ## Protected-main checks at this checkpoint
 
