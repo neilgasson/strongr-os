@@ -13,10 +13,15 @@ secret.
 
 The Sites project is `Strongr Studio Preview`. Its checked-in opaque project
 identifier is limited to `.openai/hosting.json`. The provider assigns the exact
-HTTPS URL only when a saved version is deployed; that URL must be recorded in
-the M3 evidence before hosted acceptance begins. A provider-assigned URL is
-classified as a non-production preview even though Sites calls every deployed
-version a production deployment.
+HTTPS URL only when a saved version is deployed. The exact owner-only preview
+URL is:
+
+`https://strongr-studio-preview.meetwagon.chatgpt.site/`
+
+It is recorded in `evidence/m3/preview-deployment.json` before hosted
+application acceptance begins. This provider-assigned URL is classified as a
+non-production preview even though Sites calls every deployed version a
+production deployment.
 
 ## Region and data boundary
 

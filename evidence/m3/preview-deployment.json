@@ -1,0 +1,69 @@
+{
+  "schema_version": "strongr.m3_preview_deployment.v1",
+  "recorded_at": "2026-07-27T23:18:43-06:00",
+  "status": "deployed_owner_usability_pending",
+  "source": {
+    "commit": "8a72ea087d9492d1184e3998e0d43e87e1c702b7",
+    "branch": "agent/m3-4-isolated-preview",
+    "archive_sha256": "390b6607efd21738b7b950773d3932bfdf0add802a3188c29ba8a87f14d25abb",
+    "archive_file_count": 5
+  },
+  "hosting": {
+    "provider": "OpenAI Sites",
+    "provider_region": "provider-managed global edge",
+    "site_project_id": "appgprj_6a6838cd73c88191aa6e1d1a806068ae",
+    "version_number": 1,
+    "deployment_id": "appgdep_6a683ba9c3e881919bc9f8fbfa398458",
+    "url": "https://strongr-studio-preview.meetwagon.chatgpt.site/",
+    "url_classification": "owner-only isolated non-production preview",
+    "access_mode": "custom_owner_only",
+    "allowed_user_count": 1,
+    "allowed_group_count": 0,
+    "environment_revision": 1,
+    "environment_keys": [
+      "PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      "PUBLIC_SUPABASE_URL"
+    ]
+  },
+  "supabase": {
+    "project_name": "strongr-os-dev",
+    "project_ref": "fifrlyddmjkogmdvyjdp",
+    "region": "ca-central-1",
+    "status": "ACTIVE_HEALTHY",
+    "auth_redirect_urls": [
+      "https://strongr-studio-preview.meetwagon.chatgpt.site/"
+    ],
+    "auth_redirect_url_count": 1,
+    "auth_redirect_wildcards": 0
+  },
+  "validation": {
+    "unit_and_contract_tests": 68,
+    "browser_tests": 22,
+    "preview_host_tests": 7,
+    "yaml_files_parsed": 7,
+    "shell_syntax": "pass",
+    "format": "pass",
+    "lint": "pass",
+    "typecheck": "pass",
+    "build": "pass",
+    "browser_boundary_scan": "pass",
+    "anonymous_access_denied": true,
+    "owner_only_sign_in_challenge_present": true,
+    "live_application_headers": "pending_owner_passkey",
+    "live_application_workflow": "pending_owner_usability_review"
+  },
+  "security_statement": {
+    "production_changed": false,
+    "public_storage_changed": false,
+    "publication_occurred": false,
+    "live_provider_added": false,
+    "service_role_exposed": false,
+    "strongr_daily_changed": false,
+    "database_migration_added": false,
+    "rls_or_grant_changed": false
+  },
+  "rollback": {
+    "procedure": "Disable or remove the Sites preview, remove the exact Supabase Auth redirect URL, and remove both public Sites environment values.",
+    "database_or_storage_rollback_required": false
+  }
+}
