@@ -1,13 +1,14 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   build: {
     emptyOutDir: true,
     outDir: "dist",
     sourcemap: false,
     target: "es2022",
   },
+  ...(mode === "hosted-preview" ? { envDir: false } : {}),
   envPrefix: "PUBLIC_",
   plugins: [react()],
   preview: {
@@ -20,4 +21,4 @@ export default defineConfig({
     port: 4173,
     strictPort: true,
   },
-});
+}));
