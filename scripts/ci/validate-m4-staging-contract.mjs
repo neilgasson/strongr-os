@@ -35,10 +35,7 @@ async function validate() {
   ]);
   const contract = JSON.parse(contractText);
 
-  record(
-    contract.schema_version === "strongr.m4_staging_resource_contract.v1",
-    "schema_version",
-  );
+  record(contract.schema_version === "strongr.m4_staging_resource_contract.v1", "schema_version");
   record(contract.status === "proposed_unprovisioned", "proposal_status");
   record(contract.environment === "strongr-os-staging", "environment_name");
   record(contract.approved === false, "owner_approval_not_fabricated");
@@ -153,12 +150,15 @@ async function validate() {
     record(text.includes("USD $35"), "documentation_cost_ceiling");
     record(text.includes("strongr-os-staging"), "documentation_staging_target");
     record(text.includes("Strongr Daily"), "documentation_strongr_daily_boundary");
-    record(text.includes("no staging resource") || text.includes("No resource"), "documentation_no_resource");
+    record(
+      text.includes("no staging resource") || text.includes("No resource"),
+      "documentation_no_resource",
+    );
   }
 
   const serialized = JSON.stringify(contract);
-  record(!serialized.includes("strongr-os-dev\""), "development_target_not_selected");
-  record(!serialized.includes("strongr-os-disposable\""), "disposable_target_not_selected");
+  record(!serialized.includes('strongr-os-dev"'), "development_target_not_selected");
+  record(!serialized.includes('strongr-os-disposable"'), "disposable_target_not_selected");
 }
 
 await mkdir(evidenceDirectory, { recursive: true });
