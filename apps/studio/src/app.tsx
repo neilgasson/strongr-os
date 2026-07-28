@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 
 import type { BrowserEnvironmentState } from "./browser-environment.ts";
 import { ContentWorkspacePage } from "./content-workspace-page.tsx";
+import { MediaReleasePage } from "./media-release-page.tsx";
 import {
   BoundariesPage,
   HomePage,
@@ -48,6 +49,14 @@ export function StudioApp({ environment }: StudioAppProps) {
                 </RequireOrganization>
               }
               path="content"
+            />
+            <Route
+              element={
+                <RequireOrganization>
+                  <MediaReleasePage />
+                </RequireOrganization>
+              }
+              path="media"
             />
             <Route element={<BoundariesPage />} path="boundaries" />
             <Route element={<NotFoundPage />} path="*" />
