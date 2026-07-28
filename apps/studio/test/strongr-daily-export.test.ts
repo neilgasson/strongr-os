@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createStrongrDailyV2FixtureOutput } from "../../../packages/ai/src/deterministic-adapter.ts";
-import { fixtureIds, strongrDailyAudioReflectionV2BriefFixture } from "../../../packages/testing/src/index.ts";
-import { createStrongrDailyApprovedExport } from "../src/index.ts";
+import {
+  fixtureIds,
+  strongrDailyAudioReflectionV2BriefFixture,
+} from "../../../packages/testing/src/index.ts";
+import { createStrongrDailyApprovedExport } from "../src/strongr-daily-export.ts";
 
 const ids = {
   approval: "00000000-0000-4000-8000-000000000020",
@@ -58,7 +61,11 @@ test("v2 export rejects a changed reviewed field instead of silently exporting i
   const content = package_.manifest.content as Record<string, unknown>;
   content.prayer = "Changed after review.";
   assert.throws(
-    () => createStrongrDailyApprovedExport({ exportedAt: "2026-07-28T12:34:56Z", productionPackage: package_ }),
+    () =>
+      createStrongrDailyApprovedExport({
+        exportedAt: "2026-07-28T12:34:56Z",
+        productionPackage: package_,
+      }),
     /approved content hash does not match payload/,
   );
 });

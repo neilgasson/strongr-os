@@ -1,22 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
+import { createStrongrDailyV2FixtureOutput } from "../../../packages/ai/src/deterministic-adapter.ts";
 import { deterministicGenerationAdapter } from "../../../packages/ai/src/index.ts";
 import type {
   CheckDefinitionSummary,
   RecordCheckRunArguments,
   Uuid,
 } from "../../../packages/contracts/src/index.ts";
-import { createGenerationRequestFixture, fixtureIds } from "../../../packages/testing/src/index.ts";
 import {
-  AutomatedReviewCheckRunner,
-  SupabaseReviewCheckStore,
-  SupabaseRpcClient,
-} from "../src/index.ts";
+  createGenerationRequestFixture,
+  fixtureIds,
+  strongrDailyAudioReflectionV2BriefFixture,
+} from "../../../packages/testing/src/index.ts";
 import type {
   AutomatedCheckStore,
   AutomatedReviewCheckEvidence,
   WorkerEnvironment,
+} from "../src/index.ts";
+import {
+  AutomatedReviewCheckRunner,
+  SupabaseReviewCheckStore,
+  SupabaseRpcClient,
 } from "../src/index.ts";
 
 const contentVersionId = "00000000-0000-4000-8000-000000000040";
@@ -122,6 +126,65 @@ test("high-risk deterministic patterns fail closed and remain human-review evide
   );
   assert.equal(
     result.results.find((entry) => entry.checkDefinitionId === definitions[3]?.id)?.outcome,
+    "fail",
+  );
+});
+
+test("Strongr Daily v2 runs the same governed checks over the complete v2 contract", async () => {
+  const generated = createStrongrDailyV2FixtureOutput(strongrDailyAudioReflectionV2BriefFixture);
+  let recorded: RecordCheckRunArguments | undefined;
+  const runner = new AutomatedReviewCheckRunner({
+    store: {
+      recordCheckRun(arguments_) {
+        recorded = arguments_;
+        return Promise.resolve(checkRunId);
+      },
+    },
+  });
+
+  const result = await runner.run({
+    checkDefinitions: definitions,
+    contentVersionId,
+    correlationId: fixtureIds.correlationId,
+    organizationId: fixtureIds.organizationAlphaId,
+    reflection: generated,
+  });
+
+  assert.equal(result.results.length, 8);
+  assert.equal(
+    result.results.every((entry) => ["pass", "warn"].includes(entry.outcome)),
+    true,
+  );
+  assert.equal(recorded?.engineVersion, "2.0.0");
+});
+
+test("Strongr Daily v2 missing required reviewed fields fail closed", async () => {
+  const generated = createStrongrDailyV2FixtureOutput(strongrDailyAudioReflectionV2BriefFixture);
+  const incomplete = { ...generated } as Record<string, unknown>;
+  delete incomplete.prayer;
+  delete incomplete.narration_text;
+  const runner = new AutomatedReviewCheckRunner({
+    store: {
+      recordCheckRun() {
+        return Promise.resolve(checkRunId);
+      },
+    },
+  });
+
+  const result = await runner.run({
+    checkDefinitions: definitions,
+    contentVersionId,
+    correlationId: fixtureIds.correlationId,
+    organizationId: fixtureIds.organizationAlphaId,
+    reflection: incomplete,
+  });
+
+  assert.equal(
+    result.results.find((entry) => entry.checkDefinitionId === definitions[4]?.id)?.outcome,
+    "fail",
+  );
+  assert.equal(
+    result.results.find((entry) => entry.checkDefinitionId === definitions[6]?.id)?.outcome,
     "fail",
   );
 });
