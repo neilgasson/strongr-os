@@ -2,11 +2,12 @@
 
 ## Checkpoint identity
 
-- **Checkpoint:** M3 accepted — owner-only non-production Strongr Studio preview
-- **Recorded:** 2026-07-27
+- **Checkpoint:** M4 scope accepted — M4.0 architecture in progress
+- **Recorded:** 2026-07-28
 - **Repository:** `neilgasson/strongr-os`
 - **Protected branch:** `main`
-- **Protected-main checkpoint commit:** `be9533cf5060139211f5e6efc4996e74151c5e30`
+- **Protected-main checkpoint commit:** `957c7751f00d1196e3a0ab01235cb1d5ce6abb16`
+- **M4 scope approval commit:** `957c7751f00d1196e3a0ab01235cb1d5ce6abb16`
 - **M3.4 implementation commit:** `d77aae3d69bf24e7278c7e45c79e6b72223260ff`
 - **M3 scope approval commit:** `001096279eaf1117b18ac213a3627d2a0d4ca44b`
 - **M3.3 implementation commit:** `f33b15ca7ea75101976b31d5708be991638c27ff`
@@ -18,10 +19,11 @@
   owner-only deployed Strongr Studio preview covering the authenticated governed
   workflow from tenant-scoped brief through checksum-verified private media,
   human media review, immutable non-public release staging, and append-only
-  revocation; production readiness and the wider product remain incomplete
+  revocation; M4 production-readiness architecture is underway, while staging,
+  production launch, live providers, and the wider product remain incomplete
 
-This file is the durable restart point for Strongr OS work after final M3
-acceptance. If a
+This file is the durable restart point for Strongr OS work after M4 scope
+approval. If a
 future task or conversation loses context, begin here and follow the restart
 procedure below. The canonical M0.2–M3 acceptance records remain the authority
 for detailed test, artifact, workflow, deployment, and commit identifiers.
@@ -397,12 +399,25 @@ M4.0 is documentation and contract work only. It does not provision an
 environment, introduce a secret, connect a live provider, publish content,
 launch production, or change Strongr Daily.
 
+M4.0 is in progress on a protected branch from M4 scope commit `957c775`. Its
+proposed records define:
+
+- immutable protected-main artifact promotion;
+- separate development, staging, future production, and Strongr Daily trust
+  zones;
+- public, session, worker, database, management, deployment, telemetry, and
+  backup credential classes;
+- measurable service, recovery, security, privacy, accessibility, performance,
+  observability, and cost objectives;
+- current external dependency failures and fail-closed responses;
+- operational threats, misuse cases, stop conditions, and residual risks.
+
 ## Restart procedure
 
 When resuming Strongr OS work:
 
 1. Confirm protected `main` contains checkpoint commit
-   `be9533cf5060139211f5e6efc4996e74151c5e30` or a documented successor.
+   `957c7751f00d1196e3a0ab01235cb1d5ce6abb16` or a documented successor.
 2. Read this file, the approved M3 scope, and the four canonical acceptance
    records:
    - `docs/architecture/M3_SCOPE.md`
