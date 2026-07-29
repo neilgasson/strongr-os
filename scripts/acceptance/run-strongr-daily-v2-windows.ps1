@@ -171,6 +171,17 @@ function Get-SupabaseTemporaryAccessConfiguration {
   throw "temporary_access_state_missing"
 }
 
+function ConvertTo-SafeTemporaryAccessStateDiagnostic {
+  param([object]$State)
+
+  # State is a Supabase configuration enum. Still constrain it before output so
+  # an unexpected response cannot carry a token, URL, or free-form error text.
+  if ($State -isnot [string]) { return "state_unrecognized" }
+  $normalized = $State.ToLowerInvariant()
+  if ($normalized -match "^[a-z_]{1,32}$") { return $normalized }
+  return "state_unrecognized"
+}
+
 function Resolve-PublicIpv4 {
   try {
     $response = Invoke-RestMethod -Method Get -Uri "https://api.ipify.org?format=json" -UseBasicParsing
@@ -255,7 +266,7 @@ try {
       if ([string]$temporaryAccessState.state -eq "enabled") {
         $temporaryAccessStateResult = "enabled"
       } else {
-        $temporaryAccessStateResult = "state_unrecognized"
+        $temporaryAccessStateResult = ConvertTo-SafeTemporaryAccessStateDiagnostic -State $temporaryAccessState.state
       }
       throw "temporary_access_not_disabled"
     }
