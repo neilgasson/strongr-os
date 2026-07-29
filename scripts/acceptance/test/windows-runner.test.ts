@@ -105,7 +105,8 @@ test("Windows Strongr Daily v2 runner emits only the safe password-authenticatio
 test("Windows Strongr Daily v2 runner can use disposable-only temporary access with IP and expiry restrictions", () => {
   assert.match(runner, /\[switch\]\$UseTemporaryAccess/);
   assert.match(runner, /Supabase temporary access token \(hidden\)" -AsSecureString/);
-  assert.match(runner, /https:\/\/api\.supabase\.com\/v1\/projects\/\$disposableProjectRef\/database\/jit-access/);
+  assert.match(runner, /https:\/\/api\.supabase\.com\/v1\/projects\/\$disposableProjectRef\/jit-access/);
+  assert.doesNotMatch(runner, /\/database\/jit-access/);
   assert.match(runner, /-Body @\{ state = "enabled" \}/);
   assert.match(runner, /role = "postgres"; rhost = \$publicIpv4/);
   assert.match(runner, /allowed_cidrs = @\(@\{ cidr = "\$publicIpv4\/32" \}\)/);
