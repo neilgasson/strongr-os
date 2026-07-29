@@ -101,3 +101,23 @@ test("Windows Strongr Daily v2 runner emits only the safe password-authenticatio
   assert.match(runner, /diagnostic: database_password_authentication_failed/);
   assert.doesNotMatch(runner, /Write-(?:Output|Host).*\$(?:databasePassword|encodedDatabasePassword|databaseUrl|secretKey)/);
 });
+
+test("Windows Strongr Daily v2 runner can use disposable-only temporary access with IP and expiry restrictions", () => {
+  assert.match(runner, /\[switch\]\$UseTemporaryAccess/);
+  assert.match(runner, /Supabase temporary access token \(hidden\)" -AsSecureString/);
+  assert.match(runner, /https:\/\/api\.supabase\.com\/v1\/projects\/\$disposableProjectRef\/database\/jit-access/);
+  assert.match(runner, /-Body @\{ state = "enabled" \}/);
+  assert.match(runner, /role = "postgres"; rhost = \$publicIpv4/);
+  assert.match(runner, /allowed_cidrs = @\(@\{ cidr = "\$publicIpv4\/32" \}\)/);
+  assert.match(runner, /\[DateTimeOffset\]::UtcNow\.AddMinutes\(30\)\.ToUnixTimeMilliseconds\(\)/);
+  assert.match(runner, /options=-c%20jit%3Don/);
+});
+
+test("Windows Strongr Daily v2 runner removes its temporary access mapping and disables only access it enabled", () => {
+  assert.match(runner, /database\/jit\/\$temporaryAccessUserId/);
+  assert.match(runner, /\$temporaryAccessEnabledByRunner -and \$null -ne \$temporaryAccessToken/);
+  assert.match(runner, /state = "disabled"/);
+  assert.match(runner, /temporary_access_mapping_cleanup_failed/);
+  assert.match(runner, /temporary_access_configuration_cleanup_failed/);
+  assert.doesNotMatch(runner, /Write-(?:Output|Host).*\$(?:temporaryAccessToken|temporaryAccessTokenSecure|publicIpv4|databaseUrl)/);
+});
