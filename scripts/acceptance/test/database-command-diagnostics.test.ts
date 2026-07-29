@@ -47,3 +47,12 @@ test("database command diagnostics redact database values that could identify a 
   );
   assert.doesNotMatch(value ?? "", /Neil Gasson/);
 });
+
+test("database command diagnostics redact quoted values and identifiers", () => {
+  const value = sanitizeDatabaseDiagnostic(
+    'invalid input "Neil Gasson" for identifier 6bb80ed0-ed1f-4889-80db-6c9d5d0e5031',
+  );
+
+  assert.equal(value, "invalid input [redacted-value] for identifier [redacted-identifier]");
+  assert.doesNotMatch(value ?? "", /Neil Gasson|6bb80ed0/);
+});

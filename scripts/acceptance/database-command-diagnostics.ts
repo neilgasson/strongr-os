@@ -34,6 +34,7 @@ function fallbackMessage(stderr: string): string | null {
 
 export function sanitizeDatabaseDiagnostic(value: string | null): string | null {
   if (!value) return null;
+  if (/[{[]\s*["']/.test(value)) return "[redacted-structured-value]";
 
   const sanitized = value
     .replace(/\b(?:postgres(?:ql)?|https?):\/\/[^\s'"`]+/gi, "[redacted-url]")
@@ -45,11 +46,12 @@ export function sanitizeDatabaseDiagnostic(value: string | null): string | null 
     .replace(/\bsb_(?:secret|publishable)_[A-Za-z0-9_-]+\b/gi, "[redacted-key]")
     .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted-token]")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redacted-email]")
+    .replace(/\b[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}\b/gi, "[redacted-identifier]")
     .replace(/\bKey\s+\(([^)]*)\)=\([^)]*\)/gi, "Key ($1)=([redacted])")
     .replace(/\bFailing row contains\s*\([^)]*\)/gi, "Failing row contains ([redacted])")
+    .replace(/["'][^"'\r\n]*["']/g, "[redacted-value]")
     .trim();
 
-  if (/[{[]\s*["']/.test(sanitized)) return "[redacted-structured-value]";
   return sanitized.slice(0, MAXIMUM_FIELD_LENGTH) || null;
 }
 
