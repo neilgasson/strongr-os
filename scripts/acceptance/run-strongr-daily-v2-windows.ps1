@@ -97,8 +97,30 @@ function Write-SanitizedArtifactDiagnostic {
   }
 }
 
+function Get-SafePreflightReason {
+  param([Parameter(Mandatory = $true)][string]$Reason)
+
+  if ($Reason -in @(
+    "invalid_publishable_key",
+    "invalid_secret_key",
+    "invalid_session_pooler_database_url",
+    "missing_required_environment",
+    "missing_node",
+    "missing_pnpm",
+    "missing_psql",
+    "repository_root_not_found"
+  )) {
+    return $Reason
+  }
+  return "unknown_preflight_failure"
+}
+
 try {
-  $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+  $repositoryCandidate = Join-Path $PSScriptRoot "..\.."
+  if (-not (Test-Path -LiteralPath $repositoryCandidate -PathType Container)) {
+    throw "repository_root_not_found"
+  }
+  $repositoryRoot = (Resolve-Path $repositoryCandidate).Path
   Set-Location -LiteralPath $repositoryRoot
   $artifactPath = Join-Path $repositoryRoot "artifacts\acceptance\strongr-daily-v2.json"
 
@@ -136,11 +158,9 @@ try {
       throw "missing_required_environment"
     }
   }
-  foreach ($command in @("node", "pnpm.cmd", "psql")) {
-    if ($null -eq (Get-Command $command -ErrorAction SilentlyContinue)) {
-      throw "missing_required_command"
-    }
-  }
+  if ($null -eq (Get-Command "node" -ErrorAction SilentlyContinue)) { throw "missing_node" }
+  if ($null -eq (Get-Command "pnpm.cmd" -ErrorAction SilentlyContinue)) { throw "missing_pnpm" }
+  if ($null -eq (Get-Command "psql" -ErrorAction SilentlyContinue)) { throw "missing_psql" }
 
   $harnessOutput = @(& pnpm.cmd acceptance:strongr-daily-v2 2>&1)
   $harnessExitCode = $LASTEXITCODE
@@ -155,7 +175,7 @@ try {
 } catch {
   Write-Output "Strongr Daily v2 acceptance: FAIL"
   if ($null -ne $artifactPath) { Write-Output "Evidence artifact: $artifactPath" }
-  Write-Output "diagnostic: acceptance_runner_preflight_failed"
+  Write-Output ("diagnostic: {0}" -f (Get-SafePreflightReason -Reason $_.Exception.Message))
   exit 1
 } finally {
   foreach ($name in $requiredEnvironmentVariables) {

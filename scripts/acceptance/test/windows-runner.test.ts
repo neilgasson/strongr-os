@@ -22,7 +22,27 @@ test("Windows Strongr Daily v2 runner validates the disposable Session Pooler an
   assert.match(runner, /guovsmbtxuowyyqamaex/);
   assert.match(runner, /\.pooler\.supabase\.com/);
   assert.match(runner, /\[YOUR-PASSWORD\]/);
-  assert.match(runner, /@\("node", "pnpm\.cmd", "psql"\)/);
+  assert.match(runner, /throw "missing_node"/);
+  assert.match(runner, /throw "missing_pnpm"/);
+  assert.match(runner, /throw "missing_psql"/);
   assert.match(runner, /& pnpm\.cmd acceptance:strongr-daily-v2 2>&1/);
   assert.match(runner, /Write-SanitizedArtifactDiagnostic/);
+});
+
+test("Windows Strongr Daily v2 runner emits only allow-listed preflight diagnostics", () => {
+  for (const reason of [
+    "invalid_publishable_key",
+    "invalid_secret_key",
+    "invalid_session_pooler_database_url",
+    "missing_required_environment",
+    "missing_node",
+    "missing_pnpm",
+    "missing_psql",
+    "repository_root_not_found",
+    "unknown_preflight_failure",
+  ]) {
+    assert.match(runner, new RegExp(reason));
+  }
+  assert.match(runner, /Get-SafePreflightReason -Reason \$_\.Exception\.Message/);
+  assert.doesNotMatch(runner, /acceptance_runner_preflight_failed/);
 });
