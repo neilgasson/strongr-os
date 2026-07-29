@@ -1,3 +1,7 @@
+param(
+  [switch]$UseTemporaryAccess
+)
+
 $ErrorActionPreference = "Stop"
 
 $requiredEnvironmentVariables = @(
@@ -20,6 +24,11 @@ $secretKey = $null
 $databaseUrl = $null
 $databasePassword = $null
 $encodedDatabasePassword = $null
+$temporaryAccessToken = $null
+$temporaryAccessTokenSecure = $null
+$temporaryAccessUserId = $null
+$temporaryAccessEnabledByRunner = $false
+$publicIpv4 = $null
 $secretKeySecure = $null
 $databasePasswordSecure = $null
 $preflightStage = "resolve_repository_root"
@@ -87,6 +96,41 @@ function Test-DatabasePasswordAuthenticationFailure {
   return (($Output | Out-String) -match "password authentication failed")
 }
 
+function Invoke-SupabaseTemporaryAccessRequest {
+  param(
+    [Parameter(Mandatory = $true)][string]$Method,
+    [Parameter(Mandatory = $true)][string]$Uri,
+    [Parameter(Mandatory = $true)][string]$AccessToken,
+    [object]$Body
+  )
+
+  $headers = @{ Authorization = "Bearer $AccessToken" }
+  try {
+    if ($null -eq $Body) {
+      return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $headers -UseBasicParsing
+    }
+    return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $headers -ContentType "application/json" `
+      -Body ($Body | ConvertTo-Json -Depth 8 -Compress) -UseBasicParsing
+  } catch {
+    # Platform responses can contain a request URL or user-controlled data; never display them.
+    throw "temporary_access_api_request_failed"
+  }
+}
+
+function Resolve-PublicIpv4 {
+  try {
+    $response = Invoke-RestMethod -Method Get -Uri "https://api.ipify.org?format=json" -UseBasicParsing
+    $address = [System.Net.IPAddress]::None
+    if (-not [System.Net.IPAddress]::TryParse([string]$response.ip, [ref]$address) -or
+        $address.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) {
+      throw "not_an_ipv4_address"
+    }
+    return $address.ToString()
+  } catch {
+    throw "public_ipv4_resolution_failed"
+  }
+}
+
 function Write-SanitizedArtifactDiagnostic {
   param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -134,20 +178,70 @@ try {
   $publishableKey = Read-Host "Supabase publishable key"
   $preflightStage = "read_secret_key"
   $secretKeySecure = Read-Host "Supabase NEW secret key (hidden)" -AsSecureString
-  $preflightStage = "read_database_password"
-  $databasePasswordSecure = Read-Host "Supabase disposable database password (hidden)" -AsSecureString
   $preflightStage = "convert_secret_key"
   $secretKey = ConvertFrom-SecurePrompt -Value $secretKeySecure
-  $preflightStage = "convert_database_password"
-  $databasePassword = ConvertFrom-SecurePrompt -Value $databasePasswordSecure
-  $preflightStage = "construct_database_url"
-  $encodedDatabasePassword = [Uri]::EscapeDataString($databasePassword)
-  $databaseUrl = "postgresql://{0}:{1}@{2}:{3}/{4}" -f `
-    $disposablePoolerUsername, `
-    $encodedDatabasePassword, `
-    $disposablePoolerHost, `
-    $disposablePoolerPort, `
-    $disposableDatabase
+  if ($UseTemporaryAccess) {
+    $preflightStage = "read_temporary_access_token"
+    $temporaryAccessTokenSecure = Read-Host "Supabase temporary access token (hidden)" -AsSecureString
+    $preflightStage = "convert_temporary_access_token"
+    $temporaryAccessToken = ConvertFrom-SecurePrompt -Value $temporaryAccessTokenSecure
+    $preflightStage = "validate_temporary_access_token"
+    if ([string]::IsNullOrWhiteSpace($temporaryAccessToken) -or -not $temporaryAccessToken.StartsWith("sbp_")) {
+      throw "invalid_temporary_access_token"
+    }
+    $preflightStage = "resolve_public_ipv4"
+    $publicIpv4 = Resolve-PublicIpv4
+    $temporaryAccessApi = "https://api.supabase.com/v1/projects/$disposableProjectRef"
+    $preflightStage = "inspect_temporary_access_state"
+    $temporaryAccessState = Invoke-SupabaseTemporaryAccessRequest -Method "GET" `
+      -Uri "$temporaryAccessApi/database/jit-access" -AccessToken $temporaryAccessToken
+    if ($temporaryAccessState.state -ne "disabled") {
+      throw "temporary_access_not_disabled"
+    }
+    $preflightStage = "enable_temporary_access"
+    Invoke-SupabaseTemporaryAccessRequest -Method "PUT" -Uri "$temporaryAccessApi/database/jit-access" `
+      -AccessToken $temporaryAccessToken -Body @{ state = "enabled" } | Out-Null
+    $temporaryAccessEnabledByRunner = $true
+    $preflightStage = "authorize_temporary_access_user"
+    $temporaryAccessAuthorization = Invoke-SupabaseTemporaryAccessRequest -Method "POST" `
+      -Uri "$temporaryAccessApi/database/jit" -AccessToken $temporaryAccessToken `
+      -Body @{ role = "postgres"; rhost = $publicIpv4 }
+    $temporaryAccessUserId = [string]$temporaryAccessAuthorization.user_id
+    if ([string]::IsNullOrWhiteSpace($temporaryAccessUserId)) {
+      throw "temporary_access_user_not_authorized"
+    }
+    $preflightStage = "restrict_temporary_access_user"
+    $temporaryAccessExpiry = [DateTimeOffset]::UtcNow.AddMinutes(30).ToUnixTimeMilliseconds()
+    Invoke-SupabaseTemporaryAccessRequest -Method "PUT" -Uri "$temporaryAccessApi/database/jit" `
+      -AccessToken $temporaryAccessToken -Body @{
+        user_id = $temporaryAccessUserId
+        user_roles = @(@{
+            role = "postgres"
+            allowed_networks = @{ allowed_cidrs = @(@{ cidr = "$publicIpv4/32" }) }
+            expires_at = $temporaryAccessExpiry
+          })
+      } | Out-Null
+    $preflightStage = "construct_temporary_access_database_url"
+    $databaseUrl = "postgresql://{0}:{1}@{2}:{3}/{4}?options=-c%20jit%3Don" -f `
+      $disposablePoolerUsername, `
+      ([Uri]::EscapeDataString($temporaryAccessToken)), `
+      $disposablePoolerHost, `
+      $disposablePoolerPort, `
+      $disposableDatabase
+  } else {
+    $preflightStage = "read_database_password"
+    $databasePasswordSecure = Read-Host "Supabase disposable database password (hidden)" -AsSecureString
+    $preflightStage = "convert_database_password"
+    $databasePassword = ConvertFrom-SecurePrompt -Value $databasePasswordSecure
+    $preflightStage = "construct_database_url"
+    $encodedDatabasePassword = [Uri]::EscapeDataString($databasePassword)
+    $databaseUrl = "postgresql://{0}:{1}@{2}:{3}/{4}" -f `
+      $disposablePoolerUsername, `
+      $encodedDatabasePassword, `
+      $disposablePoolerHost, `
+      $disposablePoolerPort, `
+      $disposableDatabase
+  }
 
   $preflightStage = "validate_publishable_key"
   if (-not $publishableKey.StartsWith("sb_publishable_")) {
@@ -232,6 +326,24 @@ try {
   exit 1
 } finally {
   $preflightStage = "cleanup"
+  if ($null -ne $temporaryAccessToken -and -not [string]::IsNullOrWhiteSpace($temporaryAccessUserId)) {
+    try {
+      Invoke-SupabaseTemporaryAccessRequest -Method "DELETE" `
+        -Uri "https://api.supabase.com/v1/projects/$disposableProjectRef/database/jit/$temporaryAccessUserId" `
+        -AccessToken $temporaryAccessToken | Out-Null
+    } catch {
+      Write-Output "diagnostic: temporary_access_mapping_cleanup_failed"
+    }
+  }
+  if ($temporaryAccessEnabledByRunner -and $null -ne $temporaryAccessToken) {
+    try {
+      Invoke-SupabaseTemporaryAccessRequest -Method "PUT" `
+        -Uri "https://api.supabase.com/v1/projects/$disposableProjectRef/database/jit-access" `
+        -AccessToken $temporaryAccessToken -Body @{ state = "disabled" } | Out-Null
+    } catch {
+      Write-Output "diagnostic: temporary_access_configuration_cleanup_failed"
+    }
+  }
   foreach ($name in $requiredEnvironmentVariables) {
     Remove-Item -Path "Env:$name" -ErrorAction SilentlyContinue
   }
@@ -243,14 +355,19 @@ try {
   $databaseUrl = $null
   $databasePassword = $null
   $encodedDatabasePassword = $null
+  $temporaryAccessToken = $null
+  $temporaryAccessUserId = $null
+  $publicIpv4 = $null
   $secretKeySecure = $null
   $databasePasswordSecure = $null
+  if ($null -ne $temporaryAccessTokenSecure) { $temporaryAccessTokenSecure.Dispose() }
+  $temporaryAccessTokenSecure = $null
   $harnessOutput = $null
   $acceptanceErrorActionPreference = $null
   $databaseConnectionErrorActionPreference = $null
   $databaseConnectionOutput = $null
   $databaseConnectionExitCode = $null
-  Remove-Variable -Name publishableKey, secretKey, databaseUrl, databasePassword, encodedDatabasePassword, secretKeySecure, databasePasswordSecure, harnessOutput, acceptanceErrorActionPreference, databaseConnectionErrorActionPreference, databaseConnectionOutput, databaseConnectionExitCode -ErrorAction SilentlyContinue
+  Remove-Variable -Name publishableKey, secretKey, databaseUrl, databasePassword, encodedDatabasePassword, temporaryAccessToken, temporaryAccessTokenSecure, temporaryAccessUserId, publicIpv4, secretKeySecure, databasePasswordSecure, harnessOutput, acceptanceErrorActionPreference, databaseConnectionErrorActionPreference, databaseConnectionOutput, databaseConnectionExitCode -ErrorAction SilentlyContinue
   [GC]::Collect()
   Clear-History -ErrorAction SilentlyContinue
   try { [Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory() } catch {}
