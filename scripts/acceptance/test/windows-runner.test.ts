@@ -114,6 +114,16 @@ test("Windows Strongr Daily v2 runner can use disposable-only temporary access w
   assert.match(runner, /options=-c%20jit%3Don/);
 });
 
+test("Windows Strongr Daily v2 runner reports only safe temporary-access API and state results", () => {
+  for (const result of ["unauthorized", "forbidden", "not_found", "rate_limited", "unavailable"]) {
+    assert.match(runner, new RegExp(`temporaryAccessApiResult = "${result}"`));
+  }
+  assert.match(runner, /temporary_access_api_result: \$temporaryAccessApiResult/);
+  assert.match(runner, /temporary_access_state: \$temporaryAccessStateResult/);
+  assert.doesNotMatch(runner, /temporary_access_api_result: \$\(\$_\.Exception/);
+  assert.doesNotMatch(runner, /temporary_access_state: \$temporaryAccessToken/);
+});
+
 test("Windows Strongr Daily v2 runner removes its temporary access mapping and disables only access it enabled", () => {
   assert.match(runner, /database\/jit\/\$temporaryAccessUserId/);
   assert.match(runner, /\$temporaryAccessEnabledByRunner -and \$null -ne \$temporaryAccessToken/);
