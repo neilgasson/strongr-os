@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 const runner = readFileSync(
@@ -10,18 +11,20 @@ const runner = readFileSync(
 
 test("Windows Strongr Daily v2 runner keeps credentials in memory and clears them", () => {
   assert.match(runner, /Read-Host "Supabase NEW secret key \(hidden\)" -AsSecureString/);
-  assert.match(runner, /Session Pooler database URL \(hidden\)" -AsSecureString/);
+  assert.match(runner, /Supabase disposable database password \(hidden\)" -AsSecureString/);
   assert.match(runner, /finally \{/);
   assert.match(runner, /Remove-Item -Path "Env:\$name"/);
-  assert.match(runner, /Remove-Variable -Name publishableKey, secretKey, databaseUrl/);
+  assert.match(runner, /Remove-Variable -Name publishableKey, secretKey, databaseUrl, databasePassword, encodedDatabasePassword/);
   assert.match(runner, /\.Dispose\(\)/);
   assert.doesNotMatch(runner, /(?:Add-Content|Out-File|Set-Content|\.env)/);
 });
 
 test("Windows Strongr Daily v2 runner validates the disposable Session Pooler and command boundary", () => {
   assert.match(runner, /guovsmbtxuowyyqamaex/);
-  assert.match(runner, /\.pooler\.supabase\.com/);
-  assert.match(runner, /\[YOUR-PASSWORD\]/);
+  assert.match(runner, /aws-0-ca-central-1\.pooler\.supabase\.com/);
+  assert.match(runner, /postgres\.guovsmbtxuowyyqamaex/);
+  assert.match(runner, /\$disposablePoolerPort = 5432/);
+  assert.match(runner, /\[Uri\]::EscapeDataString\(\$databasePassword\)/);
   assert.match(runner, /throw "missing_node"/);
   assert.match(runner, /throw "missing_pnpm"/);
   assert.match(runner, /throw "missing_psql"/);
@@ -35,9 +38,10 @@ test("Windows Strongr Daily v2 runner preserves every safe preflight stage in fa
     "add_postgres_to_path",
     "read_publishable_key",
     "read_secret_key",
-    "read_database_url",
+    "read_database_password",
     "convert_secret_key",
-    "convert_database_url",
+    "convert_database_password",
+    "construct_database_url",
     "validate_publishable_key",
     "validate_secret_key",
     "validate_database_url",
@@ -46,6 +50,7 @@ test("Windows Strongr Daily v2 runner preserves every safe preflight stage in fa
     "find_node",
     "find_pnpm",
     "find_psql",
+    "verify_database_connection",
     "launch_acceptance_harness",
     "read_acceptance_artifact",
     "cleanup",
@@ -63,4 +68,29 @@ test("Windows Strongr Daily v2 runner captures native harness stderr without a P
   assert.match(runner, /\$ErrorActionPreference = "Continue"/);
   assert.match(runner, /\$harnessOutput = @\(& pnpm\.cmd acceptance:strongr-daily-v2 2>&1\)/);
   assert.match(runner, /\$ErrorActionPreference = \$acceptanceErrorActionPreference/);
+});
+
+test("Windows Strongr Daily v2 runner constructs a percent-encoded Session Pooler URL", () => {
+  const result = spawnSync(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-Command",
+      "$password=[Uri]::EscapeDataString('p@ss word:/?'); \"postgresql://postgres.guovsmbtxuowyyqamaex:$password@aws-0-ca-central-1.pooler.supabase.com:5432/postgres\"",
+    ],
+    { encoding: "utf8" },
+  );
+
+  assert.equal(result.status, 0);
+  assert.equal(
+    result.stdout.trim(),
+    "postgresql://postgres.guovsmbtxuowyyqamaex:p%40ss%20word%3A%2F%3F@aws-0-ca-central-1.pooler.supabase.com:5432/postgres",
+  );
+});
+
+test("Windows Strongr Daily v2 runner emits only the safe password-authentication diagnostic", () => {
+  assert.match(runner, /Test-DatabasePasswordAuthenticationFailure/);
+  assert.match(runner, /password authentication failed/);
+  assert.match(runner, /diagnostic: database_password_authentication_failed/);
+  assert.doesNotMatch(runner, /Write-(?:Output|Host).*\$(?:databasePassword|encodedDatabasePassword|databaseUrl|secretKey)/);
 });

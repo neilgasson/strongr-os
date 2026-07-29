@@ -8,15 +8,25 @@ $requiredEnvironmentVariables = @(
   "STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY",
   "STRONGR_OS_DATABASE_URL"
 )
+$disposableProjectRef = "guovsmbtxuowyyqamaex"
+$disposablePoolerHost = "aws-0-ca-central-1.pooler.supabase.com"
+$disposablePoolerPort = 5432
+$disposableDatabase = "postgres"
+$disposablePoolerUsername = "postgres.guovsmbtxuowyyqamaex"
 $artifactPath = $null
 $originalPath = $env:PATH
 $publishableKey = $null
 $secretKey = $null
 $databaseUrl = $null
+$databasePassword = $null
+$encodedDatabasePassword = $null
 $secretKeySecure = $null
-$databaseUrlSecure = $null
+$databasePasswordSecure = $null
 $preflightStage = "resolve_repository_root"
 $acceptanceErrorActionPreference = $null
+$databaseConnectionErrorActionPreference = $null
+$databaseConnectionOutput = $null
+$databaseConnectionExitCode = $null
 
 function ConvertFrom-SecurePrompt {
   param([Parameter(Mandatory = $true)][System.Security.SecureString]$Value)
@@ -53,20 +63,28 @@ function Test-LegacyServiceRoleKey {
 function Test-SessionPoolerDatabaseUrl {
   param(
     [Parameter(Mandatory = $true)][string]$Value,
-    [Parameter(Mandatory = $true)][string]$ProjectRef
+    [Parameter(Mandatory = $true)][string]$Host,
+    [Parameter(Mandatory = $true)][int]$Port,
+    [Parameter(Mandatory = $true)][string]$Database,
+    [Parameter(Mandatory = $true)][string]$Username
   )
 
-  if ($Value.Contains("[YOUR-PASSWORD]")) { return $false }
   try {
     $uri = [Uri]$Value
-    if ($uri.Scheme -ne "postgresql" -or -not $uri.Host.EndsWith(".pooler.supabase.com")) {
+    if ($uri.Scheme -ne "postgresql" -or $uri.Host -ne $Host -or $uri.Port -ne $Port -or
+        $uri.AbsolutePath.TrimStart('/') -ne $Database) {
       return $false
     }
-    $username = [Uri]::UnescapeDataString($uri.UserInfo.Split(':')[0])
-    return $username.EndsWith(".$ProjectRef")
+    return [Uri]::UnescapeDataString($uri.UserInfo.Split(':')[0]) -eq $Username
   } catch {
     return $false
   }
+}
+
+function Test-DatabasePasswordAuthenticationFailure {
+  param([Parameter(Mandatory = $true)][object[]]$Output)
+
+  return (($Output | Out-String) -match "password authentication failed")
 }
 
 function Write-SanitizedArtifactDiagnostic {
@@ -116,12 +134,20 @@ try {
   $publishableKey = Read-Host "Supabase publishable key"
   $preflightStage = "read_secret_key"
   $secretKeySecure = Read-Host "Supabase NEW secret key (hidden)" -AsSecureString
-  $preflightStage = "read_database_url"
-  $databaseUrlSecure = Read-Host "Completed Supabase Session Pooler database URL (hidden)" -AsSecureString
+  $preflightStage = "read_database_password"
+  $databasePasswordSecure = Read-Host "Supabase disposable database password (hidden)" -AsSecureString
   $preflightStage = "convert_secret_key"
   $secretKey = ConvertFrom-SecurePrompt -Value $secretKeySecure
-  $preflightStage = "convert_database_url"
-  $databaseUrl = ConvertFrom-SecurePrompt -Value $databaseUrlSecure
+  $preflightStage = "convert_database_password"
+  $databasePassword = ConvertFrom-SecurePrompt -Value $databasePasswordSecure
+  $preflightStage = "construct_database_url"
+  $encodedDatabasePassword = [Uri]::EscapeDataString($databasePassword)
+  $databaseUrl = "postgresql://{0}:{1}@{2}:{3}/{4}" -f `
+    $disposablePoolerUsername, `
+    $encodedDatabasePassword, `
+    $disposablePoolerHost, `
+    $disposablePoolerPort, `
+    $disposableDatabase
 
   $preflightStage = "validate_publishable_key"
   if (-not $publishableKey.StartsWith("sb_publishable_")) {
@@ -132,14 +158,19 @@ try {
     throw "invalid_secret_key"
   }
   $preflightStage = "validate_database_url"
-  if (-not (Test-SessionPoolerDatabaseUrl -Value $databaseUrl -ProjectRef "guovsmbtxuowyyqamaex")) {
+  if (-not (Test-SessionPoolerDatabaseUrl `
+      -Value $databaseUrl `
+      -Host $disposablePoolerHost `
+      -Port $disposablePoolerPort `
+      -Database $disposableDatabase `
+      -Username $disposablePoolerUsername)) {
     throw "invalid_session_pooler_database_url"
   }
 
   $preflightStage = "set_environment"
   $env:STRONGR_OS_M1_ACCEPTANCE_TARGET = "strongr-os-disposable"
-  $env:STRONGR_OS_PROJECT_REF = "guovsmbtxuowyyqamaex"
-  $env:STRONGR_OS_SUPABASE_URL = "https://guovsmbtxuowyyqamaex.supabase.co"
+  $env:STRONGR_OS_PROJECT_REF = $disposableProjectRef
+  $env:STRONGR_OS_SUPABASE_URL = "https://$disposableProjectRef.supabase.co"
   $env:STRONGR_OS_SUPABASE_PUBLISHABLE_KEY = $publishableKey
   $env:STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY = $secretKey
   $env:STRONGR_OS_DATABASE_URL = $databaseUrl
@@ -156,6 +187,24 @@ try {
   if ($null -eq (Get-Command "pnpm.cmd" -ErrorAction SilentlyContinue)) { throw "missing_pnpm" }
   $preflightStage = "find_psql"
   if ($null -eq (Get-Command "psql" -ErrorAction SilentlyContinue)) { throw "missing_psql" }
+
+  $preflightStage = "verify_database_connection"
+  $databaseConnectionErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Continue"
+    $databaseConnectionOutput = @(& psql $databaseUrl -X -qAt -v "ON_ERROR_STOP=1" -c "select 1" 2>&1)
+    $databaseConnectionExitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $databaseConnectionErrorActionPreference
+    $databaseConnectionErrorActionPreference = $null
+  }
+  if ($databaseConnectionExitCode -ne 0) {
+    if (Test-DatabasePasswordAuthenticationFailure -Output $databaseConnectionOutput) {
+      Write-Output "diagnostic: database_password_authentication_failed"
+      exit 1
+    }
+    throw "database_connection_preflight_failed"
+  }
 
   $preflightStage = "launch_acceptance_harness"
   $acceptanceErrorActionPreference = $ErrorActionPreference
@@ -188,15 +237,20 @@ try {
   }
   $env:PATH = $originalPath
   if ($null -ne $secretKeySecure) { $secretKeySecure.Dispose() }
-  if ($null -ne $databaseUrlSecure) { $databaseUrlSecure.Dispose() }
+  if ($null -ne $databasePasswordSecure) { $databasePasswordSecure.Dispose() }
   $publishableKey = $null
   $secretKey = $null
   $databaseUrl = $null
+  $databasePassword = $null
+  $encodedDatabasePassword = $null
   $secretKeySecure = $null
-  $databaseUrlSecure = $null
+  $databasePasswordSecure = $null
   $harnessOutput = $null
   $acceptanceErrorActionPreference = $null
-  Remove-Variable -Name publishableKey, secretKey, databaseUrl, secretKeySecure, databaseUrlSecure, harnessOutput, acceptanceErrorActionPreference -ErrorAction SilentlyContinue
+  $databaseConnectionErrorActionPreference = $null
+  $databaseConnectionOutput = $null
+  $databaseConnectionExitCode = $null
+  Remove-Variable -Name publishableKey, secretKey, databaseUrl, databasePassword, encodedDatabasePassword, secretKeySecure, databasePasswordSecure, harnessOutput, acceptanceErrorActionPreference, databaseConnectionErrorActionPreference, databaseConnectionOutput, databaseConnectionExitCode -ErrorAction SilentlyContinue
   [GC]::Collect()
   Clear-History -ErrorAction SilentlyContinue
   try { [Microsoft.PowerShell.PSConsoleReadLine]::ClearHistory() } catch {}
