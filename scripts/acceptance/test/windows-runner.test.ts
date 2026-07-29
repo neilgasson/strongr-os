@@ -29,20 +29,38 @@ test("Windows Strongr Daily v2 runner validates the disposable Session Pooler an
   assert.match(runner, /Write-SanitizedArtifactDiagnostic/);
 });
 
-test("Windows Strongr Daily v2 runner emits only allow-listed preflight diagnostics", () => {
-  for (const reason of [
-    "invalid_publishable_key",
-    "invalid_secret_key",
-    "invalid_session_pooler_database_url",
-    "missing_required_environment",
-    "missing_node",
-    "missing_pnpm",
-    "missing_psql",
-    "repository_root_not_found",
-    "unknown_preflight_failure",
+test("Windows Strongr Daily v2 runner preserves every safe preflight stage in failure output", () => {
+  for (const stage of [
+    "resolve_repository_root",
+    "add_postgres_to_path",
+    "read_publishable_key",
+    "read_secret_key",
+    "read_database_url",
+    "convert_secret_key",
+    "convert_database_url",
+    "validate_publishable_key",
+    "validate_secret_key",
+    "validate_database_url",
+    "set_environment",
+    "validate_environment",
+    "find_node",
+    "find_pnpm",
+    "find_psql",
+    "launch_acceptance_harness",
+    "read_acceptance_artifact",
+    "cleanup",
   ]) {
-    assert.match(runner, new RegExp(reason));
+    assert.match(runner, new RegExp(`\\$preflightStage = "${stage}"`));
   }
-  assert.match(runner, /Get-SafePreflightReason -Reason \$_\.Exception\.Message/);
-  assert.doesNotMatch(runner, /acceptance_runner_preflight_failed/);
+  assert.match(runner, /diagnostic: preflight_stage_failed/);
+  assert.match(runner, /preflight_stage: \$preflightStage/);
+  assert.match(runner, /exception_type: \$\(\$_\.Exception\.GetType\(\)\.FullName\)/);
+  assert.doesNotMatch(runner, /Exception\.Message/);
+});
+
+test("Windows Strongr Daily v2 runner captures native harness stderr without a PowerShell 5.1 terminating error", () => {
+  assert.match(runner, /\$acceptanceErrorActionPreference = \$ErrorActionPreference/);
+  assert.match(runner, /\$ErrorActionPreference = "Continue"/);
+  assert.match(runner, /\$harnessOutput = @\(& pnpm\.cmd acceptance:strongr-daily-v2 2>&1\)/);
+  assert.match(runner, /\$ErrorActionPreference = \$acceptanceErrorActionPreference/);
 });
