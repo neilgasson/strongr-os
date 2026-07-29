@@ -194,12 +194,12 @@ try {
     $temporaryAccessApi = "https://api.supabase.com/v1/projects/$disposableProjectRef"
     $preflightStage = "inspect_temporary_access_state"
     $temporaryAccessState = Invoke-SupabaseTemporaryAccessRequest -Method "GET" `
-      -Uri "$temporaryAccessApi/database/jit-access" -AccessToken $temporaryAccessToken
+      -Uri "$temporaryAccessApi/jit-access" -AccessToken $temporaryAccessToken
     if ($temporaryAccessState.state -ne "disabled") {
       throw "temporary_access_not_disabled"
     }
     $preflightStage = "enable_temporary_access"
-    Invoke-SupabaseTemporaryAccessRequest -Method "PUT" -Uri "$temporaryAccessApi/database/jit-access" `
+    Invoke-SupabaseTemporaryAccessRequest -Method "PUT" -Uri "$temporaryAccessApi/jit-access" `
       -AccessToken $temporaryAccessToken -Body @{ state = "enabled" } | Out-Null
     $temporaryAccessEnabledByRunner = $true
     $preflightStage = "authorize_temporary_access_user"
@@ -338,7 +338,7 @@ try {
   if ($temporaryAccessEnabledByRunner -and $null -ne $temporaryAccessToken) {
     try {
       Invoke-SupabaseTemporaryAccessRequest -Method "PUT" `
-        -Uri "https://api.supabase.com/v1/projects/$disposableProjectRef/database/jit-access" `
+        -Uri "https://api.supabase.com/v1/projects/$disposableProjectRef/jit-access" `
         -AccessToken $temporaryAccessToken -Body @{ state = "disabled" } | Out-Null
     } catch {
       Write-Output "diagnostic: temporary_access_configuration_cleanup_failed"
