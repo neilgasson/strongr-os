@@ -123,9 +123,12 @@ test("Windows Strongr Daily v2 runner reports only safe temporary-access API and
   assert.match(runner, /temporary_access_api_result: \$temporaryAccessApiResult/);
   assert.match(runner, /temporary_access_state: \$temporaryAccessStateResult/);
   assert.match(runner, /temporaryAccessStateResult = "state_missing"/);
-  assert.match(runner, /temporaryAccessStateResult = "state_unrecognized"/);
+  assert.match(runner, /function ConvertTo-SafeTemporaryAccessStateDiagnostic/);
+  assert.match(runner, /\$normalized -match "\^\[a-z_\]\{1,32\}\$"/);
+  assert.match(runner, /return "state_unrecognized"/);
   assert.doesNotMatch(runner, /temporary_access_api_result: \$\(\$_\.Exception/);
   assert.doesNotMatch(runner, /temporary_access_state: \$temporaryAccessToken/);
+  assert.doesNotMatch(runner, /temporary_access_state: \$databaseUrl/);
 });
 
 test("Windows Strongr Daily v2 runner removes its temporary access mapping and disables only access it enabled", () => {
