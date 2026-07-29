@@ -105,8 +105,10 @@ test("Windows Strongr Daily v2 runner emits only the safe password-authenticatio
 test("Windows Strongr Daily v2 runner can use disposable-only temporary access with IP and expiry restrictions", () => {
   assert.match(runner, /\[switch\]\$UseTemporaryAccess/);
   assert.match(runner, /Supabase temporary access token \(hidden\)" -AsSecureString/);
-  assert.match(runner, /https:\/\/api\.supabase\.com\/v1\/projects\/\$disposableProjectRef\/jit-access/);
-  assert.doesNotMatch(runner, /\/database\/jit-access/);
+  assert.match(runner, /\$primaryUri = "\$ProjectApiUri\/jit-access"/);
+  assert.match(runner, /\$legacyUri = "\$ProjectApiUri\/database\/jit-access"/);
+  assert.match(runner, /Get-SupabaseTemporaryAccessConfiguration/);
+  assert.match(runner, /\$temporaryAccessConfigurationUri = \[string\]\$temporaryAccessConfiguration\.Uri/);
   assert.match(runner, /-Body @\{ state = "enabled" \}/);
   assert.match(runner, /role = "postgres"; rhost = \$publicIpv4/);
   assert.match(runner, /allowed_cidrs = @\(@\{ cidr = "\$publicIpv4\/32" \}\)/);
@@ -120,6 +122,8 @@ test("Windows Strongr Daily v2 runner reports only safe temporary-access API and
   }
   assert.match(runner, /temporary_access_api_result: \$temporaryAccessApiResult/);
   assert.match(runner, /temporary_access_state: \$temporaryAccessStateResult/);
+  assert.match(runner, /temporaryAccessStateResult = "state_missing"/);
+  assert.match(runner, /temporaryAccessStateResult = "state_unrecognized"/);
   assert.doesNotMatch(runner, /temporary_access_api_result: \$\(\$_\.Exception/);
   assert.doesNotMatch(runner, /temporary_access_state: \$temporaryAccessToken/);
 });
