@@ -30,6 +30,7 @@ $temporaryAccessUserId = $null
 $temporaryAccessEnabledByRunner = $false
 $temporaryAccessApiResult = $null
 $temporaryAccessStateResult = $null
+$temporaryAccessConfigurationUri = $null
 $publicIpv4 = $null
 $secretKeySecure = $null
 $databasePasswordSecure = $null
@@ -136,6 +137,40 @@ function Invoke-SupabaseTemporaryAccessRequest {
   }
 }
 
+function Get-SupabaseTemporaryAccessConfiguration {
+  param(
+    [Parameter(Mandatory = $true)][string]$ProjectApiUri,
+    [Parameter(Mandatory = $true)][string]$AccessToken
+  )
+
+  # Supabase's temporary-access guide still documents the legacy database/
+  # route while the Management API reference documents the project route.
+  # Retain only a response that implements the documented state contract. The
+  # fallback is read-only; neither request changes project configuration.
+  $primaryUri = "$ProjectApiUri/jit-access"
+  $primary = $null
+  try {
+    $primary = Invoke-SupabaseTemporaryAccessRequest -Method "GET" -Uri $primaryUri -AccessToken $AccessToken
+  } catch {
+    if ($script:temporaryAccessApiResult -ne "not_found") { throw }
+    $script:temporaryAccessApiResult = $null
+  }
+  if ($null -ne $primary -and $null -ne $primary.PSObject.Properties["state"] -and
+      -not [string]::IsNullOrWhiteSpace([string]$primary.state)) {
+    return @{ Uri = $primaryUri; Configuration = $primary }
+  }
+
+  $legacyUri = "$ProjectApiUri/database/jit-access"
+  $legacy = Invoke-SupabaseTemporaryAccessRequest -Method "GET" -Uri $legacyUri -AccessToken $AccessToken
+  if ($null -ne $legacy -and $null -ne $legacy.PSObject.Properties["state"] -and
+      -not [string]::IsNullOrWhiteSpace([string]$legacy.state)) {
+    return @{ Uri = $legacyUri; Configuration = $legacy }
+  }
+
+  $script:temporaryAccessStateResult = "state_missing"
+  throw "temporary_access_state_missing"
+}
+
 function Resolve-PublicIpv4 {
   try {
     $response = Invoke-RestMethod -Method Get -Uri "https://api.ipify.org?format=json" -UseBasicParsing
@@ -212,18 +247,20 @@ try {
     $publicIpv4 = Resolve-PublicIpv4
     $temporaryAccessApi = "https://api.supabase.com/v1/projects/$disposableProjectRef"
     $preflightStage = "inspect_temporary_access_state"
-    $temporaryAccessState = Invoke-SupabaseTemporaryAccessRequest -Method "GET" `
-      -Uri "$temporaryAccessApi/jit-access" -AccessToken $temporaryAccessToken
+    $temporaryAccessConfiguration = Get-SupabaseTemporaryAccessConfiguration `
+      -ProjectApiUri $temporaryAccessApi -AccessToken $temporaryAccessToken
+    $temporaryAccessConfigurationUri = [string]$temporaryAccessConfiguration.Uri
+    $temporaryAccessState = $temporaryAccessConfiguration.Configuration
     if ($temporaryAccessState.state -ne "disabled") {
       if ([string]$temporaryAccessState.state -eq "enabled") {
         $temporaryAccessStateResult = "enabled"
       } else {
-        $temporaryAccessStateResult = "unexpected"
+        $temporaryAccessStateResult = "state_unrecognized"
       }
       throw "temporary_access_not_disabled"
     }
     $preflightStage = "enable_temporary_access"
-    Invoke-SupabaseTemporaryAccessRequest -Method "PUT" -Uri "$temporaryAccessApi/jit-access" `
+    Invoke-SupabaseTemporaryAccessRequest -Method "PUT" -Uri $temporaryAccessConfigurationUri `
       -AccessToken $temporaryAccessToken -Body @{ state = "enabled" } | Out-Null
     $temporaryAccessEnabledByRunner = $true
     $preflightStage = "authorize_temporary_access_user"
@@ -369,7 +406,7 @@ try {
   if ($temporaryAccessEnabledByRunner -and $null -ne $temporaryAccessToken) {
     try {
       Invoke-SupabaseTemporaryAccessRequest -Method "PUT" `
-        -Uri "https://api.supabase.com/v1/projects/$disposableProjectRef/jit-access" `
+        -Uri $temporaryAccessConfigurationUri `
         -AccessToken $temporaryAccessToken -Body @{ state = "disabled" } | Out-Null
     } catch {
       Write-Output "diagnostic: temporary_access_configuration_cleanup_failed"
