@@ -28,6 +28,8 @@ $temporaryAccessToken = $null
 $temporaryAccessTokenSecure = $null
 $temporaryAccessUserId = $null
 $temporaryAccessEnabledByRunner = $false
+$temporaryAccessApiResult = $null
+$temporaryAccessStateResult = $null
 $publicIpv4 = $null
 $secretKeySecure = $null
 $databasePasswordSecure = $null
@@ -104,6 +106,7 @@ function Invoke-SupabaseTemporaryAccessRequest {
     [object]$Body
   )
 
+  $script:temporaryAccessApiResult = $null
   $headers = @{ Authorization = "Bearer $AccessToken" }
   try {
     if ($null -eq $Body) {
@@ -113,6 +116,22 @@ function Invoke-SupabaseTemporaryAccessRequest {
       -Body ($Body | ConvertTo-Json -Depth 8 -Compress) -UseBasicParsing
   } catch {
     # Platform responses can contain a request URL or user-controlled data; never display them.
+    $script:temporaryAccessApiResult = "unavailable"
+    try {
+      $response = $_.Exception.Response
+      if ($null -eq $response -and $null -ne $_.Exception.InnerException) {
+        $response = $_.Exception.InnerException.Response
+      }
+      if ($null -ne $response) {
+        switch ([int]$response.StatusCode) {
+          401 { $script:temporaryAccessApiResult = "unauthorized"; break }
+          403 { $script:temporaryAccessApiResult = "forbidden"; break }
+          404 { $script:temporaryAccessApiResult = "not_found"; break }
+          429 { $script:temporaryAccessApiResult = "rate_limited"; break }
+          default { $script:temporaryAccessApiResult = "unavailable"; break }
+        }
+      }
+    } catch {}
     throw "temporary_access_api_request_failed"
   }
 }
@@ -196,6 +215,11 @@ try {
     $temporaryAccessState = Invoke-SupabaseTemporaryAccessRequest -Method "GET" `
       -Uri "$temporaryAccessApi/jit-access" -AccessToken $temporaryAccessToken
     if ($temporaryAccessState.state -ne "disabled") {
+      if ([string]$temporaryAccessState.state -eq "enabled") {
+        $temporaryAccessStateResult = "enabled"
+      } else {
+        $temporaryAccessStateResult = "unexpected"
+      }
       throw "temporary_access_not_disabled"
     }
     $preflightStage = "enable_temporary_access"
@@ -322,6 +346,13 @@ try {
 } catch {
   Write-Output "diagnostic: preflight_stage_failed"
   Write-Output "preflight_stage: $preflightStage"
+  if ($preflightStage -eq "inspect_temporary_access_state") {
+    if ($null -ne $temporaryAccessApiResult) {
+      Write-Output "temporary_access_api_result: $temporaryAccessApiResult"
+    } elseif ($null -ne $temporaryAccessStateResult) {
+      Write-Output "temporary_access_state: $temporaryAccessStateResult"
+    }
+  }
   Write-Output "exception_type: $($_.Exception.GetType().FullName)"
   exit 1
 } finally {
