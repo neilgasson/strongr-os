@@ -358,12 +358,19 @@ function runPsql(
     throw new DatabaseCommandFailure(
       databaseCommandDiagnostic({
         command,
+        exitStatus: completed.status,
         lifecycleStep,
-        stderr: `${completed.stderr ?? ""}\n${completed.error?.message ?? ""}`,
+        processErrorCode: processErrorCode(completed.error),
+        stderr: `${completed.stderr ?? ""}\n${completed.stdout ?? ""}`,
       }),
     );
   }
   return completed.stdout.trim();
+}
+
+function processErrorCode(error: Error | undefined): string | null {
+  if (!error || !("code" in error) || typeof error.code !== "string") return null;
+  return error.code;
 }
 
 async function createUser(

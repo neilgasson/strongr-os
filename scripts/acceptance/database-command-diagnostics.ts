@@ -9,7 +9,9 @@ export interface DatabaseCommandDiagnostic {
 
 interface DatabaseCommandDiagnosticInput {
   readonly command: string;
+  readonly exitStatus?: number | null;
   readonly lifecycleStep: string;
+  readonly processErrorCode?: string | null;
   readonly stderr: string;
 }
 
@@ -28,8 +30,14 @@ function postgresCode(stderr: string): string | null {
   );
 }
 
-function fallbackMessage(stderr: string): string | null {
-  return /^\s*psql:\s*(?:error:\s*)?(.*)$/im.exec(stderr)?.[1]?.trim() || null;
+function fallbackMessage(input: DatabaseCommandDiagnosticInput): string {
+  const psqlMessage = /^\s*psql:\s*(?:error:\s*)?(.*)$/im.exec(input.stderr)?.[1]?.trim();
+  if (psqlMessage) return psqlMessage;
+  if (input.processErrorCode) return `psql client could not start (${input.processErrorCode})`;
+  if (input.exitStatus !== undefined && input.exitStatus !== null) {
+    return `psql exited with status ${input.exitStatus} without a PostgreSQL diagnostic`;
+  }
+  return "psql client failed before a PostgreSQL diagnostic was available";
 }
 
 export function sanitizeDatabaseDiagnostic(value: string | null): string | null {
@@ -59,7 +67,7 @@ export function databaseCommandDiagnostic(
   input: DatabaseCommandDiagnosticInput,
 ): DatabaseCommandDiagnostic {
   const error = firstField(input.stderr, "ERROR");
-  const message = error?.replace(/^[0-9A-Z]{5}:\s*/i, "") ?? fallbackMessage(input.stderr);
+  const message = error?.replace(/^[0-9A-Z]{5}:\s*/i, "") ?? fallbackMessage(input);
   return Object.freeze({
     command: input.command,
     detail: sanitizeDatabaseDiagnostic(firstField(input.stderr, "DETAIL")),

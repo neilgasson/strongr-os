@@ -56,3 +56,28 @@ test("database command diagnostics redact quoted values and identifiers", () => 
   assert.equal(value, "invalid input [redacted-value] for identifier [redacted-identifier]");
   assert.doesNotMatch(value ?? "", /Neil Gasson|6bb80ed0/);
 });
+
+test("database command diagnostics identify a missing psql client without exposing process output", () => {
+  const diagnostic = databaseCommandDiagnostic({
+    command: "migration_history_count",
+    exitStatus: null,
+    lifecycleStep: "v2_forward_fix_migration_recorded_once",
+    processErrorCode: "ENOENT",
+    stderr: "",
+  });
+
+  assert.equal(diagnostic.message, "psql client could not start (ENOENT)");
+  assert.equal(diagnostic.postgresCode, null);
+});
+
+test("database command diagnostics distinguish a silent psql exit", () => {
+  const diagnostic = databaseCommandDiagnostic({
+    command: "migration_history_count",
+    exitStatus: 1,
+    lifecycleStep: "v2_forward_fix_migration_recorded_once",
+    stderr: "",
+  });
+
+  assert.equal(diagnostic.message, "psql exited with status 1 without a PostgreSQL diagnostic");
+  assert.equal(diagnostic.postgresCode, null);
+});
