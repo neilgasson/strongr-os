@@ -5,6 +5,10 @@ import { createHmac, randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import {
+  databaseCommandDiagnostic,
+  type DatabaseCommandDiagnostic,
+} from "./database-command-diagnostics.ts";
 import { createStrongrDailyApprovedExport } from "../../apps/studio/src/strongr-daily-export.ts";
 import {
   AutomatedReviewCheckRunner,
@@ -97,6 +101,16 @@ class AcceptanceHttpFailure extends Error {
     this.name = "AcceptanceHttpFailure";
     this.databaseCode = databaseCode;
     this.status = status;
+  }
+}
+
+class DatabaseCommandFailure extends AcceptanceFailure {
+  readonly diagnostic: DatabaseCommandDiagnostic;
+
+  constructor(diagnostic: DatabaseCommandDiagnostic) {
+    super("database_command_failed");
+    this.name = "DatabaseCommandFailure";
+    this.diagnostic = diagnostic;
   }
 }
 
@@ -317,13 +331,38 @@ async function stateDenied(action: () => Promise<unknown>): Promise<boolean> {
   return false;
 }
 
-function runPsql(config: AcceptanceConfig, sql: string): string {
-  const completed = spawnSync("psql", [config.databaseUrl, "-X", "-qAt", "-v", "ON_ERROR_STOP=1"], {
-    encoding: "utf8",
-    input: sql,
-    maxBuffer: 4 * 1024 * 1024,
-  });
-  if (completed.status !== 0) throw new AcceptanceFailure("database_command_failed");
+function runPsql(
+  config: AcceptanceConfig,
+  lifecycleStep: string,
+  command: string,
+  sql: string,
+): string {
+  const completed = spawnSync(
+    "psql",
+    [
+      config.databaseUrl,
+      "-X",
+      "-qAt",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-v",
+      "VERBOSITY=verbose",
+    ],
+    {
+      encoding: "utf8",
+      input: sql,
+      maxBuffer: 4 * 1024 * 1024,
+    },
+  );
+  if (completed.status !== 0) {
+    throw new DatabaseCommandFailure(
+      databaseCommandDiagnostic({
+        command,
+        lifecycleStep,
+        stderr: `${completed.stderr ?? ""}\n${completed.error?.message ?? ""}`,
+      }),
+    );
+  }
   return completed.stdout.trim();
 }
 
@@ -441,6 +480,8 @@ async function promoteToAal2(
 function seedDatabase(config: AcceptanceConfig, fixture: Fixture): void {
   runPsql(
     config,
+    "v2_fixture_database_seed",
+    "fixture_database_seed",
     `
 begin;
 insert into public.organizations (id, name, slug) values
@@ -477,6 +518,8 @@ commit;
 function cleanupDatabase(config: AcceptanceConfig, fixture: Fixture): void {
   runPsql(
     config,
+    "v2_fixture_database_cleanup",
+    "fixture_database_cleanup",
     `
 select set_config(
   'strongr_daily_v2_acceptance.org_ids',
@@ -816,6 +859,8 @@ async function runAcceptance(config: AcceptanceConfig): Promise<void> {
   try {
     const migrationCount = runPsql(
       config,
+      "v2_forward_fix_migration_recorded_once",
+      "migration_history_count",
       `
 select count(*)
 from supabase_migrations.schema_migrations
@@ -826,6 +871,8 @@ where version = '20260728100000';
 
     const readyOutbox = runPsql(
       config,
+      "v2_preflight_disposable_queue_is_clean",
+      "generation_outbox_preflight",
       `
 select count(*)
 from public.outbox_events
@@ -1089,6 +1136,8 @@ where event_type = 'content.generation_requested.v1'
       workerApprovalDenied &&
         runPsql(
           config,
+          "v2_ai_and_service_worker_cannot_approve",
+          "service_role_approval_execute_check",
           `
 select has_function_privilege(
   'service_role',
@@ -1437,6 +1486,8 @@ select has_function_privilege(
 
     const publishFunctionCount = runPsql(
       config,
+      "v2_no_publishing_route_exists_or_is_called",
+      "publishing_function_inventory",
       `
 select count(*)
 from pg_proc p
@@ -1478,14 +1529,18 @@ where n.nspname = 'public'
       try {
         cleanupDatabase(config, fixture);
         databaseCleanupPassed = true;
-      } catch {
+      } catch (error) {
         databaseCleanupPassed = false;
+        if (error instanceof DatabaseCommandFailure) {
+          evidence.push(databaseFailureEvidence("v2_fixture_database_cleanup", error));
+        }
       }
     }
-    evidence.push({
-      status: databaseCleanupPassed ? "pass" : "fail",
-      test: "v2_fixture_database_cleanup",
-    });
+    if (databaseCleanupPassed) {
+      evidence.push({ status: "pass", test: "v2_fixture_database_cleanup" });
+    } else if (!evidence.some((record) => record.test === "v2_fixture_database_cleanup")) {
+      evidence.push({ status: "fail", test: "v2_fixture_database_cleanup" });
+    }
 
     let authCleanupPassed = true;
     for (const userId of createdUsers.reverse()) {
@@ -1531,6 +1586,23 @@ function writeArtifact(artifactPath: string, target: string, fatalCode: string |
   process.exitCode = artifact.status === "pass" ? 0 : 1;
 }
 
+function databaseFailureEvidence(
+  test: string,
+  error: DatabaseCommandFailure,
+): EvidenceRecord {
+  return {
+    database_command: error.diagnostic.command,
+    database_detail: error.diagnostic.detail,
+    database_hint: error.diagnostic.hint,
+    database_message: error.diagnostic.message,
+    error_code: error.code,
+    lifecycle_step: error.diagnostic.lifecycleStep,
+    postgres_code: error.diagnostic.postgresCode,
+    status: "fail",
+    test,
+  };
+}
+
 async function main(): Promise<void> {
   let artifactPath = resolve("artifacts/acceptance/strongr-daily-v2.json");
   let fatalCode: string | null = null;
@@ -1549,11 +1621,15 @@ async function main(): Promise<void> {
           : error instanceof SupabaseRpcError
             ? `rpc_${error.rpcName}_${error.databaseCode ?? error.status}`
             : "unexpected_acceptance_failure";
-    evidence.push({
-      error_code: fatalCode,
-      status: "fail",
-      test: "strongr_daily_v2_supabase_acceptance",
-    });
+    evidence.push(
+      error instanceof DatabaseCommandFailure
+        ? databaseFailureEvidence("strongr_daily_v2_supabase_acceptance", error)
+        : {
+            error_code: fatalCode,
+            status: "fail",
+            test: "strongr_daily_v2_supabase_acceptance",
+          },
+    );
   }
   writeArtifact(artifactPath, target, fatalCode);
 }
