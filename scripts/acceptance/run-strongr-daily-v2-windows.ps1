@@ -63,7 +63,7 @@ function Test-LegacyServiceRoleKey {
 function Test-SessionPoolerDatabaseUrl {
   param(
     [Parameter(Mandatory = $true)][string]$Value,
-    [Parameter(Mandatory = $true)][string]$Host,
+    [Parameter(Mandatory = $true)][string]$ExpectedPoolerHost,
     [Parameter(Mandatory = $true)][int]$Port,
     [Parameter(Mandatory = $true)][string]$Database,
     [Parameter(Mandatory = $true)][string]$Username
@@ -71,7 +71,7 @@ function Test-SessionPoolerDatabaseUrl {
 
   try {
     $uri = [Uri]$Value
-    if ($uri.Scheme -ne "postgresql" -or $uri.Host -ne $Host -or $uri.Port -ne $Port -or
+    if ($uri.Scheme -ne "postgresql" -or $uri.Host -ne $ExpectedPoolerHost -or $uri.Port -ne $Port -or
         $uri.AbsolutePath.TrimStart('/') -ne $Database) {
       return $false
     }
@@ -160,7 +160,7 @@ try {
   $preflightStage = "validate_database_url"
   if (-not (Test-SessionPoolerDatabaseUrl `
       -Value $databaseUrl `
-      -Host $disposablePoolerHost `
+      -ExpectedPoolerHost $disposablePoolerHost `
       -Port $disposablePoolerPort `
       -Database $disposableDatabase `
       -Username $disposablePoolerUsername)) {

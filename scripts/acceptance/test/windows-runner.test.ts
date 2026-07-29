@@ -32,6 +32,13 @@ test("Windows Strongr Daily v2 runner validates the disposable Session Pooler an
   assert.match(runner, /Write-SanitizedArtifactDiagnostic/);
 });
 
+test("Windows Strongr Daily v2 runner avoids the protected Windows PowerShell Host variable", () => {
+  assert.match(runner, /\[string\]\$ExpectedPoolerHost/);
+  assert.match(runner, /-ExpectedPoolerHost \$disposablePoolerHost/);
+  assert.doesNotMatch(runner, /\[string\]\$Host/);
+  assert.doesNotMatch(runner, /-Host \$disposablePoolerHost/);
+});
+
 test("Windows Strongr Daily v2 runner preserves every safe preflight stage in failure output", () => {
   for (const stage of [
     "resolve_repository_root",
