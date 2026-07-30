@@ -268,7 +268,7 @@ select lives_ok(
     from public.m1_create_audio_brief(
       '10000000-0000-4000-8000-000000000001',
       'M0.2 governed path',
-      '{"purpose":"reliability acceptance","scripture":"Psalm 46:10"}'::jsonb,
+      '{"purpose":"reliability acceptance","schema_id":"strongr.audio_reflection_brief.v1","scripture":"Psalm 46:10"}'::jsonb,
       '10000000-0000-4000-8000-000000000104'
     )
   $sql$,
