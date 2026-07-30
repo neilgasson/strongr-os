@@ -68,9 +68,14 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.STRONGR_DAILY_V2_SUPABASE_SECRET_KEY }}
           DISPOSABLE_DATABASE_PASSWORD: ${{ secrets.STRONGR_DAILY_V2_DATABASE_PASSWORD }}
         run: |
+          declare -A secret_names=(
+            [SUPABASE_PUBLISHABLE_KEY]=STRONGR_DAILY_V2_SUPABASE_PUBLISHABLE_KEY
+            [SUPABASE_SECRET_KEY]=STRONGR_DAILY_V2_SUPABASE_SECRET_KEY
+            [DISPOSABLE_DATABASE_PASSWORD]=STRONGR_DAILY_V2_DATABASE_PASSWORD
+          )
           for name in SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY DISPOSABLE_DATABASE_PASSWORD; do
             if [[ -z "${!name:-}" ]]; then
-              echo "::error::$name is missing from the strongr-os-disposable environment"
+              echo "::error::${secret_names[$name]} is missing from the strongr-os-disposable environment"
               exit 1
             fi
           done
