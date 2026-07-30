@@ -28,7 +28,7 @@ function requireValue(
 ): string {
   const value = source[name]?.trim();
   if (!value) {
-    throw new Error("Missing worker environment value: " + String(name));
+    throw new Error(`Missing worker environment value: ${String(name)}`);
   }
   return value;
 }
@@ -96,7 +96,8 @@ function resolvePrivilegedKey(
 
 function rejectPublicPrivilegedNames(source: WorkerEnvironmentSource): void {
   const exposed = Object.keys(source).filter(
-    (name) => name.startsWith("PUBLIC_") && /(?:SECRET|SERVICE_ROLE|DATABASE_URL|OPENAI)/.test(name),
+    (name) =>
+      name.startsWith("PUBLIC_") && /(?:SECRET|SERVICE_ROLE|DATABASE_URL|OPENAI)/.test(name),
   );
   if (exposed.length > 0) {
     throw new Error("Privileged worker values cannot use public environment names");
