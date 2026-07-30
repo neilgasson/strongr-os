@@ -1433,24 +1433,23 @@ function AuthorityActions({
         {existingPackage ? (
           <>
             <p className="status-copy">
-            Package already exists: {existingPackage.id} · {shortHash(existingPackage.manifestHash)}
-            .
+              Package already exists: {existingPackage.id} · {shortHash(existingPackage.manifestHash)}.
             </p>
             <button
-            className="secondary-button"
-            onClick={() => {
-              try {
-                downloadStrongrDailyPackage(existingPackage);
-                announce(
-                  "Approved Strongr Daily JSON and Markdown package downloaded. No publishing occurred.",
-                );
-              } catch (error) {
-                reportWorkflowFailure(error, "The approved Strongr Daily package was not downloaded");
-              }
-            }}
-            type="button"
-          >
-            Download approved JSON and Markdown
+              className="secondary-button"
+              onClick={() => {
+                try {
+                  downloadStrongrDailyPackage(existingPackage);
+                  announce(
+                    "Approved Strongr Daily JSON and Markdown package downloaded. No publishing occurred.",
+                  );
+                } catch (error) {
+                  reportWorkflowFailure(error, "The approved Strongr Daily package was not downloaded");
+                }
+              }}
+              type="button"
+            >
+              Download approved JSON and Markdown
             </button>
           </>
         ) : null}
