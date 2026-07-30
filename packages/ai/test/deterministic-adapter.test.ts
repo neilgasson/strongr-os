@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { StrongrDailyAudioReflectionV2Brief } from "../../content-schemas/src/index.ts";
 import {
   createOpenAiStrongrDailyV2Adapter,
   createStrongrDailyV2FixtureOutput,
@@ -10,25 +11,27 @@ import {
 } from "../src/index.ts";
 import { createGenerationRequestFixture, fixtureIds } from "../../testing/src/index.ts";
 
-const strongrDailyV2Request: GenerationRequest = Object.freeze({
-  brief: {
-    audience: "Christian adults seeking a grounded daily reflection",
-    content_type: "audio_reflection",
-    desired_duration_seconds: 300,
-    pastoral_purpose: "Offer a faithful next step rooted in Scripture.",
-    prohibited_claims_or_wording: ["guaranteed outcome"],
-    required_elements: ["welcome", "Scripture", "prayer", "takeaway"],
-    schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
-    scripture_reference: {
-      reference: "Psalm 46:10",
-      source_citation: "Psalm 46:10",
-      translation: "NIV",
-    },
-    source_brief_identifier: "phase-3-provider-fixture",
-    theme: "quiet trust",
-    tone: "pastoral",
-    working_title: "Quiet Trust",
+const strongrDailyV2Brief: StrongrDailyAudioReflectionV2Brief = Object.freeze({
+  audience: "Christian adults seeking a grounded daily reflection",
+  content_type: "audio_reflection",
+  desired_duration_seconds: 300,
+  pastoral_purpose: "Offer a faithful next step rooted in Scripture.",
+  prohibited_claims_or_wording: ["guaranteed outcome"],
+  required_elements: ["welcome", "Scripture", "prayer", "takeaway"],
+  schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
+  scripture_reference: {
+    reference: "Psalm 46:10",
+    source_citation: "Psalm 46:10",
+    translation: "NIV",
   },
+  source_brief_identifier: "phase-3-provider-fixture",
+  theme: "quiet trust",
+  tone: "pastoral",
+  working_title: "Quiet Trust",
+});
+
+const strongrDailyV2Request: GenerationRequest = Object.freeze({
+  brief: strongrDailyV2Brief,
   correlationId: fixtureIds.correlationId,
   generationJobId: fixtureIds.generationJobId,
   organizationId: fixtureIds.organizationAlphaId,
@@ -78,7 +81,7 @@ test("deterministic generation covers every Strongr Daily v2 field as a draft", 
 });
 
 test("OpenAI provider requests strict v2 JSON and preserves only safe usage evidence", async () => {
-  const fixture = createStrongrDailyV2FixtureOutput(strongrDailyV2Request.brief);
+  const fixture = createStrongrDailyV2FixtureOutput(strongrDailyV2Brief);
   const { content_hash: _contentHash, ...providerOutput } = fixture;
   const calls: Array<{ body: string; headers: Readonly<Record<string, string>> }> = [];
   const apiKey = "sk_phase3_provider_fixture_1234567890";
