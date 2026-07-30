@@ -296,3 +296,56 @@ test("tampered adapter output provenance fails before draft persistence", async 
   assert.deepEqual(calls, ["claim", "begin", "fail-generation", "fail-outbox", "heartbeat"]);
   assert.ok(!calls.includes("complete"));
 });
+
+
+test("durable worker creates a v2 generated draft without bypassing review", async () => {
+  let completedSchemaId: string | null = null;
+  const v2Brief = {
+    audience: "Christian adults seeking a grounded daily reflection",
+    content_type: "audio_reflection",
+    desired_duration_seconds: 300,
+    pastoral_purpose: "Offer a faithful next step rooted in Scripture.",
+    prohibited_claims_or_wording: ["guaranteed outcome"],
+    required_elements: ["welcome", "Scripture", "prayer", "takeaway"],
+    schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
+    scripture_reference: {
+      reference: "Psalm 46:10",
+      source_citation: "Psalm 46:10",
+      translation: "NIV",
+    },
+    source_brief_identifier: "worker-v2-fixture",
+    theme: "quiet trust",
+    tone: "pastoral",
+    working_title: "Quiet Trust",
+  };
+  const { calls, store } = createStore({
+    beginGenerationAttempt() {
+      calls.push("begin");
+      return Promise.resolve({
+        ...readyAttempt,
+        brief: v2Brief,
+        promptChecksum: createGenerationPromptChecksum("strongr.daily.v2", 1),
+        promptKey: "strongr.daily.v2",
+      });
+    },
+    completeGenerationAttempt(_claim, _workerId, _attemptId, result) {
+      calls.push("complete");
+      completedSchemaId = result.responseSchemaId;
+      return Promise.resolve({
+        completionState: "succeeded" as const,
+        contentVersionId,
+      });
+    },
+  });
+  const worker = new DurableGenerationWorker({
+    adapter: deterministicGenerationAdapter,
+    store,
+    workerId: "m1-worker-v2-draft",
+  });
+
+  const summary = await worker.runOnce();
+
+  assert.equal(summary.succeeded, 1);
+  assert.equal(completedSchemaId, "strongr.strongr_daily_audio_reflection.v2");
+  assert.deepEqual(calls, ["claim", "begin", "complete", "acknowledge", "heartbeat"]);
+});
