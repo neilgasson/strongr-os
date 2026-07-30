@@ -6,7 +6,11 @@ import {
   deterministicGenerationAdapter,
   type GenerationAdapter,
 } from "../../../packages/ai/src/index.ts";
-import { audioReflectionBriefFixture, fixtureIds } from "../../../packages/testing/src/index.ts";
+import {
+  audioReflectionBriefFixture,
+  fixtureIds,
+  strongrDailyAudioReflectionV2BriefFixture,
+} from "../../../packages/testing/src/index.ts";
 import {
   DurableGenerationWorker,
   type GenerationAttemptLease,
@@ -295,4 +299,35 @@ test("tampered adapter output provenance fails before draft persistence", async 
   assert.equal(summary.retried, 1);
   assert.deepEqual(calls, ["claim", "begin", "fail-generation", "fail-outbox", "heartbeat"]);
   assert.ok(!calls.includes("complete"));
+});
+
+test("durable worker creates a v2 generated draft without bypassing review", async () => {
+  let completedSchemaId: string | null = null;
+  const { calls, store } = createStore({
+    beginGenerationAttempt() {
+      calls.push("begin");
+      return Promise.resolve({
+        ...readyAttempt,
+        brief: strongrDailyAudioReflectionV2BriefFixture,
+        promptChecksum: createGenerationPromptChecksum("strongr.daily.v2", 1),
+        promptKey: "strongr.daily.v2",
+      });
+    },
+    completeGenerationAttempt(_claim, _workerId, _attemptId, result) {
+      calls.push("complete");
+      completedSchemaId = result.responseSchemaId;
+      return Promise.resolve({ completionState: "succeeded" as const, contentVersionId });
+    },
+  });
+  const worker = new DurableGenerationWorker({
+    adapter: deterministicGenerationAdapter,
+    store,
+    workerId: "m1-worker-v2-draft",
+  });
+
+  const summary = await worker.runOnce();
+
+  assert.equal(summary.succeeded, 1);
+  assert.equal(completedSchemaId, "strongr.strongr_daily_audio_reflection.v2");
+  assert.deepEqual(calls, ["claim", "begin", "complete", "acknowledge", "heartbeat"]);
 });
