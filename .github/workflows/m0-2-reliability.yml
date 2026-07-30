@@ -46,7 +46,7 @@ jobs:
       - name: Start isolated Supabase
         run: |
           mkdir -p artifacts/m0-2
-          npx --yes supabase@2.109.1 start 2>&1 \
+          npx --yes supabase@2.109.1 start --exclude mailpit 2>&1 \
             | tee artifacts/m0-2/supabase-start.log
 
       - name: Apply migrations from zero
