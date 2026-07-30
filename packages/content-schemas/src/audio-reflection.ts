@@ -79,11 +79,17 @@ export const strongrDailyAudioReflectionV2BriefSchema = Type.Object(
     source_brief_identifier: text(160),
     theme: text(500),
     tone: Type.Union([
-      Type.Literal("challenging"), Type.Literal("encouraging"), Type.Literal("pastoral"), Type.Literal("reflective"),
+      Type.Literal("challenging"),
+      Type.Literal("encouraging"),
+      Type.Literal("pastoral"),
+      Type.Literal("reflective"),
     ]),
     working_title: text(200),
   },
-  { $id: "https://strongr.os/schemas/strongr.strongr_daily_audio_reflection_brief.v2.json", additionalProperties: false },
+  {
+    $id: "https://strongr.os/schemas/strongr.strongr_daily_audio_reflection_brief.v2.json",
+    additionalProperties: false,
+  },
 );
 
 export const strongrDailyAudioReflectionV2Schema = Type.Object(
@@ -112,20 +118,32 @@ export const strongrDailyAudioReflectionV2Schema = Type.Object(
     soft_music_fade_instruction: Type.Optional(text(500)),
     social_caption: text(1_000),
     source_brief_identifier: text(160),
-    tone: Type.Union([Type.Literal("challenging"), Type.Literal("encouraging"), Type.Literal("pastoral"), Type.Literal("reflective")]),
+    tone: Type.Union([
+      Type.Literal("challenging"),
+      Type.Literal("encouraging"),
+      Type.Literal("pastoral"),
+      Type.Literal("reflective"),
+    ]),
     warm_welcome: text(4_000),
   },
-  { $id: "https://strongr.os/schemas/strongr.strongr_daily_audio_reflection.v2.json", additionalProperties: false },
+  {
+    $id: "https://strongr.os/schemas/strongr.strongr_daily_audio_reflection.v2.json",
+    additionalProperties: false,
+  },
 );
 
 export type AudioReflectionBrief = Type.Static<typeof audioReflectionBriefSchema>;
 export type AudioReflection = Type.Static<typeof audioReflectionSchema>;
-export type StrongrDailyAudioReflectionV2Brief = Type.Static<typeof strongrDailyAudioReflectionV2BriefSchema>;
+export type StrongrDailyAudioReflectionV2Brief = Type.Static<
+  typeof strongrDailyAudioReflectionV2BriefSchema
+>;
 export type StrongrDailyAudioReflectionV2 = Type.Static<typeof strongrDailyAudioReflectionV2Schema>;
 
 const audioReflectionBriefValidator = Schema.Compile(audioReflectionBriefSchema);
 const audioReflectionValidator = Schema.Compile(audioReflectionSchema);
-const strongrDailyAudioReflectionV2BriefValidator = Schema.Compile(strongrDailyAudioReflectionV2BriefSchema);
+const strongrDailyAudioReflectionV2BriefValidator = Schema.Compile(
+  strongrDailyAudioReflectionV2BriefSchema,
+);
 const strongrDailyAudioReflectionV2Validator = Schema.Compile(strongrDailyAudioReflectionV2Schema);
 
 export function parseAudioReflectionBrief(value: unknown): AudioReflectionBrief {
@@ -136,7 +154,9 @@ export function parseAudioReflection(value: unknown): AudioReflection {
   return audioReflectionValidator.Parse(value);
 }
 
-export function parseStrongrDailyAudioReflectionV2Brief(value: unknown): StrongrDailyAudioReflectionV2Brief {
+export function parseStrongrDailyAudioReflectionV2Brief(
+  value: unknown,
+): StrongrDailyAudioReflectionV2Brief {
   return strongrDailyAudioReflectionV2BriefValidator.Parse(value);
 }
 
