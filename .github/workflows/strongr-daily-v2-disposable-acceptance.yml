@@ -2,6 +2,15 @@ name: Strongr Daily v2 disposable acceptance
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - agent/verify-strongr-daily-owner-slice
+    paths:
+      - ".github/workflows/strongr-daily-v2-disposable-acceptance.yml"
+      - "scripts/acceptance/**"
+      - "supabase/migrations/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
 
 permissions:
   contents: read
