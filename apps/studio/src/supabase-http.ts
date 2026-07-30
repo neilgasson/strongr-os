@@ -728,9 +728,13 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
         const row = requireRecord(value, "content version");
         const source = requireString(row, "source");
         const state = requireString(row, "state");
+        const schemaId = requireString(row, "schema_id");
         if (
           requireUuid(row, "organization_id") !== organizationId ||
-          requireString(row, "schema_id") !== "strongr.audio_reflection.v1" ||
+          ![
+            "strongr.audio_reflection.v1",
+            "strongr.strongr_daily_audio_reflection.v2",
+          ].includes(schemaId) ||
           !allowedSources.includes(source as ContentVersionSource) ||
           !allowedStates.includes(state as ContentVersionState)
         ) {
@@ -744,7 +748,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
           organizationId,
           payload: requireJsonValue(row.payload, "payload"),
           payloadHash: requireHash(row, "payload_hash"),
-          schemaId: "strongr.audio_reflection.v1" as const,
+          schemaId: schemaId as TenantContentVersionSummary["schemaId"],
           source: source as ContentVersionSource,
           sourceJobId: requireNullableUuid(row, "source_job_id"),
           state: state as ContentVersionState,
