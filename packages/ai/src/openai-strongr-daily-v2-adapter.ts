@@ -192,7 +192,8 @@ export function createOpenAiStrongrDailyV2Adapter(
 ): GenerationAdapter {
   const apiKey = requireApiKey(options.apiKey);
   const model = requireModel(options.model);
-  const fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const fetch: OpenAiFetch =
+    options.fetch ?? ((input, init) => globalThis.fetch(input, init));
 
   return Object.freeze({
     identity: Object.freeze({ model, provider }),
@@ -255,6 +256,7 @@ export function createOpenAiStrongrDailyV2Adapter(
         throw new GenerationProviderError("generation.provider_invalid_response");
       }
 
+      const usage = requireUsage(body.usage);
       const result: GenerationResult = {
         model,
         output,
@@ -263,7 +265,7 @@ export function createOpenAiStrongrDailyV2Adapter(
         provider,
         providerResponseId: requireSafeProviderId(body.id),
         responseSchemaId: strongrDailyAudioReflectionV2SchemaId,
-        ...(requireUsage(body.usage) ? { usage: requireUsage(body.usage) } : {}),
+        ...(usage ? { usage } : {}),
       };
       return Object.freeze(result);
     },
