@@ -123,25 +123,23 @@ function requireSafeProviderId(value: unknown): string {
 	return value;
 }
 
+function requireUsageCounter(value: unknown): number {
+	if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+		throw new GenerationProviderError("generation.provider_invalid_response");
+	}
+	return value;
+}
+
 function requireUsage(value: unknown): GenerationUsage | undefined {
 	if (value === undefined) {
 		return undefined;
 	}
 	const usage = requireRecord(value);
-	const inputTokens = usage.input_tokens;
-	const outputTokens = usage.output_tokens;
-	const totalTokens = usage.total_tokens;
-	if (
-		!Number.isInteger(inputTokens) ||
-		!Number.isInteger(outputTokens) ||
-		!Number.isInteger(totalTokens) ||
-		inputTokens < 0 ||
-		outputTokens < 0 ||
-		totalTokens < 0
-	) {
-		throw new GenerationProviderError("generation.provider_invalid_response");
-	}
-	return Object.freeze({ inputTokens, outputTokens, totalTokens });
+	return Object.freeze({
+		inputTokens: requireUsageCounter(usage.input_tokens),
+		outputTokens: requireUsageCounter(usage.output_tokens),
+		totalTokens: requireUsageCounter(usage.total_tokens),
+	});
 }
 
 function requireOutputText(response: UnknownRecord): string {
