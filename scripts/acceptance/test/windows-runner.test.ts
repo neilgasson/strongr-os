@@ -42,32 +42,30 @@ test("Windows Strongr Daily v2 runner avoids the protected Windows PowerShell Ho
   assert.doesNotMatch(runner, /-Host \$disposablePoolerHost/);
 });
 
-test(
-  "Windows PowerShell 5.1 can execute the Session Pooler validator without writing $Host",
-  { skip: process.platform !== "win32" },
-  () => {
-    const runnerPath = resolve(import.meta.dirname, "..", "run-strongr-daily-v2-windows.ps1");
-    const command = [
-      "$ErrorActionPreference='Stop'",
-      `$source=[IO.File]::ReadAllText('${runnerPath.replaceAll("'", "''")}')`,
-      "$start=$source.IndexOf('function Test-SessionPoolerDatabaseUrl')",
-      "$end=$source.IndexOf('function Test-DatabasePasswordAuthenticationFailure')",
-      "Invoke-Expression $source.Substring($start, $end-$start)",
-      "$valid=Test-SessionPoolerDatabaseUrl -Value 'postgresql://postgres.guovsmbtxuowyyqamaex:encoded@aws-0-ca-central-1.pooler.supabase.com:5432/postgres' -ExpectedPoolerHost 'aws-0-ca-central-1.pooler.supabase.com' -Port 5432 -Database 'postgres' -Username 'postgres.guovsmbtxuowyyqamaex'",
-      "if (-not $valid) { exit 1 }",
-    ].join("; ");
+test("Windows PowerShell 5.1 can execute the Session Pooler validator without writing $Host", {
+  skip: process.platform !== "win32",
+}, () => {
+  const runnerPath = resolve(import.meta.dirname, "..", "run-strongr-daily-v2-windows.ps1");
+  const command = [
+    "$ErrorActionPreference='Stop'",
+    `$source=[IO.File]::ReadAllText('${runnerPath.replaceAll("'", "''")}')`,
+    "$start=$source.IndexOf('function Test-SessionPoolerDatabaseUrl')",
+    "$end=$source.IndexOf('function Test-DatabasePasswordAuthenticationFailure')",
+    "Invoke-Expression $source.Substring($start, $end-$start)",
+    "$valid=Test-SessionPoolerDatabaseUrl -Value 'postgresql://postgres.guovsmbtxuowyyqamaex:encoded@aws-0-ca-central-1.pooler.supabase.com:5432/postgres' -ExpectedPoolerHost 'aws-0-ca-central-1.pooler.supabase.com' -Port 5432 -Database 'postgres' -Username 'postgres.guovsmbtxuowyyqamaex'",
+    "if (-not $valid) { exit 1 }",
+  ].join("; ");
 
-    const result = spawnSync(
-      "powershell.exe",
-      ["-NoProfile", "-NonInteractive", "-Command", command],
-      {
-        encoding: "utf8",
-      },
-    );
+  const result = spawnSync(
+    "powershell.exe",
+    ["-NoProfile", "-NonInteractive", "-Command", command],
+    {
+      encoding: "utf8",
+    },
+  );
 
-    assert.equal(result.status, 0, result.stderr);
-  },
-);
+  assert.equal(result.status, 0, result.stderr);
+});
 
 test("Windows Strongr Daily v2 runner preserves every safe preflight stage in failure output", () => {
   for (const stage of [
@@ -107,27 +105,25 @@ test("Windows Strongr Daily v2 runner captures native harness stderr without a P
   assert.match(runner, /\$ErrorActionPreference = \$acceptanceErrorActionPreference/);
 });
 
-test(
-  "Windows Strongr Daily v2 runner constructs a percent-encoded Session Pooler URL",
-  { skip: process.platform !== "win32" },
-  () => {
-    const result = spawnSync(
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-Command",
-        "$password=[Uri]::EscapeDataString('p@ss word:/?'); \"postgresql://postgres.guovsmbtxuowyyqamaex:$password@aws-0-ca-central-1.pooler.supabase.com:5432/postgres\"",
-      ],
-      { encoding: "utf8" },
-    );
+test("Windows Strongr Daily v2 runner constructs a percent-encoded Session Pooler URL", {
+  skip: process.platform !== "win32",
+}, () => {
+  const result = spawnSync(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-Command",
+      "$password=[Uri]::EscapeDataString('p@ss word:/?'); \"postgresql://postgres.guovsmbtxuowyyqamaex:$password@aws-0-ca-central-1.pooler.supabase.com:5432/postgres\"",
+    ],
+    { encoding: "utf8" },
+  );
 
-    assert.equal(result.status, 0);
-    assert.equal(
-      result.stdout.trim(),
-      "postgresql://postgres.guovsmbtxuowyyqamaex:p%40ss%20word%3A%2F%3F@aws-0-ca-central-1.pooler.supabase.com:5432/postgres",
-    );
-  },
-);
+  assert.equal(result.status, 0);
+  assert.equal(
+    result.stdout.trim(),
+    "postgresql://postgres.guovsmbtxuowyyqamaex:p%40ss%20word%3A%2F%3F@aws-0-ca-central-1.pooler.supabase.com:5432/postgres",
+  );
+});
 
 test("Windows Strongr Daily v2 runner emits only the safe password-authentication diagnostic", () => {
   assert.match(runner, /Test-DatabasePasswordAuthenticationFailure/);
