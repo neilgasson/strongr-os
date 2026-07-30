@@ -9,6 +9,7 @@ import {
   databaseCommandDiagnostic,
   type DatabaseCommandDiagnostic,
 } from "./database-command-diagnostics.ts";
+import { deepEqualJson } from "./json-equality.ts";
 import { createStrongrDailyApprovedExport } from "../../apps/studio/src/strongr-daily-export.ts";
 import {
   AutomatedReviewCheckRunner,
@@ -221,10 +222,6 @@ function safeDatabaseCode(value: unknown): string | null {
     return value.code;
   }
   return null;
-}
-
-function deepEqualJson(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function serviceHeaders(config: AcceptanceConfig, body: boolean): Record<string, string> {
