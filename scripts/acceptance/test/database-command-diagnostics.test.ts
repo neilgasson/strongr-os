@@ -24,7 +24,10 @@ test("database command diagnostics retain only redacted PostgreSQL fields", () =
     message: "migration state is invalid for [redacted-email]",
     postgresCode: "55000",
   });
-  assert.doesNotMatch(JSON.stringify(diagnostic), /super-secret|db-password|db\.example\.test|eyJhbGci/i);
+  assert.doesNotMatch(
+    JSON.stringify(diagnostic),
+    /super-secret|db-password|db\.example\.test|eyJhbGci/i,
+  );
 });
 
 test("database command diagnostics redact structured payloads and API keys", () => {
