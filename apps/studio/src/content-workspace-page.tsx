@@ -1433,8 +1433,8 @@ function AuthorityActions({
         {existingPackage ? (
           <>
             <p className="status-copy">
-              Package already exists: {existingPackage.id} {" "}
-              {shortHash(existingPackage.manifestHash)}.
+              Package already exists: {existingPackage.id} {shortHash(existingPackage.manifestHash)}
+              .
             </p>
             <button
               className="secondary-button"
