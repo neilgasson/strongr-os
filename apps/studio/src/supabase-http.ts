@@ -731,10 +731,9 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
         const schemaId = requireString(row, "schema_id");
         if (
           requireUuid(row, "organization_id") !== organizationId ||
-          ![
-            "strongr.audio_reflection.v1",
-            "strongr.strongr_daily_audio_reflection.v2",
-          ].includes(schemaId) ||
+          !["strongr.audio_reflection.v1", "strongr.strongr_daily_audio_reflection.v2"].includes(
+            schemaId,
+          ) ||
           !allowedSources.includes(source as ContentVersionSource) ||
           !allowedStates.includes(state as ContentVersionState)
         ) {
