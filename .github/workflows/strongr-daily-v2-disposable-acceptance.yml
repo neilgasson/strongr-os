@@ -101,6 +101,12 @@ jobs:
           NODE
           } >>"$GITHUB_ENV"
 
+      - name: Apply pending disposable migrations exactly once
+        run: |
+          npx --yes supabase@2.109.1 migration up --db-url "$STRONGR_OS_DATABASE_URL"
+          printf '{"test":"pending_disposable_migrations","status":"pass"}\n' \
+            >>artifacts/acceptance/workflow.jsonl
+
       - name: Run Strongr Daily v2 acceptance
         run: pnpm acceptance:strongr-daily-v2
 
