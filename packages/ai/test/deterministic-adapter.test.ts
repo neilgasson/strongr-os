@@ -71,7 +71,9 @@ test("deterministic generation covers every Strongr Daily v2 field as a draft", 
   const result = await deterministicGenerationAdapter.generate(strongrDailyV2Request);
 
   assert.equal(result.responseSchemaId, "strongr.strongr_daily_audio_reflection.v2");
-  assert.equal(result.output.schema_id, "strongr.strongr_daily_audio_reflection.v2");
+  if (result.output.schema_id !== "strongr.strongr_daily_audio_reflection.v2") {
+    assert.fail("Expected v2 output");
+  }
   assert.equal(result.output.content_hash, result.outputHash);
 });
 
@@ -102,6 +104,9 @@ test("OpenAI provider requests strict v2 JSON and preserves only safe usage evid
   assert.equal(calls.length, 1);
   assert.equal(result.responseSchemaId, "strongr.strongr_daily_audio_reflection.v2");
   assert.deepEqual(result.usage, { inputTokens: 123, outputTokens: 456, totalTokens: 579 });
+  if (result.output.schema_id !== "strongr.strongr_daily_audio_reflection.v2") {
+    assert.fail("Expected v2 output");
+  }
   assert.equal(result.output.content_hash, result.outputHash);
   assert.match(calls[0]?.body ?? "", /json_schema/);
   assert.doesNotMatch(calls[0]?.body ?? "", new RegExp(apiKey));
