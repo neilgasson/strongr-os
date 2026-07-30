@@ -3,7 +3,11 @@ import {
   parseStrongrDailyAudioReflectionV2,
   type StrongrDailyAudioReflectionV2,
 } from "../../../packages/content-schemas/src/index.ts";
-import type { JsonObject, TenantProductionPackageSummary, Uuid } from "../../../packages/contracts/src/index.ts";
+import type {
+  JsonObject,
+  TenantProductionPackageSummary,
+  Uuid,
+} from "../../../packages/contracts/src/index.ts";
 
 export interface StrongrDailyApprovedExport {
   readonly schema_id: "strongr.strongr_daily_export.v1";
@@ -43,7 +47,9 @@ function approvedExport(input: {
   if (manifest.schema_id !== "strongr.production_package.v1") {
     throw new Error("production package schema is unsupported");
   }
-  const content = parseStrongrDailyAudioReflectionV2(requireObject(manifest.content, "package content"));
+  const content = parseStrongrDailyAudioReflectionV2(
+    requireObject(manifest.content, "package content"),
+  );
   if (createGenerationOutputHash(content) !== content.content_hash) {
     throw new Error("approved content hash does not match payload");
   }
@@ -73,13 +79,15 @@ function approvedExport(input: {
 
 function markdown(exported: StrongrDailyApprovedExport): string {
   const c = exported.content;
-  return `# ${c.final_title}\n\n` +
+  return (
+    `# ${c.final_title}\n\n` +
     `**Manual upload required. This export does not publish content.**\n\n` +
     `- Package: ${exported.package_id}\n- Approved payload hash: ${exported.content_payload_hash}\n- Content hash: ${exported.approved_content_hash}\n- Source brief: ${exported.source_brief_identifier}\n- Exported: ${exported.exported_at}\n\n` +
     `## Scripture\n\n${c.scripture_reference.reference} (${c.scripture_reference.translation})\n\n` +
     `${c.scripture_text ? `> ${c.scripture_text}\n\n` : ""}` +
     `## App description\n\n${c.app_description}\n\n## Narration\n\n${c.narration_text}\n\n## Prayer\n\n${c.prayer}\n\n## Takeaway\n\n${c.personal_takeaway_prompt}\n\n` +
-    `## Production metadata\n\n- Artwork prompt: ${c.artwork_generation_prompt}\n- Social caption: ${c.social_caption}\n- Keywords: ${c.keywords.join(", ")}\n- Estimated duration: ${c.estimated_duration_seconds} seconds\n`;
+    `## Production metadata\n\n- Artwork prompt: ${c.artwork_generation_prompt}\n- Social caption: ${c.social_caption}\n- Keywords: ${c.keywords.join(", ")}\n- Estimated duration: ${c.estimated_duration_seconds} seconds\n`
+  );
 }
 
 export function createStrongrDailyApprovedExport(input: {
