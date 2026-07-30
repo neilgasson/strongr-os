@@ -7,9 +7,11 @@ import {
 } from "../../../packages/ai/src/index.ts";
 import {
   type AudioReflectionBrief,
+  type StrongrDailyAudioReflectionV2Brief,
   parseAudioReflection,
   parseAudioReflectionBrief,
   parseStrongrDailyAudioReflectionV2,
+  parseStrongrDailyAudioReflectionV2Brief,
 } from "../../../packages/content-schemas/src/index.ts";
 import type { JsonValue, Uuid } from "../../../packages/contracts/src/index.ts";
 
@@ -160,7 +162,7 @@ function validGenerationResult(
   result: GenerationResult,
   identity: GenerationAdapterIdentity,
   promptChecksum: string,
-  brief: AudioReflectionBrief | import("../../../packages/content-schemas/src/index.ts").StrongrDailyAudioReflectionV2Brief,
+  brief: AudioReflectionBrief | StrongrDailyAudioReflectionV2Brief,
 ): boolean {
   try {
     const expectedSchemaId =
@@ -291,9 +293,15 @@ export class DurableGenerationWorker {
       return "deferred";
     }
 
-    let brief: AudioReflectionBrief;
+    let brief: AudioReflectionBrief | StrongrDailyAudioReflectionV2Brief;
     try {
-      brief = parseAudioReflectionBrief(attempt.brief);
+      brief =
+        typeof attempt.brief === "object" &&
+        attempt.brief !== null &&
+        "schema_id" in attempt.brief &&
+        attempt.brief.schema_id === "strongr.strongr_daily_audio_reflection_brief.v2"
+          ? parseStrongrDailyAudioReflectionV2Brief(attempt.brief)
+          : parseAudioReflectionBrief(attempt.brief);
     } catch {
       return this.#failCurrentAttempt(
         claim,
