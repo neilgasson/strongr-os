@@ -95,7 +95,7 @@ function createFixtureOutput(request: GenerationRequest) {
     return createStrongrDailyV2FixtureOutput(brief);
   }
   return parseAudioReflection({
-    closing: `Synthetic closing fixture for ?${brief.title}?. Human review is still required.`,
+    closing: `Synthetic closing fixture for \u201c${brief.title}\u201d. Human review is still required.`,
     opening: `Synthetic opening fixture for ${brief.audience}: ${brief.theme}`,
     reflection: `Synthetic reflection fixture covering: ${brief.objectives.join("; ")}.`,
     reflection_questions: brief.objectives
