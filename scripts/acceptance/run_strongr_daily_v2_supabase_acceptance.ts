@@ -1233,7 +1233,7 @@ select has_function_privilege(
       "v2_approved_version_rejects_human_and_worker_mutation",
       directVersionMutationDenied && workerVersionMutationDenied,
     );
-    const directPackageMutationDenied = await httpDenied(() =>
+    const directPackageMutationDenied = await stateDenied(() =>
       httpJson(
         config,
         "PATCH",
@@ -1245,7 +1245,7 @@ select has_function_privilege(
         },
       ),
     );
-    const workerPackageMutationDenied = await httpDenied(() =>
+    const workerPackageMutationDenied = await stateDenied(() =>
       httpJson(
         config,
         "PATCH",
