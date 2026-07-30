@@ -98,16 +98,16 @@ values
     '12000000-0000-4000-8000-000000000051',
     '12000000-0000-4000-8000-000000000001',
     '12000000-0000-4000-8000-000000000041',
-    '{"purpose":"same payload"}'::jsonb,
-    app_private.sha256_jsonb('{"purpose":"same payload"}'::jsonb),
+    '{"purpose":"same payload","schema_id":"strongr.audio_reflection_brief.v1"}'::jsonb,
+    app_private.sha256_jsonb('{"purpose":"same payload","schema_id":"strongr.audio_reflection_brief.v1"}'::jsonb),
     '12000000-0000-4000-8000-000000000021'
   ),
   (
     '12000000-0000-4000-8000-000000000052',
     '12000000-0000-4000-8000-000000000001',
     '12000000-0000-4000-8000-000000000042',
-    '{"purpose":"same payload"}'::jsonb,
-    app_private.sha256_jsonb('{"purpose":"same payload"}'::jsonb),
+    '{"purpose":"same payload","schema_id":"strongr.audio_reflection_brief.v1"}'::jsonb,
+    app_private.sha256_jsonb('{"purpose":"same payload","schema_id":"strongr.audio_reflection_brief.v1"}'::jsonb),
     '12000000-0000-4000-8000-000000000021'
   );
 

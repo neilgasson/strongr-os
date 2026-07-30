@@ -1,5 +1,8 @@
 import type { GenerationRequest } from "../../ai/src/index.ts";
-import type { AudioReflectionBrief } from "../../content-schemas/src/index.ts";
+import type {
+  AudioReflectionBrief,
+  StrongrDailyAudioReflectionV2Brief,
+} from "../../content-schemas/src/index.ts";
 
 export const fixtureIds = Object.freeze({
   correlationId: "00000000-0000-4000-8000-000000000004",
@@ -28,6 +31,26 @@ export const audioReflectionBriefFixture: AudioReflectionBrief = Object.freeze({
   title: "Synthetic Reflection Fixture",
   tone: "reflective",
 });
+
+export const strongrDailyAudioReflectionV2BriefFixture: StrongrDailyAudioReflectionV2Brief =
+  Object.freeze({
+    audience: "Adults seeking a quiet, Scripture-rooted daily reflection",
+    content_type: "audio_reflection",
+    desired_duration_seconds: 300,
+    pastoral_purpose: "Invite a gentle, faithful response without promising outcomes.",
+    prohibited_claims_or_wording: ["Do not promise healing, wealth, or a guaranteed outcome."],
+    required_elements: ["welcome", "Scripture", "reflection", "prayer", "closing"],
+    schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
+    scripture_reference: {
+      reference: "Psalm 46:10",
+      source_citation: "KJV public-domain reference; quotation requires human verification",
+      translation: "KJV",
+    },
+    source_brief_identifier: "strongr-daily-fixture-psalm-46-10",
+    theme: "being still before God",
+    tone: "reflective",
+    working_title: "Be Still Today",
+  });
 
 export function createGenerationRequestFixture(
   overrides: Partial<GenerationRequest> = {},

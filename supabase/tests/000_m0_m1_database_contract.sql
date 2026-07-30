@@ -113,8 +113,8 @@ select throws_ok(
     ) values (
       '00000000-0000-4000-8000-000000000002',
       '00000000-0000-4000-8000-000000000041',
-      '{}'::jsonb,
-      repeat('a', 64),
+      '{"schema_id":"strongr.audio_reflection_brief.v1"}'::jsonb,
+      app_private.sha256_jsonb('{"schema_id":"strongr.audio_reflection_brief.v1"}'::jsonb),
       '00000000-0000-4000-8000-000000000022'
     )
   $sql$,
@@ -130,8 +130,8 @@ insert into public.content_briefs (
   '00000000-0000-4000-8000-000000000042',
   '00000000-0000-4000-8000-000000000001',
   '00000000-0000-4000-8000-000000000041',
-  '{}'::jsonb,
-  repeat('a', 64),
+  '{"schema_id":"strongr.audio_reflection_brief.v1"}'::jsonb,
+  app_private.sha256_jsonb('{"schema_id":"strongr.audio_reflection_brief.v1"}'::jsonb),
   '00000000-0000-4000-8000-000000000021'
 );
 

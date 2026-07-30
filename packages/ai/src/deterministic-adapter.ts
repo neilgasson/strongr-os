@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 
-import { audioReflectionSchemaId, parseAudioReflection } from "../../content-schemas/src/index.ts";
+import {
+  audioReflectionSchemaId,
+  parseAudioReflection,
+  parseStrongrDailyAudioReflectionV2,
+  strongrDailyAudioReflectionV2SchemaId,
+} from "../../content-schemas/src/index.ts";
 import type {
   GenerationAdapter,
   GenerationRequest,
@@ -42,6 +47,37 @@ function canonicalJson(value: unknown): string {
 
 function sha256(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
+}
+
+export function createStrongrDailyV2FixtureOutput(
+  brief: import("../../content-schemas/src/index.ts").StrongrDailyAudioReflectionV2Brief,
+) {
+  const base = {
+    app_description: `A guided reflection on ${brief.theme.toLowerCase()} for ${brief.audience}.`,
+    artwork_generation_prompt: `Warm, quiet dawn light for a Christian audio reflection about ${brief.theme}; no text or people.`,
+    audience: brief.audience,
+    closing: "Thank You for meeting us here. Carry this truth with you today.",
+    content_type: "audio_reflection" as const,
+    estimated_duration_seconds: brief.desired_duration_seconds,
+    final_title: brief.working_title,
+    keywords: ["Strongr Daily", "reflection", brief.theme],
+    narration_text: `Welcome. ${brief.theme}. Let us turn to ${brief.scripture_reference.reference}. Pause for a moment. ${brief.pastoral_purpose}. Let us pray. Lord, help us receive Your wisdom with humility and hope. Amen. Thank You for this moment together.`,
+    pastoral_purpose: brief.pastoral_purpose,
+    personal_takeaway_prompt: "What is one faithful next step you can take today?",
+    prayer: "Lord, help us receive Your wisdom with humility and hope. Amen.",
+    prohibited_claims_or_wording: brief.prohibited_claims_or_wording,
+    reflective_transition: "Take a slow breath and hold this Scripture in quiet attention.",
+    schema_id: strongrDailyAudioReflectionV2SchemaId,
+    scripture_introduction: `Today we are reflecting on ${brief.scripture_reference.reference}.`,
+    scripture_reference: brief.scripture_reference,
+    short_summary: `A short reflection on ${brief.theme}.`,
+    social_caption: `A quiet Strongr Daily reflection on ${brief.theme}.`,
+    source_brief_identifier: brief.source_brief_identifier,
+    tone: brief.tone,
+    warm_welcome: `Welcome. Take a quiet moment as we consider ${brief.theme}.`,
+  };
+  const content_hash = createGenerationOutputHash({ ...base, content_hash: "0".repeat(64) });
+  return parseStrongrDailyAudioReflectionV2({ ...base, content_hash });
 }
 
 function createFixtureOutput(request: GenerationRequest) {

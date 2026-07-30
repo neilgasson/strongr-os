@@ -1,0 +1,120 @@
+name: Strongr Daily v2 disposable acceptance
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/verify-strongr-daily-owner-slice
+    paths:
+      - ".github/workflows/strongr-daily-v2-disposable-acceptance.yml"
+      - "scripts/acceptance/**"
+      - "supabase/migrations/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: strongr-daily-v2-disposable-acceptance
+  cancel-in-progress: false
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: strongr-os-disposable
+    defaults:
+      run:
+        shell: bash --noprofile --norc -eo pipefail {0}
+    env:
+      STRONGR_OS_M1_ACCEPTANCE_TARGET: strongr-os-disposable
+      STRONGR_OS_PROJECT_REF: guovsmbtxuowyyqamaex
+      STRONGR_OS_SUPABASE_URL: https://guovsmbtxuowyyqamaex.supabase.co
+      STRONGR_OS_V2_ACCEPTANCE_ARTIFACT: artifacts/acceptance/strongr-daily-v2.json
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Prepare evidence directory
+        run: |
+          mkdir -p artifacts/acceptance
+          printf '{"test":"workflow_started","status":"pass","sha":"%s","target":"strongr-os-disposable"}\n' \
+            "$GITHUB_SHA" >artifacts/acceptance/workflow.jsonl
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+          pnpm --version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Load disposable-only acceptance credentials
+        # Credential values are available only through the scoped deployment environment.
+        # The publishable value must be the modern sb_publishable_ API key.
+        env:
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STRONGR_DAILY_V2_SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.STRONGR_DAILY_V2_SUPABASE_SECRET_KEY }}
+          DISPOSABLE_DATABASE_PASSWORD: ${{ secrets.STRONGR_DAILY_V2_DATABASE_PASSWORD }}
+        run: |
+          declare -A secret_names=(
+            [SUPABASE_PUBLISHABLE_KEY]=STRONGR_DAILY_V2_SUPABASE_PUBLISHABLE_KEY
+            [SUPABASE_SECRET_KEY]=STRONGR_DAILY_V2_SUPABASE_SECRET_KEY
+            [DISPOSABLE_DATABASE_PASSWORD]=STRONGR_DAILY_V2_DATABASE_PASSWORD
+          )
+          for name in SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY DISPOSABLE_DATABASE_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::${secret_names[$name]} is missing from the strongr-os-disposable environment"
+              exit 1
+            fi
+          done
+          if [[ "$SUPABASE_PUBLISHABLE_KEY" != sb_publishable_* ]]; then
+            echo "::error::The disposable publishable-key secret has an unexpected format"
+            exit 1
+          fi
+          if [[ "$SUPABASE_SECRET_KEY" != sb_secret_* ]]; then
+            echo "::error::The disposable secret-key secret has an unexpected format"
+            exit 1
+          fi
+          {
+            printf '%s=%s\n' STRONGR_OS_SUPABASE_PUBLISHABLE_KEY "$SUPABASE_PUBLISHABLE_KEY"
+            printf '%s=%s\n' STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY "$SUPABASE_SECRET_KEY"
+            node - <<'NODE'
+          const password = process.env.DISPOSABLE_DATABASE_PASSWORD;
+          if (!password) process.exit(1);
+          process.stdout.write(
+            `STRONGR_OS_DATABASE_URL=postgresql://postgres.guovsmbtxuowyyqamaex:${encodeURIComponent(password)}@aws-0-ca-central-1.pooler.supabase.com:5432/postgres\n`,
+          );
+          NODE
+          } >>"$GITHUB_ENV"
+
+      - name: Apply pending disposable migrations exactly once
+        run: |
+          npx --yes supabase@2.109.1 migration up --db-url "$STRONGR_OS_DATABASE_URL"
+          printf '{"test":"pending_disposable_migrations","status":"pass"}\n' \
+            >>artifacts/acceptance/workflow.jsonl
+
+      - name: Run Strongr Daily v2 acceptance
+        run: pnpm acceptance:strongr-daily-v2
+
+      - name: Upload Strongr Daily v2 evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: strongr-daily-v2-disposable-${{ github.sha }}
+          path: artifacts/acceptance
+          if-no-files-found: error
+          retention-days: 30

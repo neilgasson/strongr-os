@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 
 import type { Uuid } from "../../contracts/src/index.ts";
-import type { AudioReflection, AudioReflectionBrief } from "../../content-schemas/src/index.ts";
+import type {
+  AudioReflection,
+  AudioReflectionBrief,
+  StrongrDailyAudioReflectionV2,
+} from "../../content-schemas/src/index.ts";
 
 export interface GenerationAdapterIdentity {
   readonly provider: string;
@@ -61,6 +65,14 @@ export function createGenerationPromptChecksum(promptKey: string, promptVersion:
   return createHash("sha256").update(`${promptKey}:${promptVersion}`, "utf8").digest("hex");
 }
 
-export function createGenerationOutputHash(output: AudioReflection): string {
+export function createGenerationOutputHash(
+  output: AudioReflection | StrongrDailyAudioReflectionV2,
+): string {
+  // A v2 payload carries a portable content hash. Excluding that one field avoids
+  // a self-referential hash while the database still hashes the complete payload.
+  if (output.schema_id === "strongr.strongr_daily_audio_reflection.v2") {
+    const { content_hash: _contentHash, ...content } = output;
+    return createHash("sha256").update(postgresJsonbText(content), "utf8").digest("hex");
+  }
   return createHash("sha256").update(postgresJsonbText(output), "utf8").digest("hex");
 }
