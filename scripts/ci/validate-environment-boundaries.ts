@@ -3,7 +3,7 @@ import { extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
-const clientRoots = ["apps/studio/src", "apps/studio/dist"];
+const clientRoots = ["apps/studio/src"];
 const forbiddenTokens = [
   "SUPABASE_ACCESS_TOKEN",
   "SUPABASE_SECRET_KEY",

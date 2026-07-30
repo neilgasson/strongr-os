@@ -1,10 +1,12 @@
 import type {
   AudioReflection,
   AudioReflectionBrief,
+  StrongrDailyAudioReflectionV2Brief,
 } from "../../../packages/content-schemas/src/index.ts";
 import {
   parseAudioReflection,
   parseAudioReflectionBrief,
+  parseStrongrDailyAudioReflectionV2Brief,
 } from "../../../packages/content-schemas/src/index.ts";
 import type {
   CreateAudioBriefResult,
@@ -25,12 +27,14 @@ export interface BriefToDraftWorkspace {
 export interface CreateBriefAndRequestInput {
   readonly organizationId: Uuid;
   readonly title: string;
-  readonly brief: AudioReflectionBrief;
+  readonly brief: GovernedBrief;
   readonly promptKey: string;
   readonly promptVersion: number;
   readonly idempotencyKey: string;
   readonly correlationId: Uuid;
 }
+
+export type GovernedBrief = AudioReflectionBrief | StrongrDailyAudioReflectionV2Brief;
 
 export interface CreateBriefAndRequestResult extends CreateAudioBriefResult {
   readonly generationJobId: Uuid;
@@ -85,6 +89,15 @@ function requireIdempotencyKey(value: string): string {
   return key;
 }
 
+function parseGovernedBrief(value: unknown): GovernedBrief {
+  if (typeof value === "object" && value !== null && "schema_id" in value) {
+    if (value.schema_id === "strongr.strongr_daily_audio_reflection_brief.v2") {
+      return parseStrongrDailyAudioReflectionV2Brief(value);
+    }
+  }
+  return parseAudioReflectionBrief(value);
+}
+
 export class BriefToDraftOperatorFlow {
   readonly #foundation: StudioFoundation;
 
@@ -107,7 +120,7 @@ export class BriefToDraftOperatorFlow {
   ): Promise<CreateBriefAndRequestResult> {
     const organizationId = requireUuid(input.organizationId, "organization id");
     const correlationId = requireUuid(input.correlationId, "correlation id");
-    const briefPayload = parseAudioReflectionBrief(input.brief);
+    const briefPayload = parseGovernedBrief(input.brief);
     const title = requireTitle(input.title);
     const idempotencyKey = requireIdempotencyKey(input.idempotencyKey);
     const promptKey = requirePromptKey(input.promptKey);
