@@ -64,6 +64,7 @@ jobs:
 
       - name: Load disposable-only acceptance credentials
         # Credential values are available only through the scoped deployment environment.
+        # The publishable value must be the modern sb_publishable_ API key.
         env:
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.STRONGR_DAILY_V2_SUPABASE_PUBLISHABLE_KEY }}
           SUPABASE_SECRET_KEY: ${{ secrets.STRONGR_DAILY_V2_SUPABASE_SECRET_KEY }}
