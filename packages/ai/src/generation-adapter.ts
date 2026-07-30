@@ -5,7 +5,14 @@ import type {
   AudioReflection,
   AudioReflectionBrief,
   StrongrDailyAudioReflectionV2,
+  StrongrDailyAudioReflectionV2Brief,
 } from "../../content-schemas/src/index.ts";
+
+export type GenerationBrief = AudioReflectionBrief | StrongrDailyAudioReflectionV2Brief;
+export type GenerationOutput = AudioReflection | StrongrDailyAudioReflectionV2;
+export type GenerationSchemaId =
+  | "strongr.audio_reflection.v1"
+  | "strongr.strongr_daily_audio_reflection.v2";
 
 export interface GenerationAdapterIdentity {
   readonly provider: string;
@@ -18,7 +25,13 @@ export interface GenerationRequest {
   readonly correlationId: Uuid;
   readonly promptKey: string;
   readonly promptVersion: number;
-  readonly brief: AudioReflectionBrief;
+  readonly brief: GenerationBrief;
+}
+
+export interface GenerationUsage {
+  readonly inputTokens: number;
+  readonly outputTokens: number;
+  readonly totalTokens: number;
 }
 
 export interface GenerationResult {
@@ -26,14 +39,25 @@ export interface GenerationResult {
   readonly model: string;
   readonly providerResponseId: string;
   readonly promptChecksum: string;
-  readonly responseSchemaId: "strongr.audio_reflection.v1";
+  readonly responseSchemaId: GenerationSchemaId;
   readonly outputHash: string;
-  readonly output: AudioReflection;
+  readonly output: GenerationOutput;
+  readonly usage?: GenerationUsage;
 }
 
 export interface GenerationAdapter {
   readonly identity: GenerationAdapterIdentity;
   generate(request: GenerationRequest): Promise<GenerationResult>;
+}
+
+export class GenerationProviderError extends Error {
+  readonly safeCode: string;
+
+  constructor(safeCode: string) {
+    super(safeCode);
+    this.name = "GenerationProviderError";
+    this.safeCode = safeCode;
+  }
 }
 
 function postgresJsonbText(value: unknown): string {
@@ -65,9 +89,7 @@ export function createGenerationPromptChecksum(promptKey: string, promptVersion:
   return createHash("sha256").update(`${promptKey}:${promptVersion}`, "utf8").digest("hex");
 }
 
-export function createGenerationOutputHash(
-  output: AudioReflection | StrongrDailyAudioReflectionV2,
-): string {
+export function createGenerationOutputHash(output: GenerationOutput): string {
   // A v2 payload carries a portable content hash. Excluding that one field avoids
   // a self-referential hash while the database still hashes the complete payload.
   if (output.schema_id === "strongr.strongr_daily_audio_reflection.v2") {

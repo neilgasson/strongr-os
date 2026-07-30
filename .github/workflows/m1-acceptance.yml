@@ -89,7 +89,7 @@ jobs:
 
       - name: Start isolated Supabase
         run: |
-          npx --yes supabase@2.109.1 start 2>&1 \
+          npx --yes supabase@2.109.1 start --exclude mailpit 2>&1 \
             | tee artifacts/m1-acceptance-local/supabase-start.log
 
       - name: Apply every migration from zero

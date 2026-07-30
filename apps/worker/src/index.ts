@@ -41,6 +41,7 @@ export type {
 } from "./durable-worker.ts";
 export { loadWorkerEnvironment } from "./environment.ts";
 export type {
+  GenerationProvider,
   PrivilegedKeyKind,
   WorkerEnvironment,
   WorkerEnvironmentSource,

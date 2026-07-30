@@ -5,6 +5,7 @@ import {
   parseAudioReflection,
   parseStrongrDailyAudioReflectionV2,
   strongrDailyAudioReflectionV2SchemaId,
+  type StrongrDailyAudioReflectionV2Brief,
 } from "../../content-schemas/src/index.ts";
 import type {
   GenerationAdapter,
@@ -49,9 +50,7 @@ function sha256(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 
-export function createStrongrDailyV2FixtureOutput(
-  brief: import("../../content-schemas/src/index.ts").StrongrDailyAudioReflectionV2Brief,
-) {
+export function createStrongrDailyV2FixtureOutput(brief: StrongrDailyAudioReflectionV2Brief) {
   const base = {
     app_description: `A guided reflection on ${brief.theme.toLowerCase()} for ${brief.audience}.`,
     artwork_generation_prompt: `Warm, quiet dawn light for a Christian audio reflection about ${brief.theme}; no text or people.`,
@@ -61,7 +60,14 @@ export function createStrongrDailyV2FixtureOutput(
     estimated_duration_seconds: brief.desired_duration_seconds,
     final_title: brief.working_title,
     keywords: ["Strongr Daily", "reflection", brief.theme],
-    narration_text: `Welcome. ${brief.theme}. Let us turn to ${brief.scripture_reference.reference}. Pause for a moment. ${brief.pastoral_purpose}. Let us pray. Lord, help us receive Your wisdom with humility and hope. Amen. Thank You for this moment together.`,
+    narration_text:
+      "Welcome. " +
+      brief.theme +
+      ". Let us turn to " +
+      brief.scripture_reference.reference +
+      ". Pause for a moment. " +
+      brief.pastoral_purpose +
+      ". Let us pray. Lord, help us receive Your wisdom with humility and hope. Amen. Thank You for this moment together.",
     pastoral_purpose: brief.pastoral_purpose,
     personal_takeaway_prompt: "What is one faithful next step you can take today?",
     prayer: "Lord, help us receive Your wisdom with humility and hope. Amen.",
@@ -76,14 +82,20 @@ export function createStrongrDailyV2FixtureOutput(
     tone: brief.tone,
     warm_welcome: `Welcome. Take a quiet moment as we consider ${brief.theme}.`,
   };
-  const content_hash = createGenerationOutputHash({ ...base, content_hash: "0".repeat(64) });
+  const content_hash = createGenerationOutputHash({
+    ...base,
+    content_hash: "0".repeat(64),
+  });
   return parseStrongrDailyAudioReflectionV2({ ...base, content_hash });
 }
 
 function createFixtureOutput(request: GenerationRequest) {
   const { brief } = request;
+  if (brief.schema_id === "strongr.strongr_daily_audio_reflection_brief.v2") {
+    return createStrongrDailyV2FixtureOutput(brief);
+  }
   return parseAudioReflection({
-    closing: `Synthetic closing fixture for “${brief.title}”. Human review is still required.`,
+    closing: `Synthetic closing fixture for \u201c${brief.title}\u201d. Human review is still required.`,
     opening: `Synthetic opening fixture for ${brief.audience}: ${brief.theme}`,
     reflection: `Synthetic reflection fixture covering: ${brief.objectives.join("; ")}.`,
     reflection_questions: brief.objectives
@@ -108,7 +120,7 @@ export const deterministicGenerationAdapter: GenerationAdapter = Object.freeze({
       outputHash,
       promptChecksum,
       providerResponseId: `fixture-${sha256({ request, output }).slice(0, 32)}`,
-      responseSchemaId: audioReflectionSchemaId,
+      responseSchemaId: output.schema_id,
     });
   },
 });

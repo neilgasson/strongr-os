@@ -236,6 +236,10 @@ test("manual drafts and human submission remain explicit governed commands", asy
       return Promise.resolve(result as BrowserCommandResult<Name>);
     },
   };
+  if (generation.output.schema_id !== "strongr.audio_reflection.v1") {
+    throw new Error("Expected the v1 fixture output");
+  }
+
   const flow = new BriefToDraftOperatorFlow({
     commands,
     reads: createReads(),
