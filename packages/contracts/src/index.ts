@@ -256,9 +256,7 @@ export interface TenantContentVersionSummary {
   readonly contentItemId: Uuid;
   readonly briefId: Uuid;
   readonly versionNumber: number;
-  readonly schemaId:
-    | "strongr.audio_reflection.v1"
-    | "strongr.strongr_daily_audio_reflection.v2";
+  readonly schemaId: "strongr.audio_reflection.v1" | "strongr.strongr_daily_audio_reflection.v2";
   readonly payload: JsonValue;
   readonly payloadHash: string;
   readonly source: ContentVersionSource;
