@@ -18,6 +18,7 @@ const workflow = readFileSync(
 
 test("Strongr Daily v2 disposable workflow is manually dispatched and target-locked", () => {
   assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /push:\s+branches:\s+- agent\/verify-strongr-daily-owner-slice/);
   assert.match(workflow, /environment: strongr-os-disposable/);
   assert.match(workflow, /STRONGR_OS_M1_ACCEPTANCE_TARGET: strongr-os-disposable/);
   assert.match(workflow, /STRONGR_OS_PROJECT_REF: guovsmbtxuowyyqamaex/);
@@ -35,6 +36,8 @@ test("Strongr Daily v2 disposable workflow keeps credentials in environment secr
   }
   assert.match(workflow, /encodeURIComponent\(password\)/);
   assert.match(workflow, />>"\$GITHUB_ENV"/);
+  assert.match(workflow, /secret_names/);
+  assert.match(workflow, /\$\{secret_names\[\$name\]\} is missing/);
   assert.doesNotMatch(workflow, /(?:printenv|env\s*$|set\s*$|tee)/m);
   assert.doesNotMatch(workflow, /STRONGR_OS_DATABASE_URL: \$\{\{ secrets\./);
 });
