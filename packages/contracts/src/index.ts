@@ -223,7 +223,9 @@ export interface TenantBriefSummary {
   readonly id: Uuid;
   readonly organizationId: Uuid;
   readonly contentItemId: Uuid;
-  readonly schemaId: "strongr.audio_reflection_brief.v1";
+  readonly schemaId:
+    | "strongr.audio_reflection_brief.v1"
+    | "strongr.strongr_daily_audio_reflection_brief.v2";
   readonly payloadHash: string;
   readonly createdAt: string;
 }

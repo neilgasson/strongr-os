@@ -530,12 +530,17 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
       organizationId,
       limit,
     );
+    const allowedSchemaIds = [
+      "strongr.audio_reflection_brief.v1",
+      "strongr.strongr_daily_audio_reflection_brief.v2",
+    ] as const;
     return Object.freeze(
       rows.map((value) => {
         const row = requireRecord(value, "brief");
+        const schemaId = requireString(row, "schema_id");
         if (
           requireUuid(row, "organization_id") !== organizationId ||
-          requireString(row, "schema_id") !== "strongr.audio_reflection_brief.v1"
+          !allowedSchemaIds.includes(schemaId as (typeof allowedSchemaIds)[number])
         ) {
           throw new Error("Invalid tenant brief response");
         }
@@ -545,7 +550,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
           id: requireUuid(row, "id"),
           organizationId,
           payloadHash: requireHash(row, "payload_hash"),
-          schemaId: "strongr.audio_reflection_brief.v1" as const,
+          schemaId: schemaId as TenantBriefSummary["schemaId"],
         });
       }),
     );

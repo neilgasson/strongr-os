@@ -422,6 +422,31 @@ test("tenant reads are explicitly filtered, bounded, ordered, and contract parse
   }
 });
 
+test("tenant brief reads accept the governed Strongr Daily v2 brief schema", async () => {
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch() {
+      return Promise.resolve(
+        Response.json([
+          {
+            content_item_id: contentItemId,
+            created_at: "2026-07-30T15:00:00Z",
+            id: briefId,
+            organization_id: organizationId,
+            payload_hash: hash,
+            schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
+          },
+        ]),
+      );
+    },
+  });
+
+  const briefs = await gateway.listBriefs(organizationId);
+
+  assert.equal(briefs[0]?.schemaId, "strongr.strongr_daily_audio_reflection_brief.v2");
+});
+
 test("M1.3 evidence reads remain tenant-filtered and parse immutable hashes", async () => {
   const requestedUrls: string[] = [];
   const gateway = createStudioSupabaseGateway({
