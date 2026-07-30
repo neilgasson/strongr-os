@@ -52,7 +52,7 @@ function sha256(value: unknown): string {
 export function createStrongrDailyV2FixtureOutput(
   brief: import("../../content-schemas/src/index.ts").StrongrDailyAudioReflectionV2Brief,
 ) {
-    const base = {
+  const base = {
       app_description: `A guided reflection on ${brief.theme.toLowerCase()} for ${brief.audience}.`,
       artwork_generation_prompt: `Warm, quiet dawn light for a Christian audio reflection about ${brief.theme}; no text or people.`,
       audience: brief.audience,
@@ -75,9 +75,9 @@ export function createStrongrDailyV2FixtureOutput(
       source_brief_identifier: brief.source_brief_identifier,
       tone: brief.tone,
       warm_welcome: `Welcome. Take a quiet moment as we consider ${brief.theme}.`,
-    };
-    const content_hash = createGenerationOutputHash({ ...base, content_hash: "0".repeat(64) });
-    return parseStrongrDailyAudioReflectionV2({ ...base, content_hash });
+  };
+  const content_hash = createGenerationOutputHash({ ...base, content_hash: "0".repeat(64) });
+  return parseStrongrDailyAudioReflectionV2({ ...base, content_hash });
 }
 
 function createFixtureOutput(request: GenerationRequest) {
