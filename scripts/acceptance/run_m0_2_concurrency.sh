@@ -149,8 +149,8 @@ values (
   :'brief_id'::uuid,
   :'organization_id'::uuid,
   :'content_item_id'::uuid,
-  '{"purpose":"concurrent idempotency"}'::jsonb,
-  app_private.sha256_jsonb('{"purpose":"concurrent idempotency"}'::jsonb),
+  '{"purpose":"concurrent idempotency","schema_id":"strongr.audio_reflection_brief.v1"}'::jsonb,
+  app_private.sha256_jsonb('{"purpose":"concurrent idempotency","schema_id":"strongr.audio_reflection_brief.v1"}'::jsonb),
   :'membership_id'::uuid
 );
 SQL
