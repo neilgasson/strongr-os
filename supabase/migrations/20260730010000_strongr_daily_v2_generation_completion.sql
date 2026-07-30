@@ -5,9 +5,6 @@
 -- still creates an unapproved draft.
 
 begin;
-
-Exit code: 0
-Wall time: 0.8 seconds
 Output:
 create or replace function public.m1_complete_generation_attempt(
   p_event_id uuid,
