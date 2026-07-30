@@ -1,4 +1,5 @@
 import {
+  createOpenAiStrongrDailyV2Adapter,
   deterministicGenerationAdapter,
   type GenerationAdapter,
 } from "../../../packages/ai/src/index.ts";
@@ -18,6 +19,19 @@ export interface DurableWorkerRuntime {
   runOnce(options?: DurableWorkerOptions): Promise<DurableWorkerBatchSummary>;
 }
 
+function defaultAdapter(environment: WorkerEnvironment): GenerationAdapter {
+  if (environment.generationProvider === "openai") {
+    if (!environment.openAiApiKey || !environment.openAiModel) {
+      throw new Error("OpenAI worker configuration is incomplete");
+    }
+    return createOpenAiStrongrDailyV2Adapter({
+      apiKey: environment.openAiApiKey,
+      model: environment.openAiModel,
+    });
+  }
+  return deterministicGenerationAdapter;
+}
+
 export function createDurableWorkerRuntime(
   environment: WorkerEnvironment,
   options: {
@@ -30,7 +44,7 @@ export function createDurableWorkerRuntime(
   const rpc = new SupabaseRpcClient(environment, options.fetch);
   const store = new SupabaseGenerationWorkerStore(rpc);
   const worker = new DurableGenerationWorker({
-    adapter: options.adapter ?? deterministicGenerationAdapter,
+    adapter: options.adapter ?? defaultAdapter(environment),
     ...(options.clock ? { clock: options.clock } : {}),
     ...(options.evidence ? { evidence: options.evidence } : {}),
     store,
