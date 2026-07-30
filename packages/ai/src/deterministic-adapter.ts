@@ -4,6 +4,7 @@ import {
   audioReflectionSchemaId,
   parseAudioReflection,
   parseStrongrDailyAudioReflectionV2,
+  type StrongrDailyAudioReflectionV2Brief,
   strongrDailyAudioReflectionV2SchemaId,
 } from "../../content-schemas/src/index.ts";
 import type {
@@ -49,9 +50,7 @@ function sha256(value: unknown): string {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 
-export function createStrongrDailyV2FixtureOutput(
-  brief: import("../../content-schemas/src/index.ts").StrongrDailyAudioReflectionV2Brief,
-) {
+export function createStrongrDailyV2FixtureOutput(brief: StrongrDailyAudioReflectionV2Brief) {
   const base = {
     app_description: `A guided reflection on ${brief.theme.toLowerCase()} for ${brief.audience}.`,
     artwork_generation_prompt: `Warm, quiet dawn light for a Christian audio reflection about ${brief.theme}; no text or people.`,
@@ -82,6 +81,9 @@ export function createStrongrDailyV2FixtureOutput(
 
 function createFixtureOutput(request: GenerationRequest) {
   const { brief } = request;
+  if (brief.schema_id === "strongr.strongr_daily_audio_reflection_brief.v2") {
+    return createStrongrDailyV2FixtureOutput(brief);
+  }
   return parseAudioReflection({
     closing: `Synthetic closing fixture for “${brief.title}”. Human review is still required.`,
     opening: `Synthetic opening fixture for ${brief.audience}: ${brief.theme}`,
@@ -108,7 +110,7 @@ export const deterministicGenerationAdapter: GenerationAdapter = Object.freeze({
       outputHash,
       promptChecksum,
       providerResponseId: `fixture-${sha256({ request, output }).slice(0, 32)}`,
-      responseSchemaId: audioReflectionSchemaId,
+      responseSchemaId: output.schema_id,
     });
   },
 });
