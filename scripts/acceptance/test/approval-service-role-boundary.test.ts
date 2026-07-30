@@ -17,7 +17,10 @@ const migration = readFileSync(
 );
 
 test("service_role cannot execute the governed approval command", () => {
-  assert.match(migration, /revoke execute on function public\.m1_approve_version\([\s\S]*?\) from service_role;/);
+  assert.match(
+    migration,
+    /revoke execute on function public\.m1_approve_version\([\s\S]*?\) from service_role;/,
+  );
   assert.match(migration, /approval security verification failed: service_role can execute/);
   assert.match(migration, /authenticated cannot execute/);
   assert.doesNotMatch(migration, /grant execute[\s\S]*?m1_approve_version[\s\S]*?service_role/i);
