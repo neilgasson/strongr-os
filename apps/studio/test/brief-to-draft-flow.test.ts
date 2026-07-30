@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { StrongrDailyAudioReflectionV2Brief } from "../../../packages/content-schemas/src/index.ts";
 import { deterministicGenerationAdapter } from "../../../packages/ai/src/index.ts";
 import type {
   BrowserCommandArguments,
@@ -19,6 +20,24 @@ import type { StudioCommandGateway } from "../src/index.ts";
 const contentItemId = "00000000-0000-4000-8000-000000000010";
 const briefId = "00000000-0000-4000-8000-000000000011";
 const versionId = "00000000-0000-4000-8000-000000000012";
+const strongrDailyV2BriefFixture: StrongrDailyAudioReflectionV2Brief = {
+  audience: "Adults seeking a moment of prayer",
+  content_type: "audio_reflection",
+  desired_duration_seconds: 300,
+  pastoral_purpose: "Encourage stillness before God.",
+  prohibited_claims_or_wording: ["Do not promise outcomes."],
+  required_elements: ["Prayer", "Personal takeaway"],
+  schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
+  scripture_reference: {
+    reference: "Psalm 46:10",
+    source_citation: "Psalm 46:10",
+    translation: "NIV",
+  },
+  source_brief_identifier: "phase-2-test-psalm-46-10",
+  theme: "Be still before God",
+  tone: "pastoral",
+  working_title: "Be Still",
+};
 
 function createReads(): TenantReadGateway {
   return {
@@ -99,6 +118,36 @@ test("operator flow validates then creates a brief and requests one durable gene
     contentItemId,
     generationJobId: fixtureIds.generationJobId,
   });
+  assert.deepEqual(calls, ["m1_create_audio_brief", "m1_request_generation"]);
+});
+
+test("operator flow accepts the governed Strongr Daily v2 brief contract", async () => {
+  const calls: BrowserCommandName[] = [];
+  const commands: StudioCommandGateway = {
+    invoke<Name extends BrowserCommandName>(
+      command: Name,
+      _arguments: BrowserCommandArguments[Name],
+    ): Promise<BrowserCommandResult<Name>> {
+      calls.push(command);
+      const result =
+        command === "m1_create_audio_brief"
+          ? { briefId, contentItemId }
+          : fixtureIds.generationJobId;
+      return Promise.resolve(result as BrowserCommandResult<Name>);
+    },
+  };
+  const flow = new BriefToDraftOperatorFlow({ commands, reads: createReads() });
+
+  await flow.createBriefAndRequestGeneration({
+    brief: strongrDailyV2BriefFixture,
+    correlationId: fixtureIds.correlationId,
+    idempotencyKey: "phase-2-v2-generation",
+    organizationId: fixtureIds.organizationAlphaId,
+    promptKey: "strongr.strongr_daily.fixture",
+    promptVersion: 1,
+    title: strongrDailyV2BriefFixture.working_title,
+  });
+
   assert.deepEqual(calls, ["m1_create_audio_brief", "m1_request_generation"]);
 });
 
