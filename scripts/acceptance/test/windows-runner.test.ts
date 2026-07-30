@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { spawnSync } from "node:child_process";
 import test from "node:test";
 
 const runner = readFileSync(
@@ -14,7 +14,10 @@ test("Windows Strongr Daily v2 runner keeps credentials in memory and clears the
   assert.match(runner, /Supabase disposable database password \(hidden\)" -AsSecureString/);
   assert.match(runner, /finally \{/);
   assert.match(runner, /Remove-Item -Path "Env:\$name"/);
-  assert.match(runner, /Remove-Variable -Name publishableKey, secretKey, databaseUrl, databasePassword, encodedDatabasePassword/);
+  assert.match(
+    runner,
+    /Remove-Variable -Name publishableKey, secretKey, databaseUrl, databasePassword, encodedDatabasePassword/,
+  );
   assert.match(runner, /\.Dispose\(\)/);
   assert.doesNotMatch(runner, /(?:Add-Content|Out-File|Set-Content|\.env)/);
 });
@@ -39,24 +42,32 @@ test("Windows Strongr Daily v2 runner avoids the protected Windows PowerShell Ho
   assert.doesNotMatch(runner, /-Host \$disposablePoolerHost/);
 });
 
-test("Windows PowerShell 5.1 can execute the Session Pooler validator without writing $Host", () => {
-  const runnerPath = resolve(import.meta.dirname, "..", "run-strongr-daily-v2-windows.ps1");
-  const command = [
-    "$ErrorActionPreference='Stop'",
-    `$source=[IO.File]::ReadAllText('${runnerPath.replaceAll("'", "''")}')`,
-    "$start=$source.IndexOf('function Test-SessionPoolerDatabaseUrl')",
-    "$end=$source.IndexOf('function Test-DatabasePasswordAuthenticationFailure')",
-    "Invoke-Expression $source.Substring($start, $end-$start)",
-    "$valid=Test-SessionPoolerDatabaseUrl -Value 'postgresql://postgres.guovsmbtxuowyyqamaex:encoded@aws-0-ca-central-1.pooler.supabase.com:5432/postgres' -ExpectedPoolerHost 'aws-0-ca-central-1.pooler.supabase.com' -Port 5432 -Database 'postgres' -Username 'postgres.guovsmbtxuowyyqamaex'",
-    "if (-not $valid) { exit 1 }",
-  ].join("; ");
+test(
+  "Windows PowerShell 5.1 can execute the Session Pooler validator without writing $Host",
+  { skip: process.platform !== "win32" },
+  () => {
+    const runnerPath = resolve(import.meta.dirname, "..", "run-strongr-daily-v2-windows.ps1");
+    const command = [
+      "$ErrorActionPreference='Stop'",
+      `$source=[IO.File]::ReadAllText('${runnerPath.replaceAll("'", "''")}')`,
+      "$start=$source.IndexOf('function Test-SessionPoolerDatabaseUrl')",
+      "$end=$source.IndexOf('function Test-DatabasePasswordAuthenticationFailure')",
+      "Invoke-Expression $source.Substring($start, $end-$start)",
+      "$valid=Test-SessionPoolerDatabaseUrl -Value 'postgresql://postgres.guovsmbtxuowyyqamaex:encoded@aws-0-ca-central-1.pooler.supabase.com:5432/postgres' -ExpectedPoolerHost 'aws-0-ca-central-1.pooler.supabase.com' -Port 5432 -Database 'postgres' -Username 'postgres.guovsmbtxuowyyqamaex'",
+      "if (-not $valid) { exit 1 }",
+    ].join("; ");
 
-  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", command], {
-    encoding: "utf8",
-  });
+    const result = spawnSync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", command],
+      {
+        encoding: "utf8",
+      },
+    );
 
-  assert.equal(result.status, 0, result.stderr);
-});
+    assert.equal(result.status, 0, result.stderr);
+  },
+);
 
 test("Windows Strongr Daily v2 runner preserves every safe preflight stage in failure output", () => {
   for (const stage of [
@@ -96,29 +107,36 @@ test("Windows Strongr Daily v2 runner captures native harness stderr without a P
   assert.match(runner, /\$ErrorActionPreference = \$acceptanceErrorActionPreference/);
 });
 
-test("Windows Strongr Daily v2 runner constructs a percent-encoded Session Pooler URL", () => {
-  const result = spawnSync(
-    "powershell.exe",
-    [
-      "-NoProfile",
-      "-Command",
-      "$password=[Uri]::EscapeDataString('p@ss word:/?'); \"postgresql://postgres.guovsmbtxuowyyqamaex:$password@aws-0-ca-central-1.pooler.supabase.com:5432/postgres\"",
-    ],
-    { encoding: "utf8" },
-  );
+test(
+  "Windows Strongr Daily v2 runner constructs a percent-encoded Session Pooler URL",
+  { skip: process.platform !== "win32" },
+  () => {
+    const result = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-Command",
+        "$password=[Uri]::EscapeDataString('p@ss word:/?'); \"postgresql://postgres.guovsmbtxuowyyqamaex:$password@aws-0-ca-central-1.pooler.supabase.com:5432/postgres\"",
+      ],
+      { encoding: "utf8" },
+    );
 
-  assert.equal(result.status, 0);
-  assert.equal(
-    result.stdout.trim(),
-    "postgresql://postgres.guovsmbtxuowyyqamaex:p%40ss%20word%3A%2F%3F@aws-0-ca-central-1.pooler.supabase.com:5432/postgres",
-  );
-});
+    assert.equal(result.status, 0);
+    assert.equal(
+      result.stdout.trim(),
+      "postgresql://postgres.guovsmbtxuowyyqamaex:p%40ss%20word%3A%2F%3F@aws-0-ca-central-1.pooler.supabase.com:5432/postgres",
+    );
+  },
+);
 
 test("Windows Strongr Daily v2 runner emits only the safe password-authentication diagnostic", () => {
   assert.match(runner, /Test-DatabasePasswordAuthenticationFailure/);
   assert.match(runner, /password authentication failed/);
   assert.match(runner, /diagnostic: database_password_authentication_failed/);
-  assert.doesNotMatch(runner, /Write-(?:Output|Host).*\$(?:databasePassword|encodedDatabasePassword|databaseUrl|secretKey)/);
+  assert.doesNotMatch(
+    runner,
+    /Write-(?:Output|Host).*\$(?:databasePassword|encodedDatabasePassword|databaseUrl|secretKey)/,
+  );
 });
 
 test("Windows Strongr Daily v2 runner can use disposable-only temporary access with IP and expiry restrictions", () => {
@@ -127,7 +145,10 @@ test("Windows Strongr Daily v2 runner can use disposable-only temporary access w
   assert.match(runner, /\$primaryUri = "\$ProjectApiUri\/jit-access"/);
   assert.match(runner, /\$legacyUri = "\$ProjectApiUri\/database\/jit-access"/);
   assert.match(runner, /Get-SupabaseTemporaryAccessConfiguration/);
-  assert.match(runner, /\$temporaryAccessConfigurationUri = \[string\]\$temporaryAccessConfiguration\.Uri/);
+  assert.match(
+    runner,
+    /\$temporaryAccessConfigurationUri = \[string\]\$temporaryAccessConfiguration\.Uri/,
+  );
   assert.match(runner, /-Body @\{ state = "enabled" \}/);
   assert.match(runner, /role = "postgres"; rhost = \$publicIpv4/);
   assert.match(runner, /allowed_cidrs = @\(@\{ cidr = "\$publicIpv4\/32" \}\)/);
@@ -156,5 +177,8 @@ test("Windows Strongr Daily v2 runner removes its temporary access mapping and d
   assert.match(runner, /state = "disabled"/);
   assert.match(runner, /temporary_access_mapping_cleanup_failed/);
   assert.match(runner, /temporary_access_configuration_cleanup_failed/);
-  assert.doesNotMatch(runner, /Write-(?:Output|Host).*\$(?:temporaryAccessToken|temporaryAccessTokenSecure|publicIpv4|databaseUrl)/);
+  assert.doesNotMatch(
+    runner,
+    /Write-(?:Output|Host).*\$(?:temporaryAccessToken|temporaryAccessTokenSecure|publicIpv4|databaseUrl)/,
+  );
 });
