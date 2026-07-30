@@ -2,9 +2,9 @@ export type GenerationProvider = "deterministic" | "openai";
 export type PrivilegedKeyKind = "secret" | "legacy_service_role";
 
 export interface WorkerEnvironment {
-  readonly generationProvider: GenerationProvider;
-  readonly openAiApiKey: string | null;
-  readonly openAiModel: string | null;
+  readonly generationProvider?: GenerationProvider;
+  readonly openAiApiKey?: string | null;
+  readonly openAiModel?: string | null;
   readonly supabaseUrl: string;
   readonly supabasePrivilegedKey: string;
   readonly privilegedKeyKind: PrivilegedKeyKind;
