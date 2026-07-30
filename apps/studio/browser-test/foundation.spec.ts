@@ -879,7 +879,7 @@ test("a brief request keeps one stable idempotency key across its two durable co
   expect(generationCalls[0]?.body).toEqual(
     expect.objectContaining({
       p_brief_id: briefId,
-      p_idempotency_key: expect.stringMatching(/^studio-m3-2-/),
+      p_idempotency_key: expect.stringMatching(/^strongr-daily-v2-/),
       p_organization_id: organizationA,
     }),
   );
