@@ -336,15 +336,7 @@ function runPsql(
 ): string {
   const completed = spawnSync(
     "psql",
-    [
-      config.databaseUrl,
-      "-X",
-      "-qAt",
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-v",
-      "VERBOSITY=verbose",
-    ],
+    [config.databaseUrl, "-X", "-qAt", "-v", "ON_ERROR_STOP=1", "-v", "VERBOSITY=verbose"],
     {
       encoding: "utf8",
       input: sql,
@@ -1590,10 +1582,7 @@ function writeArtifact(artifactPath: string, target: string, fatalCode: string |
   process.exitCode = artifact.status === "pass" ? 0 : 1;
 }
 
-function databaseFailureEvidence(
-  test: string,
-  error: DatabaseCommandFailure,
-): EvidenceRecord {
+function databaseFailureEvidence(test: string, error: DatabaseCommandFailure): EvidenceRecord {
   return {
     database_command: error.diagnostic.command,
     database_detail: error.diagnostic.detail,
