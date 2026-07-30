@@ -5,7 +5,6 @@
 -- still creates an unapproved draft.
 
 begin;
-Output:
 create or replace function public.m1_complete_generation_attempt(
   p_event_id uuid,
   p_worker_id text,
