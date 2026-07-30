@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
-import type { StrongrDailyAudioReflectionV2Brief } from "../../../packages/content-schemas/src/index.ts";
 import { deterministicGenerationAdapter } from "../../../packages/ai/src/index.ts";
+import {
+  parseAudioReflection,
+  type StrongrDailyAudioReflectionV2Brief,
+} from "../../../packages/content-schemas/src/index.ts";
 import type {
   BrowserCommandArguments,
   BrowserCommandName,
@@ -14,8 +16,8 @@ import {
   createGenerationRequestFixture,
   fixtureIds,
 } from "../../../packages/testing/src/index.ts";
-import { BriefToDraftOperatorFlow, GenerationRequestDeferredError } from "../src/index.ts";
 import type { StudioCommandGateway } from "../src/index.ts";
+import { BriefToDraftOperatorFlow, GenerationRequestDeferredError } from "../src/index.ts";
 
 const contentItemId = "00000000-0000-4000-8000-000000000010";
 const briefId = "00000000-0000-4000-8000-000000000011";
@@ -246,7 +248,7 @@ test("manual drafts and human submission remain explicit governed commands", asy
     contentItemId,
     correlationId: fixtureIds.correlationId,
     organizationId: fixtureIds.organizationAlphaId,
-    payload: generation.output,
+    payload: parseAudioReflection(generation.output),
     supersedesVersionId: null,
   });
   await flow.submitDraft({
