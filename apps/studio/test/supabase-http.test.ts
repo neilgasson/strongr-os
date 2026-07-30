@@ -389,9 +389,9 @@ test("tenant reads are explicitly filtered, bounded, ordered, and contract parse
             created_at: "2026-07-26T20:02:00Z",
             id: versionId,
             organization_id: organizationId,
-            payload: { schema_id: "strongr.audio_reflection.v1" },
+            payload: { schema_id: "strongr.strongr_daily_audio_reflection.v2" },
             payload_hash: hash,
-            schema_id: "strongr.audio_reflection.v1",
+            schema_id: "strongr.strongr_daily_audio_reflection.v2",
             source: "ai_assisted",
             source_job_id: jobId,
             state: "draft",
@@ -412,6 +412,7 @@ test("tenant reads are explicitly filtered, bounded, ordered, and contract parse
   assert.equal(briefs[0]?.id, briefId);
   assert.equal(jobs[0]?.state, "succeeded");
   assert.equal(versions[0]?.sourceJobId, jobId);
+  assert.equal(versions[0]?.schemaId, "strongr.strongr_daily_audio_reflection.v2");
   for (const requestedUrl of requestedUrls) {
     const url = new URL(requestedUrl);
     assert.equal(url.searchParams.get("organization_id"), `eq.${organizationId}`);

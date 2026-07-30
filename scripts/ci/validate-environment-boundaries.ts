@@ -3,7 +3,10 @@ import { extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)));
-const clientRoots = ["apps/studio/src", "apps/studio/dist"];
+// Source code is the authority for this policy. Built assets are verified by
+// validate-m3-browser-foundation.ts, where minified strings cannot be mistaken
+// for source-level database calls.
+const clientRoots = ["apps/studio/src"];
 const forbiddenTokens = [
   "SUPABASE_ACCESS_TOKEN",
   "SUPABASE_SECRET_KEY",
