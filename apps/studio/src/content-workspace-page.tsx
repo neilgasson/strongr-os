@@ -12,14 +12,19 @@ import { Link } from "react-router-dom";
 
 import type {
   AudioReflection,
-  AudioReflectionBrief,
+  StrongrDailyAudioReflectionV2,
+  StrongrDailyAudioReflectionV2Brief,
 } from "../../../packages/content-schemas/src/index.ts";
-import { parseAudioReflection } from "../../../packages/content-schemas/src/index.ts";
+import {
+  parseAudioReflection,
+  parseStrongrDailyAudioReflectionV2,
+} from "../../../packages/content-schemas/src/index.ts";
 import type {
   ReviewDecision,
   ReviewLane,
   TenantApprovalSnapshotSummary,
   TenantContentVersionSummary,
+  TenantProductionPackageSummary,
   Uuid,
 } from "../../../packages/contracts/src/index.ts";
 
@@ -33,6 +38,7 @@ import {
   type ReviewToPackageWorkspace,
 } from "./review-to-package-flow.ts";
 import { useStudioSession } from "./session-context.tsx";
+import { createStrongrDailyApprovedExport } from "./strongr-daily-export.ts";
 
 interface ContentWorkspace {
   readonly draft: BriefToDraftWorkspace;
@@ -57,19 +63,19 @@ const initialScriptureReference = Object.freeze({
   translation: "TEST",
 });
 
-const initialBrief: AudioReflectionBrief = Object.freeze({
-  audience: "Synthetic adult test audience",
-  constraints: [
-    "Use synthetic content only",
-    "Do not treat generated output as reviewed or approved",
-  ],
-  objectives: ["Practice reflective attention", "Preserve human review authority"],
-  schema_id: "strongr.audio_reflection_brief.v1",
-  scripture_references: [initialScriptureReference],
-  target_duration_seconds: 300,
-  theme: "A deterministic, non-production reflection fixture",
-  title: "Synthetic Reflection Fixture",
-  tone: "reflective",
+const initialBrief: StrongrDailyAudioReflectionV2Brief = Object.freeze({
+  audience: "Adults seeking a moment of prayer",
+  content_type: "audio_reflection",
+  desired_duration_seconds: 300,
+  pastoral_purpose: "Offer a calm, Scripture-grounded moment of reflection and prayer.",
+  prohibited_claims_or_wording: ["Do not promise outcomes that Scripture does not promise."],
+  required_elements: ["Scripture reflection", "Prayer", "Personal takeaway"],
+  schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
+  scripture_reference: initialScriptureReference,
+  source_brief_identifier: "strongr-daily-owner-brief",
+  theme: "Be still before God",
+  tone: "pastoral",
+  working_title: "Be Still",
 });
 
 function newUuid(): Uuid {
@@ -77,7 +83,7 @@ function newUuid(): Uuid {
 }
 
 function newIdempotencyKey(): string {
-  return `studio-m3-2-${newUuid()}`;
+  return `strongr-daily-v2-${newUuid()}`;
 }
 
 function formatDate(value: string): string {
@@ -89,6 +95,25 @@ function shortHash(value: string): string {
   return `${value.slice(0, 12)}…${value.slice(-8)}`;
 }
 
+function downloadTextFile(name: string, content: string, type: string) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.download = name;
+  link.href = url;
+  link.click();
+  globalThis.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function downloadStrongrDailyPackage(productionPackage: TenantProductionPackageSummary) {
+  const files = createStrongrDailyApprovedExport({
+    exportedAt: new Date().toISOString(),
+    productionPackage,
+  });
+  const name = `strongr-daily-approved-${productionPackage.id}`;
+  downloadTextFile(`${name}.json`, files.json, "application/json");
+  downloadTextFile(`${name}.md`, files.markdown, "text/markdown");
+}
+
 function lines(value: string, maximum: number): string[] {
   return value
     .split(/\r?\n/)
@@ -97,17 +122,30 @@ function lines(value: string, maximum: number): string[] {
     .slice(0, maximum);
 }
 
+type ImmutableContent = AudioReflection | StrongrDailyAudioReflectionV2;
+
 function reflectionFromVersion(
   version: TenantContentVersionSummary | undefined,
-): AudioReflection | null {
+): ImmutableContent | null {
   if (!version) {
     return null;
   }
   try {
+    if (version.schemaId === "strongr.strongr_daily_audio_reflection.v2") {
+      return parseStrongrDailyAudioReflectionV2(version.payload);
+    }
     return parseAudioReflection(version.payload);
   } catch {
     return null;
   }
+}
+
+function isStrongrDailyV2(value: ImmutableContent): value is StrongrDailyAudioReflectionV2 {
+  return value.schema_id === "strongr.strongr_daily_audio_reflection.v2";
+}
+
+function contentTitle(value: ImmutableContent): string {
+  return isStrongrDailyV2(value) ? value.final_title : value.title;
 }
 
 export function ContentWorkspacePage() {
@@ -288,14 +326,18 @@ function BriefComposer({
   readonly pending: boolean;
 }) {
   const [brief, setBrief] = useState(initialBrief);
-  const [objectives, setObjectives] = useState(initialBrief.objectives.join("\n"));
-  const [constraints, setConstraints] = useState(initialBrief.constraints.join("\n"));
+  const [requiredElements, setRequiredElements] = useState(
+    initialBrief.required_elements.join("\n"),
+  );
+  const [prohibitedWording, setProhibitedWording] = useState(
+    initialBrief.prohibited_claims_or_wording.join("\n"),
+  );
   const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey);
-  const reference = brief.scripture_references[0] ?? initialScriptureReference;
-  const updateReference = (patch: Partial<(typeof brief.scripture_references)[number]>) => {
+  const reference = brief.scripture_reference;
+  const updateReference = (patch: Partial<typeof brief.scripture_reference>) => {
     setBrief({
       ...brief,
-      scripture_references: [{ ...reference, ...patch }],
+      scripture_reference: { ...reference, ...patch },
     });
   };
 
@@ -304,7 +346,7 @@ function BriefComposer({
       <div className="section-heading">
         <div>
           <p className="eyebrow">Step 1</p>
-          <h2 id="brief-heading">Create a synthetic brief</h2>
+          <h2 id="brief-heading">Create a Strongr Daily brief</h2>
         </div>
         <span className="status-pill status-pill--neutral">Schema validated</span>
       </div>
@@ -316,10 +358,10 @@ function BriefComposer({
         className="workflow-form"
         onSubmit={(event) => {
           event.preventDefault();
-          const payload: AudioReflectionBrief = {
+          const payload: StrongrDailyAudioReflectionV2Brief = {
             ...brief,
-            constraints: lines(constraints, 12),
-            objectives: lines(objectives, 8),
+            prohibited_claims_or_wording: lines(prohibitedWording, 12),
+            required_elements: lines(requiredElements, 12),
           };
           void execute(
             "create-brief",
@@ -331,9 +373,9 @@ function BriefComposer({
                 correlationId: newUuid(),
                 idempotencyKey,
                 organizationId,
-                promptKey: "strongr.audio_reflection.fixture",
+                promptKey: "strongr.strongr_daily.fixture",
                 promptVersion: 1,
-                title: payload.title,
+                title: payload.working_title,
               });
               setIdempotencyKey(newIdempotencyKey());
             },
@@ -342,10 +384,10 @@ function BriefComposer({
       >
         <div className="form-grid">
           <Field
-            label="Brief title"
+            label="Working title"
             maxLength={200}
-            onChange={(value) => setBrief({ ...brief, title: value })}
-            value={brief.title}
+            onChange={(value) => setBrief({ ...brief, working_title: value })}
+            value={brief.working_title}
           />
           <Field
             label="Audience"
@@ -365,7 +407,7 @@ function BriefComposer({
               onChange={(event) =>
                 setBrief({
                   ...brief,
-                  tone: event.currentTarget.value as AudioReflectionBrief["tone"],
+                  tone: event.currentTarget.value as StrongrDailyAudioReflectionV2Brief["tone"],
                 })
               }
               value={brief.tone}
@@ -377,19 +419,19 @@ function BriefComposer({
             </select>
           </label>
           <label>
-            Target duration in seconds
+            Desired duration in seconds
             <input
               max={1200}
               min={60}
               onChange={(event) =>
                 setBrief({
                   ...brief,
-                  target_duration_seconds: Number(event.currentTarget.value),
+                  desired_duration_seconds: Number(event.currentTarget.value),
                 })
               }
               required
               type="number"
-              value={brief.target_duration_seconds}
+              value={brief.desired_duration_seconds}
             />
           </label>
           <Field
@@ -410,26 +452,38 @@ function BriefComposer({
             onChange={(value) => updateReference({ source_citation: value })}
             value={reference.source_citation}
           />
+          <Field
+            label="Source brief identifier"
+            maxLength={160}
+            onChange={(value) => setBrief({ ...brief, source_brief_identifier: value })}
+            value={brief.source_brief_identifier}
+          />
         </div>
         <label>
-          Objectives, one per line
+          Required elements, one per line
           <textarea
             maxLength={4000}
-            onChange={(event) => setObjectives(event.currentTarget.value)}
+            onChange={(event) => setRequiredElements(event.currentTarget.value)}
             required
             rows={4}
-            value={objectives}
+            value={requiredElements}
           />
         </label>
         <label>
-          Constraints, one per line
+          Prohibited claims or wording, one per line
           <textarea
             maxLength={6000}
-            onChange={(event) => setConstraints(event.currentTarget.value)}
+            onChange={(event) => setProhibitedWording(event.currentTarget.value)}
             rows={4}
-            value={constraints}
+            value={prohibitedWording}
           />
         </label>
+        <TextArea
+          label="Pastoral purpose"
+          maxLength={1000}
+          onChange={(value) => setBrief({ ...brief, pastoral_purpose: value })}
+          value={brief.pastoral_purpose}
+        />
         <p className="operation-detail">
           Stable request key: <code>{idempotencyKey}</code>
         </p>
@@ -502,7 +556,7 @@ function VersionWorkspace({
               <div className="immutable-card-heading">
                 <div>
                   <p className="eyebrow">Version {selectedVersion.versionNumber}</p>
-                  <h3>{reflection.title}</h3>
+                  <h3>{contentTitle(reflection)}</h3>
                 </div>
                 <span className="status-pill status-pill--positive">{selectedVersion.state}</span>
               </div>
@@ -522,20 +576,7 @@ function VersionWorkspace({
               </dl>
               <details>
                 <summary>Read immutable content</summary>
-                <div className="content-preview">
-                  <h4>Opening</h4>
-                  <p>{reflection.opening}</p>
-                  <h4>Reflection</h4>
-                  <p>{reflection.reflection}</p>
-                  <h4>Questions</h4>
-                  <ul>
-                    {reflection.reflection_questions.map((question) => (
-                      <li key={question}>{question}</li>
-                    ))}
-                  </ul>
-                  <h4>Closing</h4>
-                  <p>{reflection.closing}</p>
-                </div>
+                <ImmutableContentPreview value={reflection} />
               </details>
               {selectedVersion.state === "draft" ? (
                 <div className="confirmation-panel">
@@ -575,7 +616,7 @@ function VersionWorkspace({
           ) : (
             <p role="alert">The selected immutable payload does not match the accepted schema.</p>
           )}
-          {selectedVersion && reflection ? (
+          {selectedVersion && reflection && !isStrongrDailyV2(reflection) ? (
             <ManualSuccessorForm
               canCreate={canCreate}
               execute={execute}
@@ -589,6 +630,77 @@ function VersionWorkspace({
         </>
       )}
     </section>
+  );
+}
+
+function ImmutableContentPreview({ value }: { readonly value: ImmutableContent }) {
+  if (!isStrongrDailyV2(value)) {
+    return (
+      <div className="content-preview">
+        <h4>Opening</h4>
+        <p>{value.opening}</p>
+        <h4>Reflection</h4>
+        <p>{value.reflection}</p>
+        <h4>Questions</h4>
+        <ul>
+          {value.reflection_questions.map((question) => (
+            <li key={question}>{question}</li>
+          ))}
+        </ul>
+        <h4>Closing</h4>
+        <p>{value.closing}</p>
+      </div>
+    );
+  }
+  return (
+    <div className="content-preview">
+      <h4>Summary</h4>
+      <p>{value.short_summary}</p>
+      <h4>Pastoral purpose</h4>
+      <p>{value.pastoral_purpose}</p>
+      <h4>Tone</h4>
+      <p>{value.tone}</p>
+      <h4>Scripture</h4>
+      <p>
+        {value.scripture_reference.reference} ({value.scripture_reference.translation})
+      </p>
+      {value.scripture_text ? <p>{value.scripture_text}</p> : null}
+      <h4>Welcome</h4>
+      <p>{value.warm_welcome}</p>
+      <h4>Scripture introduction</h4>
+      <p>{value.scripture_introduction}</p>
+      <h4>Reflective transition</h4>
+      <p>{value.reflective_transition}</p>
+      <h4>Narration</h4>
+      <p>{value.narration_text}</p>
+      <h4>Closing</h4>
+      <p>{value.closing}</p>
+      <h4>Prayer</h4>
+      <p>{value.prayer}</p>
+      {value.prayer_request_prompt ? (
+        <>
+          <h4>Prayer request prompt</h4>
+          <p>{value.prayer_request_prompt}</p>
+        </>
+      ) : null}
+      <h4>Personal takeaway</h4>
+      <p>{value.personal_takeaway_prompt}</p>
+      <h4>App description</h4>
+      <p>{value.app_description}</p>
+      <h4>Production metadata</h4>
+      <ul>
+        <li>Artwork prompt: {value.artwork_generation_prompt}</li>
+        <li>Social caption: {value.social_caption}</li>
+        <li>Keywords: {value.keywords.join(", ")}</li>
+        <li>Estimated duration: {value.estimated_duration_seconds} seconds</li>
+        <li>Source brief identifier: {value.source_brief_identifier}</li>
+        <li>Content type: {value.content_type}</li>
+        <li>Content hash: {value.content_hash}</li>
+        {value.soft_music_fade_instruction ? (
+          <li>Soft music fade instruction: {value.soft_music_fade_instruction}</li>
+        ) : null}
+      </ul>
+    </div>
   );
 }
 
@@ -1140,6 +1252,7 @@ function AuthorityActions({
   readonly scriptureEvidence: ReviewToPackageWorkspace["scriptureEvidence"];
   readonly version: TenantContentVersionSummary;
 }) {
+  const { announce, reportWorkflowFailure } = useStudioSession();
   const [policyId, setPolicyId] = useState("");
   const [checkRunId, setCheckRunId] = useState("");
   const [scriptureEvidenceId, setScriptureEvidenceId] = useState("");
@@ -1318,10 +1431,28 @@ function AuthorityActions({
           </p>
         ) : null}
         {existingPackage ? (
-          <p className="status-copy">
+          <>
+            <p className="status-copy">
             Package already exists: {existingPackage.id} · {shortHash(existingPackage.manifestHash)}
             .
-          </p>
+            </p>
+            <button
+            className="secondary-button"
+            onClick={() => {
+              try {
+                downloadStrongrDailyPackage(existingPackage);
+                announce(
+                  "Approved Strongr Daily JSON and Markdown package downloaded. No publishing occurred.",
+                );
+              } catch (error) {
+                reportWorkflowFailure(error, "The approved Strongr Daily package was not downloaded");
+              }
+            }}
+            type="button"
+          >
+            Download approved JSON and Markdown
+            </button>
+          </>
         ) : null}
         <label className="confirmation-label">
           <input
