@@ -1,14 +1,15 @@
-import type {
-  GenerationAdapter,
-  GenerationAdapterIdentity,
-  GenerationResult,
-} from "../../../packages/ai/src/index.ts";
-import { createGenerationOutputHash } from "../../../packages/ai/src/index.ts";
 import {
-  type AudioReflection,
+  createGenerationOutputHash,
+  GenerationProviderError,
+  type GenerationAdapter,
+  type GenerationAdapterIdentity,
+  type GenerationResult,
+} from "../../../packages/ai/src/index.ts";
+import {
   type AudioReflectionBrief,
   parseAudioReflection,
   parseAudioReflectionBrief,
+  parseStrongrDailyAudioReflectionV2,
 } from "../../../packages/content-schemas/src/index.ts";
 import type { JsonValue, Uuid } from "../../../packages/contracts/src/index.ts";
 
@@ -159,20 +160,28 @@ function validGenerationResult(
   result: GenerationResult,
   identity: GenerationAdapterIdentity,
   promptChecksum: string,
+  brief: AudioReflectionBrief | import("../../../packages/content-schemas/src/index.ts").StrongrDailyAudioReflectionV2Brief,
 ): boolean {
-  let output: AudioReflection;
   try {
-    output = parseAudioReflection(result.output);
+    const expectedSchemaId =
+      brief.schema_id === "strongr.strongr_daily_audio_reflection_brief.v2"
+        ? "strongr.strongr_daily_audio_reflection.v2"
+        : "strongr.audio_reflection.v1";
+    const output =
+      expectedSchemaId === "strongr.strongr_daily_audio_reflection.v2"
+        ? parseStrongrDailyAudioReflectionV2(result.output)
+        : parseAudioReflection(result.output);
+    return (
+      result.provider === identity.provider &&
+      result.model === identity.model &&
+      result.promptChecksum === promptChecksum &&
+      result.responseSchemaId === expectedSchemaId &&
+      result.output.schema_id === expectedSchemaId &&
+      result.outputHash === createGenerationOutputHash(output)
+    );
   } catch {
     return false;
   }
-  return (
-    result.provider === identity.provider &&
-    result.model === identity.model &&
-    result.promptChecksum === promptChecksum &&
-    result.responseSchemaId === "strongr.audio_reflection.v1" &&
-    result.outputHash === createGenerationOutputHash(output)
-  );
 }
 
 export class DurableGenerationWorker {
@@ -307,17 +316,17 @@ export class DurableGenerationWorker {
     const startedAt = this.#clock();
     try {
       result = await this.#adapter.generate(request);
-    } catch {
+    } catch (error) {
       return this.#failCurrentAttempt(
         claim,
         attempt,
-        "generation.adapter_failed",
+        error instanceof GenerationProviderError ? error.safeCode : "generation.adapter_failed",
         retryAfterSeconds,
       );
     }
     const latencyMs = Math.max(0, Math.round(this.#clock() - startedAt));
 
-    if (!validGenerationResult(result, this.#adapter.identity, attempt.promptChecksum)) {
+    if (!validGenerationResult(result, this.#adapter.identity, attempt.promptChecksum, brief)) {
       return this.#failCurrentAttempt(
         claim,
         attempt,
