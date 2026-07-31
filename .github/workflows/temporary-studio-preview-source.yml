@@ -1,0 +1,40 @@
+name: Temporary Strongr Studio preview source bridge
+
+on:
+  push:
+    branches:
+      - agent/studio-guided-product-flow
+    paths:
+      - .github/workflows/temporary-studio-preview-source.yml
+
+permissions:
+  contents: write
+
+jobs:
+  push-source:
+    if: github.event.head_commit.message != 'Remove temporary preview source bridge'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove the one-use bridge from the source state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/temporary-studio-preview-source.yml
+          git commit -m "Remove temporary preview source bridge"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Push exact private preview source
+        shell: bash
+        env:
+          SITES_TOKEN: ${{ secrets.SITES_PREVIEW_REPAIR_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "${SITES_TOKEN:-}"
+          git -c http.extraHeader="Authorization: Bearer ${SITES_TOKEN}" push --force "https://git.chatgpt-team.site/8327b475-64cc-43e2-8b21-59df8b988a1e/appgprj_6a6838cd73c88191aa6e1d1a806068ae.git" HEAD:refs/heads/main
