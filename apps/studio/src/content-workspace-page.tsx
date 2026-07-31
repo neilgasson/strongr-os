@@ -2801,4 +2801,3 @@ function submit(handler: () => void | Promise<void>) {
     void handler();
   };
 }
-  
