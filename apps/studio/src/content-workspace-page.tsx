@@ -58,24 +58,24 @@ type ExecuteMutation = (
 ) => Promise<void>;
 
 const initialScriptureReference = Object.freeze({
-  reference: "Synthetic Reference 1:1",
-  source_citation: "Synthetic fixture; not a Scripture quotation",
-  translation: "TEST",
+  reference: "",
+  source_citation: "",
+  translation: "",
 });
 
 const initialBrief: StrongrDailyAudioReflectionV2Brief = Object.freeze({
-  audience: "Adults seeking a moment of prayer",
+  audience: "",
   content_type: "audio_reflection",
   desired_duration_seconds: 300,
-  pastoral_purpose: "Offer a calm, Scripture-grounded moment of reflection and prayer.",
+  pastoral_purpose: "",
   prohibited_claims_or_wording: ["Do not promise outcomes that Scripture does not promise."],
   required_elements: ["Scripture reflection", "Prayer", "Personal takeaway"],
   schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
   scripture_reference: initialScriptureReference,
-  source_brief_identifier: "strongr-daily-owner-brief",
-  theme: "Be still before God",
+  source_brief_identifier: "",
+  theme: "",
   tone: "pastoral",
-  working_title: "Be Still",
+  working_title: "",
 });
 
 function newUuid(): Uuid {
@@ -248,7 +248,11 @@ export function ContentWorkspacePage() {
         </p>
       </div>
 
-      <section className="workflow-safety" aria-label="Current workflow safety">
+      <section
+        className="workflow-safety"
+        id="session-security"
+        aria-label="Current workflow safety"
+      >
         <div>
           <strong>{aal2 ? "AAL2 session" : "AAL2 not confirmed"}</strong>
           <p>
@@ -798,6 +802,120 @@ function ManualSuccessorForm({
   );
 }
 
+interface GuidedReviewStep {
+  readonly detail: string;
+  readonly targetId: string;
+  readonly title: string;
+}
+
+function guidedReviewStep({
+  aal2,
+  activeApprovals,
+  checkRuns,
+  packages,
+  policies,
+  reviews,
+  rightsSnapshots,
+  scriptureEvidence,
+  version,
+}: {
+  readonly aal2: boolean;
+  readonly activeApprovals: ReviewToPackageWorkspace["approvalSnapshots"];
+  readonly checkRuns: ReviewToPackageWorkspace["checkRuns"];
+  readonly packages: ReviewToPackageWorkspace["productionPackages"];
+  readonly policies: ReviewToPackageWorkspace["reviewPolicies"];
+  readonly reviews: ReviewToPackageWorkspace["reviewDecisions"];
+  readonly rightsSnapshots: ReviewToPackageWorkspace["rightsSnapshots"];
+  readonly scriptureEvidence: ReviewToPackageWorkspace["scriptureEvidence"];
+  readonly version: TenantContentVersionSummary;
+}): GuidedReviewStep {
+  if (version.state !== "submitted") {
+    return {
+      detail:
+        "Read the immutable draft above, then submit that exact version. Nothing is approved or published by submitting it.",
+      targetId: "version-heading",
+      title: "Review and submit this version",
+    };
+  }
+  if (!aal2) {
+    return {
+      detail:
+        "Open Session security and enter the current six-digit code from your authenticator. Return here after Studio shows AAL2.",
+      targetId: "session-security",
+      title: "Confirm your secure session",
+    };
+  }
+  if (!policies.some(({ isActive }) => isActive)) {
+    return {
+      detail:
+        "Activate the existing review policy below. This selects the rules for review; it does not approve or publish the content.",
+      targetId: "review-policy",
+      title: "Activate the review policy",
+    };
+  }
+  if (!checkRuns.some(({ status }) => status === "completed")) {
+    return {
+      detail:
+        "No completed automated check run exists for this exact version yet. Reload canonical state after the checks finish.",
+      targetId: "automated-heading",
+      title: "Wait for automated checks",
+    };
+  }
+  if (!scriptureEvidence.some(({ verificationStatus }) => verificationStatus === "verified")) {
+    return {
+      detail:
+        "Confirm the reference and translation, add the source you checked, then record the Scripture evidence for this exact version.",
+      targetId: "scripture-evidence",
+      title: "Verify the Scripture reference",
+    };
+  }
+  if (!rightsSnapshots.some(({ status }) => status === "cleared")) {
+    return {
+      detail:
+        "Record why the Scripture and other material may be used. This pilot stores the reference only; do not add unlicensed NIV text.",
+      targetId: "rights-review",
+      title: "Confirm content rights",
+    };
+  }
+  const missingLane = (["scripture", "theology", "editorial"] as const).find(
+    (lane) => !reviews.some((review) => review.lane === lane && review.decision === "approved"),
+  );
+  if (missingLane) {
+    return {
+      detail:
+        "Choose your decision and write a short note describing what you personally checked. Studio never fills in or approves a human review for you.",
+      targetId: `${missingLane}-review`,
+      title: `Complete the ${missingLane} review`,
+    };
+  }
+  if (activeApprovals.length === 0) {
+    return {
+      detail:
+        "All required evidence is ready. Confirm the exact version and evidence bundle below. This still does not publish anything.",
+      targetId: "exact-approval",
+      title: "Approve the exact version",
+    };
+  }
+  if (
+    !packages.some(({ approvalSnapshotId }) =>
+      activeApprovals.some(({ id }) => id === approvalSnapshotId),
+    )
+  ) {
+    return {
+      detail:
+        "Create the immutable JSON and Markdown package. Package creation is non-public and does not upload anything to Strongr Daily.",
+      targetId: "production-package",
+      title: "Create the non-public package",
+    };
+  }
+  return {
+    detail:
+      "The governed pilot package is ready to download. No content has been published and no audio has been generated.",
+    targetId: "production-package",
+    title: "Download the completed pilot package",
+  };
+}
+
 function ReviewWorkspace({
   aal2,
   capabilities,
@@ -851,13 +969,32 @@ function ReviewWorkspace({
   const packages = workspace.productionPackages.filter(({ approvalSnapshotId }) =>
     approvals.some(({ id }) => id === approvalSnapshotId),
   );
+  const policies = workspace.reviewPolicies.filter(({ isActive }) => isActive);
+  const reflection = reflectionFromVersion(selectedVersion);
+  const selectedScriptureReference = reflection
+    ? isStrongrDailyV2(reflection)
+      ? reflection.scripture_reference
+      : reflection.scripture_references[0]
+    : undefined;
+  const nextStep = guidedReviewStep({
+    aal2,
+    activeApprovals,
+    checkRuns,
+    packages,
+    policies,
+    reviews,
+    rightsSnapshots,
+    scriptureEvidence,
+    version: selectedVersion,
+  });
+  const reviewActionsAllowed = selectedVersion.state === "submitted" && aal2;
 
   return (
     <section className="workflow-section" aria-labelledby="review-heading">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Steps 4–7</p>
-          <h2 id="review-heading">Evidence, human review, approval, and package</h2>
+          <p className="eyebrow">Finish this item</p>
+          <h2 id="review-heading">Follow one clear next step</h2>
         </div>
         <span className="status-pill status-pill--warning">Human authority</span>
       </div>
@@ -868,38 +1005,54 @@ function ReviewWorkspace({
         <span>{selectedVersion.id}</span>
       </div>
 
+      <section className="workflow-guide" aria-labelledby="next-action-heading" aria-live="polite">
+        <p className="eyebrow">What to do next</p>
+        <h3 id="next-action-heading">{nextStep.title}</h3>
+        <p>{nextStep.detail}</p>
+        <a className="button-link" href={`#${nextStep.targetId}`}>
+          Go to this step
+        </a>
+        <p className="operation-detail">
+          Complete one action. Studio will reload the saved records and update this instruction.
+        </p>
+      </section>
+
       <AutomatedEvidence checkResults={checkResults} checkRuns={checkRuns} />
 
       <div className="human-governance-grid">
         <PolicyForm
-          allowed={Boolean(capabilities?.["role.manage"]) && aal2}
+          allowed={Boolean(capabilities?.["role.manage"]) && reviewActionsAllowed}
           execute={execute}
           flow={flow}
           organizationId={organizationId}
           pending={pending}
         />
         <ScriptureEvidenceForm
-          allowed={Boolean(capabilities?.["review.scripture"]) && aal2}
+          allowed={Boolean(capabilities?.["review.scripture"]) && reviewActionsAllowed}
           execute={execute}
           flow={flow}
+          initialReference={selectedScriptureReference?.reference ?? ""}
+          initialTranslation={selectedScriptureReference?.translation ?? ""}
+          key={`scripture-evidence-${versionId}`}
           organizationId={organizationId}
           pending={pending}
           versionId={versionId}
         />
         <RightsForm
-          allowed={Boolean(capabilities?.["review.editorial"]) && aal2}
+          allowed={Boolean(capabilities?.["review.editorial"]) && reviewActionsAllowed}
           execute={execute}
           flow={flow}
+          key={`rights-${versionId}`}
           organizationId={organizationId}
           pending={pending}
           versionId={versionId}
         />
         {(["scripture", "theology", "editorial"] as const).map((lane) => (
           <ReviewLaneForm
-            allowed={Boolean(capabilities?.[`review.${lane}`]) && aal2}
+            allowed={Boolean(capabilities?.[`review.${lane}`]) && reviewActionsAllowed}
             execute={execute}
             flow={flow}
-            key={lane}
+            key={`${versionId}-${lane}`}
             lane={lane}
             organizationId={organizationId}
             pending={pending}
@@ -917,6 +1070,7 @@ function ReviewWorkspace({
       />
 
       <AuthorityActions
+        key={versionId}
         aal2={aal2}
         approvals={activeApprovals}
         canApprove={Boolean(capabilities?.["approval.grant"])}
@@ -928,7 +1082,7 @@ function ReviewWorkspace({
         organizationId={organizationId}
         packages={packages}
         pending={pending}
-        policies={workspace.reviewPolicies.filter(({ isActive }) => isActive)}
+        policies={policies}
         reviews={reviews}
         rightsSnapshots={rightsSnapshots}
         scriptureEvidence={scriptureEvidence}
@@ -990,7 +1144,7 @@ function PolicyForm({ allowed, execute, flow, organizationId, pending }: HumanFo
   const [key, setKey] = useState("m1_3_default");
   const [version, setVersion] = useState(1);
   return (
-    <HumanActionCard title="Activate review policy">
+    <HumanActionCard id="review-policy" title="Activate review policy">
       <form
         className="workflow-form"
         onSubmit={submit(async () => {
@@ -1008,6 +1162,10 @@ function PolicyForm({ allowed, execute, flow, organizationId, pending }: HumanFo
           );
         })}
       >
+        <p className="status-copy">
+          Select the governance rules for this review. Activating a policy does not approve or
+          publish content.
+        </p>
         <Field label="Policy key" maxLength={100} onChange={setKey} value={key} />
         <label>
           Policy version
@@ -1031,15 +1189,22 @@ function ScriptureEvidenceForm({
   allowed,
   execute,
   flow,
+  initialReference,
+  initialTranslation,
   organizationId,
   pending,
   versionId,
-}: HumanFormProps & { readonly versionId: Uuid }) {
-  const [reference, setReference] = useState("Synthetic Reference 1:1");
-  const [translation, setTranslation] = useState("TEST");
-  const [citation, setCitation] = useState("Synthetic fixture; not a Scripture quotation");
+}: HumanFormProps & {
+  readonly initialReference: string;
+  readonly initialTranslation: string;
+  readonly versionId: Uuid;
+}) {
+  const [reference, setReference] = useState(initialReference);
+  const [translation, setTranslation] = useState(initialTranslation);
+  const [citation, setCitation] = useState("");
+  const complete = Boolean(reference.trim() && translation.trim() && citation.trim());
   return (
-    <HumanActionCard title="Record Scripture evidence">
+    <HumanActionCard id="scripture-evidence" title="Verify the Scripture reference">
       <form
         className="workflow-form"
         onSubmit={submit(() =>
@@ -1060,12 +1225,25 @@ function ScriptureEvidenceForm({
           ),
         )}
       >
+        <p className="status-copy">
+          Confirm the reference and translation shown in the immutable content. Add the source you
+          personally checked. Do not paste unlicensed Scripture text.
+        </p>
         <Field label="Reference" maxLength={160} onChange={setReference} value={reference} />
         <Field label="Translation" maxLength={80} onChange={setTranslation} value={translation} />
         <TextArea label="Source citation" maxLength={500} onChange={setCitation} value={citation} />
-        <button className="secondary-button" disabled={!allowed || pending} type="submit">
+        <button
+          className="secondary-button"
+          disabled={!allowed || !complete || pending}
+          type="submit"
+        >
           Record verified evidence
         </button>
+        {!complete ? (
+          <p className="permission-note">
+            Add the reference, translation, and source citation to unlock this action.
+          </p>
+        ) : null}
       </form>
     </HumanActionCard>
   );
@@ -1079,9 +1257,9 @@ function RightsForm({
   pending,
   versionId,
 }: HumanFormProps & { readonly versionId: Uuid }) {
-  const [summary, setSummary] = useState("Synthetic material cleared for acceptance testing only");
+  const [summary, setSummary] = useState("");
   return (
-    <HumanActionCard title="Record rights snapshot">
+    <HumanActionCard id="rights-review" title="Confirm content rights">
       <form
         className="workflow-form"
         onSubmit={submit(() =>
@@ -1100,15 +1278,26 @@ function RightsForm({
           ),
         )}
       >
+        <p className="status-copy">
+          Write a short, factual note explaining why the referenced material may be used. This is a
+          human clearance decision, not an automated result.
+        </p>
         <TextArea
           label="Rights source summary"
           maxLength={2000}
           onChange={setSummary}
           value={summary}
         />
-        <button className="secondary-button" disabled={!allowed || pending} type="submit">
+        <button
+          className="secondary-button"
+          disabled={!allowed || !summary.trim() || pending}
+          type="submit"
+        >
           Record cleared rights
         </button>
+        {!summary.trim() ? (
+          <p className="permission-note">Add the source and rights basis to unlock this action.</p>
+        ) : null}
       </form>
     </HumanActionCard>
   );
@@ -1126,14 +1315,21 @@ function ReviewLaneForm({
   readonly lane: ReviewLane;
   readonly versionId: Uuid;
 }) {
-  const [decision, setDecision] = useState<ReviewDecision>("approved");
-  const [evidence, setEvidence] = useState(`Synthetic ${lane} review evidence`);
+  const [decision, setDecision] = useState<ReviewDecision | "">("");
+  const [evidence, setEvidence] = useState("");
+  const complete = Boolean(decision && evidence.trim());
   return (
-    <HumanActionCard title={`${lane[0]?.toUpperCase()}${lane.slice(1)} review`}>
+    <HumanActionCard
+      id={`${lane}-review`}
+      title={`${lane[0]?.toUpperCase()}${lane.slice(1)} review`}
+    >
       <form
         className="workflow-form"
-        onSubmit={submit(() =>
-          execute(
+        onSubmit={submit(() => {
+          if (!decision || !evidence.trim()) {
+            return;
+          }
+          return execute(
             `${lane}-review`,
             `${lane} review decision recorded for the exact version.`,
             `The ${lane} review was not confirmed as recorded`,
@@ -1147,15 +1343,22 @@ function ReviewLaneForm({
                 organizationId,
                 reasonCode: "m3_2_operator_review",
               }),
-          ),
-        )}
+          );
+        })}
       >
+        <p className="status-copy">
+          Make your own decision after reading this exact version. Add a short note describing what
+          you checked; Studio will not write or approve the review for you.
+        </p>
         <label>
           Human decision
           <select
-            onChange={(event) => setDecision(event.currentTarget.value as ReviewDecision)}
+            onChange={(event) => setDecision(event.currentTarget.value as ReviewDecision | "")}
             value={decision}
           >
+            <option disabled value="">
+              Choose a decision
+            </option>
             <option value="approved">Approved</option>
             <option value="changes_requested">Changes requested</option>
             <option value="rejected">Rejected</option>
@@ -1167,9 +1370,18 @@ function ReviewLaneForm({
           onChange={setEvidence}
           value={evidence}
         />
-        <button className="secondary-button" disabled={!allowed || pending} type="submit">
+        <button
+          className="secondary-button"
+          disabled={!allowed || !complete || pending}
+          type="submit"
+        >
           Record {lane} decision
         </button>
+        {!complete ? (
+          <p className="permission-note">
+            Choose a decision and write your evidence note to unlock this action.
+          </p>
+        ) : null}
       </form>
     </HumanActionCard>
   );
@@ -1300,6 +1512,17 @@ function AuthorityActions({
     theologyReviewId,
     editorialReviewId,
   ].every(Boolean);
+  const missingApprovalEvidence = [
+    [policyId, "active review policy"],
+    [checkRunId, "completed automated checks"],
+    [scriptureEvidenceId, "verified Scripture evidence"],
+    [rightsSnapshotId, "cleared rights"],
+    [scriptureReviewId, "approved Scripture review"],
+    [theologyReviewId, "approved theology review"],
+    [editorialReviewId, "approved editorial review"],
+  ]
+    .filter(([id]) => !id)
+    .map(([, label]) => label);
   const selectedApproval = approvals.find(({ id }) => id === approvalId);
   const existingPackage = packages.find(
     ({ approvalSnapshotId }) => approvalId === approvalSnapshotId,
@@ -1307,7 +1530,11 @@ function AuthorityActions({
 
   return (
     <div className="authority-grid">
-      <section className="authority-card" aria-labelledby="approval-action-heading">
+      <section
+        className="authority-card"
+        id="exact-approval"
+        aria-labelledby="approval-action-heading"
+      >
         <p className="eyebrow">AAL2 authority</p>
         <h3 id="approval-action-heading">Approve exact evidence bundle</h3>
         <p>
@@ -1410,9 +1637,20 @@ function AuthorityActions({
         >
           Approve exact version
         </button>
+        {!aal2 ? (
+          <p className="permission-note">Approval is locked until Session security shows AAL2.</p>
+        ) : missingApprovalEvidence.length > 0 ? (
+          <p className="permission-note">
+            Approval is locked. Complete: {missingApprovalEvidence.join(", ")}.
+          </p>
+        ) : null}
       </section>
 
-      <section className="authority-card" aria-labelledby="package-action-heading">
+      <section
+        className="authority-card"
+        id="production-package"
+        aria-labelledby="package-action-heading"
+      >
         <p className="eyebrow">Immutable, non-public</p>
         <h3 id="package-action-heading">Create production package</h3>
         <EvidenceSelect
@@ -1492,6 +1730,11 @@ function AuthorityActions({
         >
           Create immutable package
         </button>
+        {!approvalId ? (
+          <p className="permission-note">
+            Package creation is locked until this exact version has an unrevoked approval.
+          </p>
+        ) : null}
       </section>
 
       <section className="authority-card authority-card--danger" aria-labelledby="revoke-heading">
@@ -1556,13 +1799,15 @@ interface HumanFormProps {
 
 function HumanActionCard({
   children,
+  id,
   title,
 }: {
   readonly children: React.ReactNode;
+  readonly id: string;
   readonly title: string;
 }) {
   return (
-    <article>
+    <article id={id}>
       <h3>{title}</h3>
       {children}
     </article>
@@ -1592,8 +1837,14 @@ function EvidenceSelect({
   return (
     <label>
       {label}
-      <select onChange={(event) => onChange(event.currentTarget.value)} value={value}>
-        {options.length === 0 ? <option value="">No eligible canonical record</option> : null}
+      <select
+        disabled={options.length === 0}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        value={value}
+      >
+        {options.length === 0 ? (
+          <option value="">Not ready — complete the guided steps first</option>
+        ) : null}
         {options.map((option) => (
           <option key={option.id} value={option.id}>
             {option.label}
