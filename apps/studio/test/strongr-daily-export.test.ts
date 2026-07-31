@@ -69,4 +69,3 @@ test("v2 export rejects a changed reviewed field instead of silently exporting i
     /approved content hash does not match payload/,
   );
 });
-  
