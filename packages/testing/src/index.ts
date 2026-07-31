@@ -1,5 +1,6 @@
 export {
   audioReflectionBriefFixture,
+  contentProfileSelectionFixture,
   createGenerationRequestFixture,
   fixtureIds,
   strongrDailyAudioReflectionV2BriefFixture,

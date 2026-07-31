@@ -1,4 +1,5 @@
 import {
+  contentProfileSelectionsMatch,
   createGenerationOutputHash,
   isGenerationOutputBoundToBrief,
   type GenerationAdapter,
@@ -14,6 +15,7 @@ import {
   parseStrongrDailyAudioReflectionV2Brief,
   type StrongrDailyAudioReflectionV2Brief,
 } from "../../../packages/content-schemas/src/index.ts";
+import type { ContentProfileSelection } from "../../../packages/content-profiles/src/index.ts";
 import type { JsonValue, Uuid } from "../../../packages/contracts/src/index.ts";
 
 export interface GenerationEventClaim {
@@ -46,6 +48,8 @@ export interface GenerationAttemptLease {
   readonly promptVersion: number;
   readonly promptChecksum: string;
   readonly brief: unknown;
+  readonly contentProfile: ContentProfileSelection | null;
+  readonly contentProfileSourceManifestChecksum: string | null;
   readonly attemptId: Uuid | null;
   readonly attemptNumber: number;
   readonly maxAttempts: number;
@@ -174,6 +178,8 @@ function validGenerationResult(
   identity: GenerationAdapterIdentity,
   promptChecksum: string,
   brief: AudioReflectionBrief | StrongrDailyAudioReflectionV2Brief,
+  contentProfile: ContentProfileSelection | null,
+  contentProfileSourceManifestChecksum: string | null,
 ): boolean {
   try {
     const expectedSchemaId =
@@ -184,9 +190,16 @@ function validGenerationResult(
       expectedSchemaId === "strongr.strongr_daily_audio_reflection.v2"
         ? parseStrongrDailyAudioReflectionV2(result.output)
         : parseAudioReflection(result.output);
+    const briefProfile =
+      brief.schema_id === "strongr.strongr_daily_audio_reflection_brief.v2"
+        ? (brief.content_profile ?? null)
+        : null;
     return (
       result.provider === identity.provider &&
       result.model === identity.model &&
+      contentProfileSelectionsMatch(result.contentProfile, contentProfile) &&
+      result.contentProfileSourceManifestChecksum === contentProfileSourceManifestChecksum &&
+      contentProfileSelectionsMatch(briefProfile, contentProfile) &&
       result.promptChecksum === promptChecksum &&
       result.responseSchemaId === expectedSchemaId &&
       result.output.schema_id === expectedSchemaId &&
@@ -365,6 +378,8 @@ export class DurableGenerationWorker {
 
     const request = {
       brief,
+      contentProfile: attempt.contentProfile,
+      contentProfileSourceManifestChecksum: attempt.contentProfileSourceManifestChecksum,
       correlationId: attempt.correlationId,
       generationJobId: attempt.generationJobId,
       organizationId: attempt.organizationId,
@@ -386,7 +401,16 @@ export class DurableGenerationWorker {
     }
     const latencyMs = Math.max(0, Math.round(this.#clock() - startedAt));
 
-    if (!validGenerationResult(result, this.#adapter.identity, attempt.promptChecksum, brief)) {
+    if (
+      !validGenerationResult(
+        result,
+        this.#adapter.identity,
+        attempt.promptChecksum,
+        brief,
+        attempt.contentProfile,
+        attempt.contentProfileSourceManifestChecksum,
+      )
+    ) {
       return this.#failCurrentAttempt(
         claim,
         attempt,

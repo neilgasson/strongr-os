@@ -14,6 +14,7 @@ export type {
   GenerationUsage,
 } from "./generation-adapter.ts";
 export {
+  contentProfileSelectionsMatch,
   createGenerationOutputHash,
   createGenerationPromptChecksum,
   GenerationProviderError,

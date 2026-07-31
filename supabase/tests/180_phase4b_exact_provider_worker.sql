@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, pg_catalog;
 
-select plan(46);
+select plan(48);
 
 select ok(
   to_regprocedure(
@@ -167,6 +167,32 @@ values
     '18000000-0000-4000-8000-000000000012'
   );
 
+-- Test-only activation is rolled back with this pgTAP transaction. The
+-- migration itself registers and activates no real content profile.
+insert into app_private.strongr_daily_content_profiles (
+  profile_id,
+  profile_version,
+  profile_checksum,
+  content_type,
+  source_manifest_checksum,
+  brief_schema_id,
+  response_schema_id,
+  prompt_key,
+  prompt_version,
+  lifecycle_state
+) values (
+  'strongr_daily.audio_reflection_test',
+  1,
+  repeat('8', 64),
+  'audio_reflection',
+  repeat('9', 64),
+  'strongr.strongr_daily_audio_reflection_brief.v2',
+  'strongr.strongr_daily_audio_reflection.v2',
+  'strongr.strongr_daily.v2',
+  1,
+  'active'
+);
+
 insert into public.content_items (
   id, organization_id, title, created_by_membership_id
 )
@@ -195,6 +221,12 @@ values
     '18000000-0000-4000-8000-000000000031',
     '{
       "audience":"Synthetic adult test audience",
+      "content_profile":{
+        "canonical_checksum":"8888888888888888888888888888888888888888888888888888888888888888",
+        "content_type":"audio_reflection",
+        "profile_id":"strongr_daily.audio_reflection_test",
+        "profile_version":1
+      },
       "content_type":"audio_reflection",
       "desired_duration_seconds":300,
       "pastoral_purpose":"Prove one exact provider attempt.",
@@ -220,6 +252,12 @@ values
     '18000000-0000-4000-8000-000000000032',
     '{
       "audience":"Synthetic unrelated audience",
+      "content_profile":{
+        "canonical_checksum":"8888888888888888888888888888888888888888888888888888888888888888",
+        "content_type":"audio_reflection",
+        "profile_id":"strongr_daily.audio_reflection_test",
+        "profile_version":1
+      },
       "content_type":"audio_reflection",
       "desired_duration_seconds":300,
       "pastoral_purpose":"Prove tenant and job binding.",
@@ -242,7 +280,9 @@ values
 
 insert into public.generation_jobs (
   id, organization_id, brief_id, requested_by_membership_id, prompt_key,
-  prompt_version, idempotency_key, input_hash, correlation_id
+  prompt_version, idempotency_key, input_hash, correlation_id,
+  content_profile_id, content_profile_version, content_profile_checksum,
+  content_profile_content_type, content_profile_source_manifest_checksum
 )
 values
   (
@@ -254,7 +294,9 @@ values
     1,
     'phase4b-provider-success',
     repeat('c', 64),
-    '18000000-0000-4000-8000-000000000061'
+    '18000000-0000-4000-8000-000000000061',
+    'strongr_daily.audio_reflection_test', 1, repeat('8', 64),
+    'audio_reflection', repeat('9', 64)
   ),
   (
     '18000000-0000-4000-8000-000000000052',
@@ -265,7 +307,9 @@ values
     1,
     'phase4b-unrelated-tenant',
     repeat('d', 64),
-    '18000000-0000-4000-8000-000000000062'
+    '18000000-0000-4000-8000-000000000062',
+    'strongr_daily.audio_reflection_test', 1, repeat('8', 64),
+    'audio_reflection', repeat('9', 64)
   ),
   (
     '18000000-0000-4000-8000-000000000053',
@@ -276,7 +320,9 @@ values
     1,
     'phase4b-provider-failure',
     repeat('e', 64),
-    '18000000-0000-4000-8000-000000000063'
+    '18000000-0000-4000-8000-000000000063',
+    'strongr_daily.audio_reflection_test', 1, repeat('8', 64),
+    'audio_reflection', repeat('9', 64)
   ),
   (
     '18000000-0000-4000-8000-000000000054',
@@ -287,7 +333,9 @@ values
     1,
     'phase4b-unapproved-prompt',
     repeat('f', 64),
-    '18000000-0000-4000-8000-000000000064'
+    '18000000-0000-4000-8000-000000000064',
+    'strongr_daily.audio_reflection_test', 1, repeat('8', 64),
+    'audio_reflection', repeat('9', 64)
   ),
   (
     '18000000-0000-4000-8000-000000000055',
@@ -298,7 +346,9 @@ values
     2,
     'phase4b-unapproved-prompt-version',
     repeat('0', 64),
-    '18000000-0000-4000-8000-000000000065'
+    '18000000-0000-4000-8000-000000000065',
+    'strongr_daily.audio_reflection_test', 1, repeat('8', 64),
+    'audio_reflection', repeat('9', 64)
   );
 
 insert into public.outbox_events (
@@ -312,7 +362,16 @@ values
     'content.generation_requested.v1',
     'generation_job',
     '18000000-0000-4000-8000-000000000051',
-    '{"job_id":"18000000-0000-4000-8000-000000000051"}'::jsonb,
+    '{
+      "content_profile":{
+        "canonical_checksum":"8888888888888888888888888888888888888888888888888888888888888888",
+        "content_type":"audio_reflection",
+        "profile_id":"strongr_daily.audio_reflection_test",
+        "profile_version":1
+      },
+      "content_profile_source_manifest_checksum":"9999999999999999999999999999999999999999999999999999999999999999",
+      "job_id":"18000000-0000-4000-8000-000000000051"
+    }'::jsonb,
     '18000000-0000-4000-8000-000000000061'
   ),
   (
@@ -321,7 +380,16 @@ values
     'content.generation_requested.v1',
     'generation_job',
     '18000000-0000-4000-8000-000000000052',
-    '{"job_id":"18000000-0000-4000-8000-000000000052"}'::jsonb,
+    '{
+      "content_profile":{
+        "canonical_checksum":"8888888888888888888888888888888888888888888888888888888888888888",
+        "content_type":"audio_reflection",
+        "profile_id":"strongr_daily.audio_reflection_test",
+        "profile_version":1
+      },
+      "content_profile_source_manifest_checksum":"9999999999999999999999999999999999999999999999999999999999999999",
+      "job_id":"18000000-0000-4000-8000-000000000052"
+    }'::jsonb,
     '18000000-0000-4000-8000-000000000062'
   ),
   (
@@ -330,7 +398,16 @@ values
     'content.generation_requested.v1',
     'generation_job',
     '18000000-0000-4000-8000-000000000053',
-    '{"job_id":"18000000-0000-4000-8000-000000000053"}'::jsonb,
+    '{
+      "content_profile":{
+        "canonical_checksum":"8888888888888888888888888888888888888888888888888888888888888888",
+        "content_type":"audio_reflection",
+        "profile_id":"strongr_daily.audio_reflection_test",
+        "profile_version":1
+      },
+      "content_profile_source_manifest_checksum":"9999999999999999999999999999999999999999999999999999999999999999",
+      "job_id":"18000000-0000-4000-8000-000000000053"
+    }'::jsonb,
     '18000000-0000-4000-8000-000000000063'
   ),
   (
@@ -339,7 +416,16 @@ values
     'content.generation_requested.v1',
     'generation_job',
     '18000000-0000-4000-8000-000000000054',
-    '{"job_id":"18000000-0000-4000-8000-000000000054"}'::jsonb,
+    '{
+      "content_profile":{
+        "canonical_checksum":"8888888888888888888888888888888888888888888888888888888888888888",
+        "content_type":"audio_reflection",
+        "profile_id":"strongr_daily.audio_reflection_test",
+        "profile_version":1
+      },
+      "content_profile_source_manifest_checksum":"9999999999999999999999999999999999999999999999999999999999999999",
+      "job_id":"18000000-0000-4000-8000-000000000054"
+    }'::jsonb,
     '18000000-0000-4000-8000-000000000064'
   ),
   (
@@ -348,7 +434,16 @@ values
     'content.generation_requested.v1',
     'generation_job',
     '18000000-0000-4000-8000-000000000055',
-    '{"job_id":"18000000-0000-4000-8000-000000000055"}'::jsonb,
+    '{
+      "content_profile":{
+        "canonical_checksum":"8888888888888888888888888888888888888888888888888888888888888888",
+        "content_type":"audio_reflection",
+        "profile_id":"strongr_daily.audio_reflection_test",
+        "profile_version":1
+      },
+      "content_profile_source_manifest_checksum":"9999999999999999999999999999999999999999999999999999999999999999",
+      "job_id":"18000000-0000-4000-8000-000000000055"
+    }'::jsonb,
     '18000000-0000-4000-8000-000000000065'
   );
 
@@ -364,7 +459,8 @@ create temporary table phase4b_attempts (
   label text primary key,
   attempt_id uuid not null,
   disposition text not null,
-  max_attempts integer not null
+  max_attempts integer not null,
+  content_profile jsonb
 );
 create temporary table phase4b_completions (
   label text primary key,
@@ -375,9 +471,14 @@ create temporary table phase4b_output (
   payload jsonb not null,
   output_hash text not null
 );
+create temporary table phase4b_tampered_output (
+  payload jsonb not null,
+  output_hash text not null
+);
 
 grant select, insert, update, delete on table
-  phase4b_claims, phase4b_attempts, phase4b_completions, phase4b_output
+  phase4b_claims, phase4b_attempts, phase4b_completions,
+  phase4b_output, phase4b_tampered_output
 to authenticated, service_role;
 
 set local role service_role;
@@ -463,6 +564,12 @@ from (
       "artwork_generation_prompt":"Synthetic artwork prompt.",
       "audience":"Synthetic adult test audience",
       "closing":"Synthetic closing. Human review remains required.",
+      "content_profile":{
+        "canonical_checksum":"8888888888888888888888888888888888888888888888888888888888888888",
+        "content_type":"audio_reflection",
+        "profile_id":"strongr_daily.audio_reflection_test",
+        "profile_version":1
+      },
       "content_type":"audio_reflection",
       "estimated_duration_seconds":300,
       "final_title":"Phase 4B generated draft fixture",
@@ -488,6 +595,22 @@ from (
     }'::jsonb
   )
 ) as fixture(payload);
+
+insert into phase4b_tampered_output (payload, output_hash)
+select
+  base || jsonb_build_object('content_hash', app_private.sha256_jsonb(base)),
+  app_private.sha256_jsonb(base)
+from (
+  select (payload - 'content_hash') || jsonb_build_object(
+    'content_profile', jsonb_build_object(
+      'profile_id', 'strongr_daily.audio_reflection_test',
+      'profile_version', 1,
+      'canonical_checksum', repeat('7', 64),
+      'content_type', 'audio_reflection'
+    )
+  ) as base
+  from phase4b_output
+) as changed;
 
 set local role service_role;
 
@@ -571,8 +694,10 @@ select is(
 
 set local role service_role;
 
-insert into phase4b_attempts (label, attempt_id, disposition, max_attempts)
-select 'success', attempt_id, disposition, max_attempts
+insert into phase4b_attempts (
+  label, attempt_id, disposition, max_attempts, content_profile
+)
+select 'success', attempt_id, disposition, max_attempts, content_profile
 from public.m1_begin_generation_attempt(
   (select event_id from phase4b_claims where label = 'success'),
   'phase4b-live-provider',
@@ -590,6 +715,20 @@ select ok(
     where label = 'success'
   ),
   'the exact claim begins one provider attempt with no retry allowance'
+);
+select is(
+  (
+    select content_profile
+    from phase4b_attempts
+    where label = 'success'
+  ),
+  '{
+    "canonical_checksum":"8888888888888888888888888888888888888888888888888888888888888888",
+    "content_type":"audio_reflection",
+    "profile_id":"strongr_daily.audio_reflection_test",
+    "profile_version":1
+  }'::jsonb,
+  'the worker lease returns the exact four-field content profile selection'
 );
 
 set local role service_role;
@@ -701,6 +840,33 @@ select ok(
 
 set local role service_role;
 
+select throws_ok(
+  $sql$
+    select *
+    from public.m1_complete_generation_attempt_with_usage(
+      (select event_id from phase4b_claims where label = 'success'),
+      'phase4b-live-provider',
+      (select lease_token from phase4b_claims where label = 'success'),
+      (select attempt_id from phase4b_attempts where label = 'success'),
+      'phase4b-provider-response',
+      'strongr.strongr_daily_audio_reflection.v2',
+      (select payload from phase4b_tampered_output),
+      (select output_hash from phase4b_tampered_output),
+      125,
+      500,
+      250,
+      3000
+    )
+  $sql$,
+  '22023',
+  'generation result does not match content profile provenance',
+  'completion rejects a result whose profile differs from the claimed job'
+);
+
+reset role;
+
+set local role service_role;
+
 insert into phase4b_completions (
   label, completion_state, content_version_id
 )
@@ -754,6 +920,17 @@ select ok(
     select state = 'draft'
       and source = 'ai_assisted'
       and source_job_id = '18000000-0000-4000-8000-000000000051'
+      and content_profile_id = 'strongr_daily.audio_reflection_test'
+      and content_profile_version = 1
+      and content_profile_checksum = repeat('8', 64)
+      and content_profile_content_type = 'audio_reflection'
+      and content_profile_source_manifest_checksum = repeat('9', 64)
+      and payload -> 'content_profile' = jsonb_build_object(
+        'profile_id', 'strongr_daily.audio_reflection_test',
+        'profile_version', 1,
+        'canonical_checksum', repeat('8', 64),
+        'content_type', 'audio_reflection'
+      )
     from public.content_versions
     where id = (
       select content_version_id

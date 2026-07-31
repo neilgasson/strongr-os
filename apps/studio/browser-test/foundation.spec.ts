@@ -65,7 +65,9 @@ const stagedRevocationId = "00000000-0000-4000-8000-000000000807";
 const mediaBytes = createSyntheticPcmWav();
 const mediaSha256 = createHash("sha256").update(mediaBytes).digest("hex");
 const strongrDailyOutput = createStrongrDailyV2FixtureOutput(
-  strongrDailyAudioReflectionV2BriefFixture,
+  (({ content_profile: _contentProfile, ...legacyBrief }) => legacyBrief)(
+    strongrDailyAudioReflectionV2BriefFixture,
+  ),
 );
 const nowSeconds = Math.floor(Date.now() / 1000);
 
@@ -168,6 +170,11 @@ function briefRows(organizationId: string | null, state: MockState) {
         : 0
     : 0;
   return Array.from({ length: count }, (_, index) => ({
+    content_profile_checksum: null,
+    content_profile_content_type: null,
+    content_profile_id: null,
+    content_profile_source_manifest_checksum: null,
+    content_profile_version: null,
     content_item_id:
       organizationId === organizationA && index === 0
         ? contentItemId
@@ -210,6 +217,11 @@ function governedRows(
             {
               attempt_count: state.generationJobState === "queued" ? 0 : 1,
               brief_id: briefId,
+              content_profile_checksum: null,
+              content_profile_content_type: null,
+              content_profile_id: null,
+              content_profile_source_manifest_checksum: null,
+              content_profile_version: null,
               created_at: createdAt,
               finished_at: ["queued", "running"].includes(state.generationJobState)
                 ? null
@@ -226,6 +238,11 @@ function governedRows(
         ? [
             {
               brief_id: briefId,
+              content_profile_checksum: null,
+              content_profile_content_type: null,
+              content_profile_id: null,
+              content_profile_source_manifest_checksum: null,
+              content_profile_version: null,
               content_item_id: contentItemId,
               created_at: createdAt,
               id: contentVersionId,
@@ -402,6 +419,11 @@ function governedRows(
         ? [
             {
               approval_snapshot_id: approvalSnapshotId,
+              content_profile_checksum: null,
+              content_profile_content_type: null,
+              content_profile_id: null,
+              content_profile_source_manifest_checksum: null,
+              content_profile_version: null,
               created_at: "2026-07-27T00:15:00.000Z",
               id: productionPackageId,
               manifest: {
@@ -1047,7 +1069,7 @@ test("sign-out clears the browser session without exposing a governed route", as
   await expect(page).toHaveURL(/\/sign-in$/);
 });
 
-test("saving a brief never generates until the owner chooses the separate draft action", async ({
+test("Phase 4B.1 shows exact profiles for review while save and generation stay locked", async ({
   page,
 }) => {
   const state = await installMockSupabase(page);
@@ -1061,66 +1083,39 @@ test("saving a brief never generates until the owner chooses the separate draft 
   ).toBeVisible();
 
   const briefForm = page.getByRole("region", { name: "Create a Strongr Daily brief" });
-  await briefForm.getByLabel("Working title").fill("Browser acceptance brief");
-  await briefForm.getByLabel("Audience").fill("Browser acceptance audience");
-  await briefForm.getByLabel("Theme").fill("Browser acceptance theme");
-  await briefForm.getByLabel("Scripture reference").fill("Reference 1:1");
-  await briefForm.getByLabel("Translation").fill("TEST");
-  await briefForm.getByLabel("Source citation").fill("Browser acceptance source");
-  await briefForm.getByLabel("Source brief identifier").fill("browser-acceptance-brief");
-  await briefForm
-    .getByLabel("Pastoral purpose")
-    .fill("Exercise the durable brief request without creating production content.");
-  await page.getByRole("button", { name: "Save brief" }).click();
+  const profile = briefForm.getByLabel("Content format and version");
+  const save = briefForm.getByRole("button", { name: "Save brief" });
+  await expect(save).toBeDisabled();
+  await expect(briefForm.getByText(/choose a content format before continuing/i)).toBeVisible();
+  await expect(briefForm.getByLabel("Working title")).toHaveCount(0);
+
+  await profile.selectOption("bible_study@1");
   await expect(
-    page.getByText(/Brief saved. Nothing was generated, approved, or published/i).first(),
+    briefForm.getByText(/will not reuse the audio-reflection form or guess this format/i),
+  ).toBeVisible();
+  await expect(briefForm.getByLabel("Working title")).toHaveCount(0);
+
+  await profile.selectOption("strongr_daily_audio_reflection_v2@2");
+  await expect(briefForm.getByLabel("Working title")).toBeVisible();
+  await expect(briefForm.getByText("Source material required", { exact: true })).toBeVisible();
+  await expect(
+    briefForm.getByText(/Phase 4B\.1 is review-only.*cannot save a new brief/is),
+  ).toBeVisible();
+  await expect(save).toBeDisabled();
+  await expect(
+    briefForm.getByText(/every profile inactive until a later, explicit owner approval/i),
   ).toBeVisible();
 
-  const createCalls = state.rpcCalls.filter(({ command }) => command === "m1_create_audio_brief");
-  expect(createCalls).toHaveLength(1);
+  expect(state.rpcCalls.filter(({ command }) => command === "m1_create_audio_brief")).toHaveLength(
+    0,
+  );
   expect(state.rpcCalls.filter(({ command }) => command === "m1_request_generation")).toHaveLength(
     0,
   );
   expect(state.generationRuntimeCalls).toHaveLength(0);
-
-  await page.getByRole("button", { name: "Refresh saved work" }).click();
-  expect(state.rpcCalls.filter(({ command }) => command === "m1_request_generation")).toHaveLength(
-    0,
-  );
-  expect(state.generationRuntimeCalls).toHaveLength(0);
-
-  await expect(
-    page.getByRole("heading", { name: "Generate the first private draft" }),
-  ).toBeVisible();
-  await expect(page.getByText(/hard maximum of US\$0\.10/i)).toBeVisible();
-  await page.getByRole("button", { name: "Generate first draft" }).click();
-  await expect(page.getByRole("heading", { name: strongrDailyOutput.final_title })).toBeVisible();
-
-  const generationCalls = state.rpcCalls.filter(
-    ({ command }) => command === "m1_request_generation",
-  );
-  expect(generationCalls).toHaveLength(1);
-  expect(generationCalls[0]?.body).toEqual(
-    expect.objectContaining({
-      p_brief_id: briefId,
-      p_idempotency_key: expect.stringMatching(/^strongr-daily-v2-/),
-      p_organization_id: organizationA,
-      p_prompt_key: "strongr.strongr_daily.v2",
-      p_prompt_version: 1,
-    }),
-  );
-  expect(state.generationRuntimeCalls).toHaveLength(1);
-  expect(state.generationRuntimeCalls[0]?.body).toEqual({ generation_job_id: generationJobId });
-  expect(state.generationRuntimeCalls[0]?.headers.authorization).toMatch(/^Bearer /);
-  expect(state.generationRuntimeCalls[0]?.headers.apikey).toBe(
-    "sb_publishable_browser_acceptance_fixture",
-  );
-  expect(JSON.stringify(state.generationRuntimeCalls[0]?.body)).not.toMatch(
-    /organization|brief|prompt|model|key|token/i,
-  );
 });
 
-test("a generated v2 draft shows every content field and regeneration requires confirmation", async ({
+test("a generated v2 draft stays readable while legacy regeneration is locked", async ({
   page,
 }) => {
   const state = await installMockSupabase(page);
@@ -1144,8 +1139,12 @@ test("a generated v2 draft shows every content field and regeneration requires c
   const regenerate = page.getByRole("button", { name: "Generate a different draft" });
   await expect(regenerate).toBeDisabled();
   await expect(page.getByText(/separately billable.*US\$0\.10/is)).toBeVisible();
-  await page.getByLabel("I intentionally want one new, separately billable draft request.").check();
-  await expect(regenerate).toBeEnabled();
+  await expect(
+    page.getByText(/saved work has no governed content profile.*readable and exportable/is),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel("I intentionally want one new, separately billable draft request."),
+  ).toBeDisabled();
 
   await page.getByRole("button", { name: "Refresh saved work" }).click();
   expect(state.rpcCalls.filter(({ command }) => command === "m1_request_generation")).toHaveLength(
@@ -1153,13 +1152,10 @@ test("a generated v2 draft shows every content field and regeneration requires c
   );
   expect(state.generationRuntimeCalls).toHaveLength(0);
 
-  await page.getByText("Need a different draft?").click();
-  await page.getByLabel("I intentionally want one new, separately billable draft request.").check();
-  await page.getByRole("button", { name: "Generate a different draft" }).click();
-  await expect
-    .poll(() => state.rpcCalls.filter(({ command }) => command === "m1_request_generation").length)
-    .toBe(1);
-  await expect.poll(() => state.generationRuntimeCalls.length).toBe(1);
+  expect(state.rpcCalls.filter(({ command }) => command === "m1_request_generation")).toHaveLength(
+    0,
+  );
+  expect(state.generationRuntimeCalls).toHaveLength(0);
 });
 
 test("a failed regeneration never hides the earlier immutable draft", async ({ page }) => {
@@ -1177,7 +1173,7 @@ test("a failed regeneration never hides the earlier immutable draft", async ({ p
   expect(state.generationRuntimeCalls).toHaveLength(0);
 });
 
-test("failed generation has plain recovery and only retries after explicit confirmation", async ({
+test("failed legacy generation has plain recovery but cannot retry without an active profile", async ({
   page,
 }) => {
   const state = await installMockSupabase(page);
@@ -1200,19 +1196,18 @@ test("failed generation has plain recovery and only retries after explicit confi
   );
   expect(state.generationRuntimeCalls).toHaveLength(0);
 
-  await page
-    .getByLabel(
+  await expect(
+    page.getByText(/saved work has no governed content profile.*generation is locked/is),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel(
       "I understand this intentionally starts one new, separately billable draft request.",
-    )
-    .check();
-  await retry.click();
-  await expect(page.getByRole("heading", { name: strongrDailyOutput.final_title })).toBeVisible();
-  const generationCalls = state.rpcCalls.filter(
-    ({ command }) => command === "m1_request_generation",
+    ),
+  ).toBeDisabled();
+  expect(state.rpcCalls.filter(({ command }) => command === "m1_request_generation")).toHaveLength(
+    0,
   );
-  expect(generationCalls).toHaveLength(1);
-  expect(generationCalls[0]?.body.p_idempotency_key).toMatch(/^strongr-daily-v2-/);
-  expect(state.generationRuntimeCalls).toHaveLength(1);
+  expect(state.generationRuntimeCalls).toHaveLength(0);
 });
 
 test("guided review shows ordered progress, one action, and safe failed-check recovery", async ({

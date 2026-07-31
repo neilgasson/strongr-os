@@ -1,25 +1,41 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-
+import { strongrDailyContentProfileSourceManifestV1 } from "../../content-profiles/src/strongr-daily-v1.ts";
 import {
+  contentProfileSelectionFixture,
   createGenerationRequestFixture,
   strongrDailyAudioReflectionV2BriefFixture,
 } from "../../testing/src/index.ts";
 import {
-  createOpenAiStrongrDailyV2Adapter,
+  createOpenAiStrongrDailyV2Adapter as createAdapterUnderTest,
   createStrongrDailyV2FixtureOutput,
   estimateOpenAiStrongrDailyV2Generation,
   GenerationProviderError,
-  openAiStrongrDailyV2ProviderConfig,
   type OpenAiFetch,
   type OpenAiResponse,
+  type OpenAiStrongrDailyV2AdapterOptions,
+  openAiStrongrDailyV2ProviderConfig,
 } from "../src/index.ts";
 
 const providerKeyFixture = "sk_provider_fixture_12345678901234567890";
 
+function createOpenAiStrongrDailyV2Adapter(
+  options: Omit<OpenAiStrongrDailyV2AdapterOptions, "authorizeContentProfile">,
+) {
+  return createAdapterUnderTest({
+    ...options,
+    authorizeContentProfile: (selection, sourceManifestChecksum) =>
+      JSON.stringify(selection) === JSON.stringify(contentProfileSelectionFixture) &&
+      sourceManifestChecksum === strongrDailyContentProfileSourceManifestV1.canonical_checksum,
+  });
+}
+
 function requestFixture() {
   return createGenerationRequestFixture({
     brief: strongrDailyAudioReflectionV2BriefFixture,
+    contentProfile: contentProfileSelectionFixture,
+    contentProfileSourceManifestChecksum:
+      strongrDailyContentProfileSourceManifestV1.canonical_checksum,
     promptKey: openAiStrongrDailyV2ProviderConfig.promptKey,
     promptVersion: openAiStrongrDailyV2ProviderConfig.promptVersion,
   });
@@ -234,6 +250,54 @@ test("OpenAI adapter rejects unsupported brief and prompt contracts before fetch
   await expectSafeCode(
     () => adapter.generate({ ...requestFixture(), promptKey: "another.prompt" }),
     "generation.provider_unsupported_prompt",
+  );
+  assert.equal(calls, 0);
+});
+
+test("OpenAI adapter fails closed before fetch when no exact profile is active", async () => {
+  let calls = 0;
+  const adapter = createAdapterUnderTest({
+    apiKey: providerKeyFixture,
+    fetch: async () => {
+      calls += 1;
+      return successResponse();
+    },
+  });
+
+  await expectSafeCode(
+    () => adapter.generate(requestFixture()),
+    "generation.content_profile_not_active",
+  );
+  await expectSafeCode(
+    () =>
+      createOpenAiStrongrDailyV2Adapter({
+        apiKey: providerKeyFixture,
+        fetch: async () => {
+          calls += 1;
+          return successResponse();
+        },
+      }).generate({ ...requestFixture(), contentProfile: null }),
+    "generation.content_profile_not_active",
+  );
+  assert.equal(calls, 0);
+});
+
+test("OpenAI adapter rejects a source-manifest provenance mismatch before fetch", async () => {
+  let calls = 0;
+  const adapter = createOpenAiStrongrDailyV2Adapter({
+    apiKey: providerKeyFixture,
+    fetch: async () => {
+      calls += 1;
+      return successResponse();
+    },
+  });
+  await expectSafeCode(
+    () =>
+      adapter.generate({
+        ...requestFixture(),
+        contentProfileSourceManifestChecksum: "0".repeat(64),
+      }),
+    "generation.content_profile_not_active",
   );
   assert.equal(calls, 0);
 });

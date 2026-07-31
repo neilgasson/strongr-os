@@ -1,6 +1,8 @@
 import Schema from "typebox/schema";
 import Type from "typebox";
 
+import { contentProfileSelectionSchema } from "../../content-profiles/src/schema.ts";
+
 export const audioReflectionBriefSchemaId = "strongr.audio_reflection_brief.v1" as const;
 export const audioReflectionSchemaId = "strongr.audio_reflection.v1" as const;
 export const strongrDailyAudioReflectionV2BriefSchemaId =
@@ -69,6 +71,7 @@ const text = (maximum: number) => Type.String({ minLength: 1, maxLength: maximum
 export const strongrDailyAudioReflectionV2BriefSchema = Type.Object(
   {
     audience: text(160),
+    content_profile: Type.Optional(contentProfileSelectionSchema),
     content_type: Type.Literal("audio_reflection"),
     desired_duration_seconds: Type.Integer({ maximum: 1_200, minimum: 60 }),
     pastoral_purpose: text(1_000),
@@ -98,6 +101,7 @@ export const strongrDailyAudioReflectionV2Schema = Type.Object(
     artwork_generation_prompt: text(2_000),
     audience: text(160),
     closing: text(4_000),
+    content_profile: Type.Optional(contentProfileSelectionSchema),
     content_hash: Type.String({ pattern: "^[a-f0-9]{64}$" }),
     content_type: Type.Literal("audio_reflection"),
     estimated_duration_seconds: Type.Integer({ maximum: 1_200, minimum: 60 }),

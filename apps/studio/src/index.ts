@@ -11,6 +11,16 @@ export {
   GenerationRequestDeferredError,
   GenerationRuntimeDeferredError,
 } from "./brief-to-draft-flow.ts";
+export type {
+  StudioContentProfileGate,
+  StudioContentProfileOption,
+} from "./content-profile-foundation.ts";
+export {
+  contentProfileGateForBinding,
+  contentProfileGateForOption,
+  findStudioContentProfileOption,
+  studioContentProfileOptions,
+} from "./content-profile-foundation.ts";
 export type { StudioEnvironment, StudioEnvironmentSource } from "./environment.ts";
 export { loadStudioEnvironment } from "./environment.ts";
 export type {

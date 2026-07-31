@@ -470,6 +470,11 @@ test("tenant reads are explicitly filtered, bounded, ordered, and contract parse
           Response.json([
             {
               content_item_id: contentItemId,
+              content_profile_checksum: null,
+              content_profile_content_type: null,
+              content_profile_id: null,
+              content_profile_source_manifest_checksum: null,
+              content_profile_version: null,
               created_at: "2026-07-26T20:00:00Z",
               id: briefId,
               organization_id: organizationId,
@@ -485,6 +490,11 @@ test("tenant reads are explicitly filtered, bounded, ordered, and contract parse
             {
               attempt_count: 1,
               brief_id: briefId,
+              content_profile_checksum: null,
+              content_profile_content_type: null,
+              content_profile_id: null,
+              content_profile_source_manifest_checksum: null,
+              content_profile_version: null,
               created_at: "2026-07-26T20:01:00Z",
               finished_at: "2026-07-26T20:02:00Z",
               id: jobId,
@@ -500,6 +510,11 @@ test("tenant reads are explicitly filtered, bounded, ordered, and contract parse
           {
             brief_id: briefId,
             content_item_id: contentItemId,
+            content_profile_checksum: null,
+            content_profile_content_type: null,
+            content_profile_id: null,
+            content_profile_source_manifest_checksum: null,
+            content_profile_version: null,
             created_at: "2026-07-26T20:02:00Z",
             id: versionId,
             organization_id: organizationId,
@@ -545,6 +560,11 @@ test("tenant brief reads accept the governed Strongr Daily v2 brief schema", asy
         Response.json([
           {
             content_item_id: contentItemId,
+            content_profile_checksum: null,
+            content_profile_content_type: null,
+            content_profile_id: null,
+            content_profile_source_manifest_checksum: null,
+            content_profile_version: null,
             created_at: "2026-07-30T15:00:00Z",
             id: briefId,
             organization_id: organizationId,
@@ -559,6 +579,73 @@ test("tenant brief reads accept the governed Strongr Daily v2 brief schema", asy
   const briefs = await gateway.listBriefs(organizationId);
 
   assert.equal(briefs[0]?.schemaId, "strongr.strongr_daily_audio_reflection_brief.v2");
+});
+
+test("tenant reads fail closed on partial content-profile provenance", async () => {
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch() {
+      return Promise.resolve(
+        Response.json([
+          {
+            content_item_id: contentItemId,
+            content_profile_checksum: null,
+            content_profile_content_type: "audio_reflection",
+            content_profile_id: "strongr_daily_audio_reflection_v2",
+            content_profile_source_manifest_checksum: hash,
+            content_profile_version: 2,
+            created_at: "2026-07-30T15:00:00Z",
+            id: briefId,
+            organization_id: organizationId,
+            payload_hash: hash,
+            schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
+          },
+        ]),
+      );
+    },
+  });
+
+  await assert.rejects(
+    () => gateway.listBriefs(organizationId),
+    /Invalid Studio API content profile provenance/,
+  );
+});
+
+test("tenant reads preserve exact profile and source-manifest provenance", async () => {
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch() {
+      return Promise.resolve(
+        Response.json([
+          {
+            content_item_id: contentItemId,
+            content_profile_checksum: hash,
+            content_profile_content_type: "audio_reflection",
+            content_profile_id: "strongr_daily_audio_reflection_v2",
+            content_profile_source_manifest_checksum: "b".repeat(64),
+            content_profile_version: 2,
+            created_at: "2026-07-30T15:00:00Z",
+            id: briefId,
+            organization_id: organizationId,
+            payload_hash: hash,
+            schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
+          },
+        ]),
+      );
+    },
+  });
+
+  const briefs = await gateway.listBriefs(organizationId);
+
+  assert.deepEqual(briefs[0]?.contentProfile, {
+    canonicalChecksum: hash,
+    contentType: "audio_reflection",
+    profileId: "strongr_daily_audio_reflection_v2",
+    profileVersion: 2,
+    sourceManifestChecksum: "b".repeat(64),
+  });
 });
 
 test("M1.3 evidence reads remain tenant-filtered and parse immutable hashes", async () => {
@@ -622,6 +709,11 @@ test("M1.3 evidence reads remain tenant-filtered and parse immutable hashes", as
         Response.json([
           {
             approval_snapshot_id: approvalId,
+            content_profile_checksum: null,
+            content_profile_content_type: null,
+            content_profile_id: null,
+            content_profile_source_manifest_checksum: null,
+            content_profile_version: null,
             created_at: "2026-07-26T20:02:00Z",
             id: packageId,
             manifest: {

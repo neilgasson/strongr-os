@@ -6,6 +6,7 @@ import type {
   CheckDefinitionSummary,
   CheckOutcome,
   CheckRunStatus,
+  ContentProfileBinding,
   ContentVersionSource,
   ContentVersionState,
   GenerationJobState,
@@ -181,6 +182,39 @@ function requireNullableHash(record: UnknownRecord, key: string): string | null 
     throw new Error(`Invalid Studio API field: ${key}`);
   }
   return value;
+}
+
+function requireContentProfileBinding(record: UnknownRecord): ContentProfileBinding | null {
+  const values = [
+    record.content_profile_id,
+    record.content_profile_version,
+    record.content_profile_checksum,
+    record.content_profile_content_type,
+    record.content_profile_source_manifest_checksum,
+  ];
+  if (values.every((value) => value === null)) return null;
+  if (values.some((value) => value === null || value === undefined)) {
+    throw new Error("Invalid Studio API content profile provenance");
+  }
+  const profileId = requireString(record, "content_profile_id");
+  const profileVersion = requireInteger(record, "content_profile_version");
+  const canonicalChecksum = requireHash(record, "content_profile_checksum");
+  const contentType = requireString(record, "content_profile_content_type");
+  const sourceManifestChecksum = requireHash(record, "content_profile_source_manifest_checksum");
+  if (
+    profileVersion < 1 ||
+    !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(profileId) ||
+    !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(contentType)
+  ) {
+    throw new Error("Invalid Studio API content profile provenance");
+  }
+  return Object.freeze({
+    canonicalChecksum,
+    contentType,
+    profileId,
+    profileVersion,
+    sourceManifestChecksum,
+  });
 }
 
 function requireJsonValue(value: unknown, key: string): JsonValue {
@@ -623,7 +657,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway, StudioGenera
   async listBriefs(organizationId: Uuid, limit = 50): Promise<readonly TenantBriefSummary[]> {
     const rows = await this.#readRows(
       "content_briefs",
-      "id,organization_id,content_item_id,schema_id,payload_hash,created_at",
+      "id,organization_id,content_item_id,schema_id,payload_hash,content_profile_id,content_profile_version,content_profile_checksum,content_profile_content_type,content_profile_source_manifest_checksum,created_at",
       organizationId,
       limit,
     );
@@ -643,6 +677,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway, StudioGenera
         }
         return Object.freeze({
           contentItemId: requireUuid(row, "content_item_id"),
+          contentProfile: requireContentProfileBinding(row),
           createdAt: requireString(row, "created_at"),
           id: requireUuid(row, "id"),
           organizationId,
@@ -763,7 +798,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway, StudioGenera
   ): Promise<readonly TenantGenerationJobSummary[]> {
     const rows = await this.#readRows(
       "generation_jobs",
-      "id,organization_id,brief_id,state,attempt_count,output_hash,created_at,finished_at",
+      "id,organization_id,brief_id,state,attempt_count,output_hash,content_profile_id,content_profile_version,content_profile_checksum,content_profile_content_type,content_profile_source_manifest_checksum,created_at,finished_at",
       organizationId,
       limit,
     );
@@ -788,6 +823,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway, StudioGenera
         return Object.freeze({
           attemptCount: requireInteger(row, "attempt_count"),
           briefId: requireUuid(row, "brief_id"),
+          contentProfile: requireContentProfileBinding(row),
           createdAt: requireString(row, "created_at"),
           finishedAt: requireNullableString(row, "finished_at"),
           id: requireUuid(row, "id"),
@@ -814,6 +850,11 @@ export class StudioSupabaseGateway implements StudioCommandGateway, StudioGenera
         "schema_id",
         "payload",
         "payload_hash",
+        "content_profile_id",
+        "content_profile_version",
+        "content_profile_checksum",
+        "content_profile_content_type",
+        "content_profile_source_manifest_checksum",
         "source",
         "source_job_id",
         "state",
@@ -844,6 +885,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway, StudioGenera
         return Object.freeze({
           briefId: requireUuid(row, "brief_id"),
           contentItemId: requireUuid(row, "content_item_id"),
+          contentProfile: requireContentProfileBinding(row),
           createdAt: requireString(row, "created_at"),
           id: requireUuid(row, "id"),
           organizationId,
@@ -1067,6 +1109,11 @@ export class StudioSupabaseGateway implements StudioCommandGateway, StudioGenera
         "manifest_schema_id",
         "manifest",
         "manifest_hash",
+        "content_profile_id",
+        "content_profile_version",
+        "content_profile_checksum",
+        "content_profile_content_type",
+        "content_profile_source_manifest_checksum",
         "created_at",
       ].join(","),
       organizationId,
@@ -1081,6 +1128,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway, StudioGenera
         return Object.freeze({
           approvalSnapshotId: requireUuid(row, "approval_snapshot_id"),
           createdAt: requireString(row, "created_at"),
+          contentProfile: requireContentProfileBinding(row),
           id: requireUuid(row, "id"),
           manifest: requireJsonObject(row.manifest, "manifest"),
           manifestHash: requireHash(row, "manifest_hash"),

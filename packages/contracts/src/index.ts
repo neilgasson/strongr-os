@@ -4,6 +4,14 @@ export type JsonPrimitive = boolean | number | string | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { readonly [key: string]: JsonValue };
 export type JsonObject = { readonly [key: string]: JsonValue };
 
+export interface ContentProfileBinding {
+  readonly profileId: string;
+  readonly profileVersion: number;
+  readonly canonicalChecksum: string;
+  readonly contentType: string;
+  readonly sourceManifestChecksum: string;
+}
+
 export const browserCommands = Object.freeze({
   approveVersion: "m1_approve_version",
   createAudioBrief: "m1_create_audio_brief",
@@ -229,6 +237,7 @@ export interface TenantBriefSummary {
     | "strongr.audio_reflection_brief.v1"
     | "strongr.strongr_daily_audio_reflection_brief.v2";
   readonly payloadHash: string;
+  readonly contentProfile: ContentProfileBinding | null;
   readonly createdAt: string;
 }
 
@@ -247,6 +256,7 @@ export interface TenantGenerationJobSummary {
   readonly state: GenerationJobState;
   readonly attemptCount: number;
   readonly outputHash: string | null;
+  readonly contentProfile: ContentProfileBinding | null;
   readonly createdAt: string;
   readonly finishedAt: string | null;
 }
@@ -263,6 +273,7 @@ export interface TenantContentVersionSummary {
   readonly schemaId: "strongr.audio_reflection.v1" | "strongr.strongr_daily_audio_reflection.v2";
   readonly payload: JsonValue;
   readonly payloadHash: string;
+  readonly contentProfile: ContentProfileBinding | null;
   readonly source: ContentVersionSource;
   readonly sourceJobId: Uuid | null;
   readonly state: ContentVersionState;
@@ -385,6 +396,7 @@ export interface TenantProductionPackageSummary {
   readonly manifestSchemaId: "strongr.production_package.v1";
   readonly manifest: JsonObject;
   readonly manifestHash: string;
+  readonly contentProfile: ContentProfileBinding | null;
   readonly createdAt: string;
 }
 

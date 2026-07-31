@@ -9,9 +9,11 @@ import {
 } from "../../../packages/ai/src/index.ts";
 import {
   audioReflectionBriefFixture,
+  contentProfileSelectionFixture,
   fixtureIds,
   strongrDailyAudioReflectionV2BriefFixture,
 } from "../../../packages/testing/src/index.ts";
+import { strongrDailyContentProfileSourceManifestV1 } from "../../../packages/content-profiles/src/strongr-daily-v1.ts";
 import {
   DurableGenerationWorker,
   type GenerationAttemptLease,
@@ -44,6 +46,8 @@ const readyAttempt: GenerationAttemptLease = Object.freeze({
   attemptId,
   attemptNumber: 1,
   brief: audioReflectionBriefFixture,
+  contentProfile: null,
+  contentProfileSourceManifestChecksum: null,
   correlationId: fixtureIds.correlationId,
   disposition: "ready",
   generationJobId: fixtureIds.generationJobId,
@@ -201,6 +205,8 @@ test("completed generation replay acknowledges without invoking the adapter", as
       generationCalls += 1;
       return deterministicGenerationAdapter.generate({
         brief: audioReflectionBriefFixture,
+        contentProfile: null,
+        contentProfileSourceManifestChecksum: null,
         correlationId: fixtureIds.correlationId,
         generationJobId: fixtureIds.generationJobId,
         organizationId: fixtureIds.organizationAlphaId,
@@ -365,6 +371,9 @@ test("durable worker creates a v2 generated draft without bypassing review", asy
       return Promise.resolve({
         ...readyAttempt,
         brief: strongrDailyAudioReflectionV2BriefFixture,
+        contentProfile: contentProfileSelectionFixture,
+        contentProfileSourceManifestChecksum:
+          strongrDailyContentProfileSourceManifestV1.canonical_checksum,
         promptChecksum: createGenerationPromptChecksum("strongr.daily.v2", 1),
         promptKey: "strongr.daily.v2",
       });
@@ -413,6 +422,9 @@ test("worker rejects a valid v2 payload that is rebound to another brief", async
       return Promise.resolve({
         ...readyAttempt,
         brief: strongrDailyAudioReflectionV2BriefFixture,
+        contentProfile: contentProfileSelectionFixture,
+        contentProfileSourceManifestChecksum:
+          strongrDailyContentProfileSourceManifestV1.canonical_checksum,
         promptChecksum: createGenerationPromptChecksum("strongr.daily.v2", 1),
         promptKey: "strongr.daily.v2",
       });

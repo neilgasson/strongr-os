@@ -108,6 +108,8 @@ test("worker completion sends validated output and returns the durable draft ide
   };
   const generation = await deterministicGenerationAdapter.generate({
     brief: audioReflectionBriefFixture,
+    contentProfile: null,
+    contentProfileSourceManifestChecksum: null,
     correlationId: fixtureIds.correlationId,
     generationJobId: fixtureIds.generationJobId,
     organizationId: fixtureIds.organizationAlphaId,
@@ -205,6 +207,8 @@ test("provider usage is persisted through the usage-aware completion RPC", async
   };
   const generated = await deterministicGenerationAdapter.generate({
     brief: audioReflectionBriefFixture,
+    contentProfile: null,
+    contentProfileSourceManifestChecksum: null,
     correlationId: fixtureIds.correlationId,
     generationJobId: fixtureIds.generationJobId,
     organizationId: fixtureIds.organizationAlphaId,

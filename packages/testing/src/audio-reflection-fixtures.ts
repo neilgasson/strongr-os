@@ -11,6 +11,13 @@ export const fixtureIds = Object.freeze({
   organizationBetaId: "00000000-0000-4000-8000-000000000002",
 });
 
+export const contentProfileSelectionFixture = Object.freeze({
+  canonical_checksum: "a".repeat(64),
+  content_type: "audio_reflection",
+  profile_id: "strongr_daily.synthetic_audio_reflection",
+  profile_version: 1,
+});
+
 export const audioReflectionBriefFixture: AudioReflectionBrief = Object.freeze({
   audience: "Synthetic adult test audience",
   constraints: [
@@ -35,6 +42,7 @@ export const audioReflectionBriefFixture: AudioReflectionBrief = Object.freeze({
 export const strongrDailyAudioReflectionV2BriefFixture: StrongrDailyAudioReflectionV2Brief =
   Object.freeze({
     audience: "Adults seeking a quiet, Scripture-rooted daily reflection",
+    content_profile: contentProfileSelectionFixture,
     content_type: "audio_reflection",
     desired_duration_seconds: 300,
     pastoral_purpose: "Invite a gentle, faithful response without promising outcomes.",
@@ -57,6 +65,8 @@ export function createGenerationRequestFixture(
 ): GenerationRequest {
   return {
     brief: audioReflectionBriefFixture,
+    contentProfile: null,
+    contentProfileSourceManifestChecksum: null,
     correlationId: fixtureIds.correlationId,
     generationJobId: fixtureIds.generationJobId,
     organizationId: fixtureIds.organizationAlphaId,

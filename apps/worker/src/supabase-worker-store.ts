@@ -7,6 +7,10 @@ import {
   type Uuid,
   workerCommands,
 } from "../../../packages/contracts/src/index.ts";
+import {
+  parseContentProfileSelection,
+  type ContentProfileSelection,
+} from "../../../packages/content-profiles/src/index.ts";
 
 import type {
   DeliveryFailureState,
@@ -81,6 +85,15 @@ function requireNullableUuid(record: UnknownRecord, key: string): Uuid | null {
   return value;
 }
 
+function requireNullableHash(record: UnknownRecord, key: string): string | null {
+  const value = requireNullableString(record, key);
+  if (value === null) return null;
+  if (!/^[a-f0-9]{64}$/.test(value)) {
+    throw new Error(`Invalid RPC field: ${key}`);
+  }
+  return value;
+}
+
 function requireJsonValue(value: unknown, key: string): JsonValue {
   if (
     value === null ||
@@ -99,6 +112,15 @@ function requireJsonValue(value: unknown, key: string): JsonValue {
     );
   }
   throw new Error(`Invalid RPC field: ${key}`);
+}
+
+function requireNullableContentProfile(value: unknown): ContentProfileSelection | null {
+  if (value === null) return null;
+  try {
+    return parseContentProfileSelection(value);
+  } catch {
+    throw new Error("Invalid RPC field: content_profile");
+  }
 }
 
 function parseClaim(value: unknown): GenerationEventClaim {
@@ -140,6 +162,11 @@ function parseAttemptLease(value: unknown): GenerationAttemptLease {
     attemptId: requireNullableUuid(record, "attempt_id"),
     attemptNumber: requireInteger(record, "attempt_number"),
     brief: record.brief,
+    contentProfile: requireNullableContentProfile(record.content_profile),
+    contentProfileSourceManifestChecksum: requireNullableHash(
+      record,
+      "content_profile_source_manifest_checksum",
+    ),
     correlationId: requireUuid(record, "correlation_id"),
     disposition: disposition as GenerationAttemptDisposition,
     generationJobId: requireUuid(record, "generation_job_id"),

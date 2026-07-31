@@ -4,6 +4,11 @@ import {
   type WorkerEnvironment,
 } from "../../../apps/worker/src/index.ts";
 import { openAiStrongrDailyV2ProviderConfig } from "../../../packages/ai/src/index.ts";
+import {
+  type ContentProfileSelection,
+  parseContentProfileSelection,
+} from "../../../packages/content-profiles/src/schema.ts";
+import { strongrDailyContentProfileSourceManifestV1 } from "../../../packages/content-profiles/src/strongr-daily-v1.ts";
 
 export const strongrDailyGenerationBoundary = Object.freeze({
   allowedOrigin: "https://strongr-studio-preview.meetwagon.chatgpt.site",
@@ -33,6 +38,10 @@ export type StrongrDailyGenerateFetch = (
 ) => Promise<Response>;
 
 interface HandlerOptions {
+  readonly authorizeContentProfile?: (
+    selection: ContentProfileSelection,
+    sourceManifestChecksum: string,
+  ) => boolean;
   readonly environment: StrongrDailyGenerateEnvironment;
   readonly fetch?: StrongrDailyGenerateFetch;
   readonly runtimeFactory?: StrongrDailyGenerationRuntimeFactory;
@@ -43,6 +52,7 @@ type UnknownRecord = Readonly<Record<string, unknown>>;
 export type StrongrDailyGenerateSafeErrorCode =
   | "authentication_failed"
   | "authentication_required"
+  | "content_profile_not_active"
   | "content_type_not_allowed"
   | "development_project_not_allowed"
   | "generation_job_not_claimable"
@@ -58,6 +68,8 @@ export type StrongrDailyGenerateSafeErrorCode =
 
 interface GenerationJobRecord {
   readonly attemptCount: number;
+  readonly contentProfile: ContentProfileSelection | null;
+  readonly contentProfileSourceManifestChecksum: string | null;
   readonly generationJobId: string;
   readonly maxAttempts: number;
   readonly organizationId: string;
@@ -77,6 +89,7 @@ interface GenerationReadback {
 }
 
 const uuidPattern = /^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i;
+const sha256Pattern = /^[a-f0-9]{64}$/;
 
 function safeHeaders(): HeadersInit {
   return {
@@ -216,6 +229,37 @@ function parseGenerationJob(value: unknown, generationJobId: string): Generation
   const row = requireRecord(value[0]);
   if (!row) return null;
   const states = ["queued", "running", "succeeded", "failed", "dead_letter", "cancelled"];
+  let contentProfile: ContentProfileSelection | null;
+  const rawProfileFields = [
+    row.content_profile_id,
+    row.content_profile_version,
+    row.content_profile_checksum,
+    row.content_profile_content_type,
+    row.content_profile_source_manifest_checksum,
+  ];
+  const nullProfileFields = rawProfileFields.filter((field) => field === null).length;
+  if (nullProfileFields === rawProfileFields.length) {
+    contentProfile = null;
+  } else if (nullProfileFields > 0) {
+    return null;
+  } else {
+    if (
+      typeof row.content_profile_source_manifest_checksum !== "string" ||
+      !sha256Pattern.test(row.content_profile_source_manifest_checksum)
+    ) {
+      return null;
+    }
+    try {
+      contentProfile = parseContentProfileSelection({
+        canonical_checksum: row.content_profile_checksum,
+        content_type: row.content_profile_content_type,
+        profile_id: row.content_profile_id,
+        profile_version: row.content_profile_version,
+      });
+    } catch {
+      return null;
+    }
+  }
   if (
     row.id !== generationJobId ||
     typeof row.organization_id !== "string" ||
@@ -234,6 +278,9 @@ function parseGenerationJob(value: unknown, generationJobId: string): Generation
   }
   return Object.freeze({
     attemptCount: row.attempt_count,
+    contentProfile,
+    contentProfileSourceManifestChecksum:
+      contentProfile === null ? null : (row.content_profile_source_manifest_checksum as string),
     generationJobId,
     maxAttempts: row.max_attempts,
     organizationId: row.organization_id,
@@ -253,7 +300,8 @@ async function readGenerationJob(
   const query = new URLSearchParams({
     id: `eq.${generationJobId}`,
     limit: "1",
-    select: "id,organization_id,state,attempt_count,max_attempts,prompt_key,prompt_version",
+    select:
+      "id,organization_id,state,attempt_count,max_attempts,prompt_key,prompt_version,content_profile_id,content_profile_version,content_profile_checksum,content_profile_content_type,content_profile_source_manifest_checksum",
   });
   const response = await fetch(`${supabaseUrl}/rest/v1/generation_jobs?${query.toString()}`, {
     headers: userHeaders(anonKey, bearer),
@@ -392,6 +440,7 @@ function defaultRuntimeFactory(environment: WorkerEnvironment): StrongrDailyGene
 export function createStrongrDailyGenerateHandler(options: HandlerOptions) {
   const fetch = options.fetch ?? globalThis.fetch;
   const runtimeFactory = options.runtimeFactory ?? defaultRuntimeFactory;
+  const authorizeContentProfile = options.authorizeContentProfile ?? (() => false);
 
   return async function strongrDailyGenerate(request: Request): Promise<Response> {
     const origin = request.headers.get("origin");
@@ -468,6 +517,14 @@ export function createStrongrDailyGenerateHandler(options: HandlerOptions) {
         job.promptVersion !== openAiStrongrDailyV2ProviderConfig.promptVersion
       ) {
         return safeError(409, "generation_job_not_claimable");
+      }
+      if (
+        !job.contentProfile ||
+        job.contentProfileSourceManifestChecksum !==
+          strongrDailyContentProfileSourceManifestV1.canonical_checksum ||
+        !authorizeContentProfile(job.contentProfile, job.contentProfileSourceManifestChecksum)
+      ) {
+        return safeError(409, "content_profile_not_active");
       }
 
       const runtime = runtimeFactory(createWorkerEnvironment(configuration));

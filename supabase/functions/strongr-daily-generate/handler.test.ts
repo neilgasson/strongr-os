@@ -6,6 +6,8 @@ import type {
   DurableWorkerBatchSummary,
   WorkerEnvironment,
 } from "../../../apps/worker/src/index.ts";
+import { strongrDailyContentProfileSourceManifestV1 } from "../../../packages/content-profiles/src/strongr-daily-v1.ts";
+import { contentProfileSelectionFixture } from "../../../packages/testing/src/index.ts";
 import {
   createStrongrDailyGenerateHandler,
   type StrongrDailyGenerateFetch,
@@ -68,6 +70,12 @@ function request(
 function jobRow(overrides: Readonly<Record<string, unknown>> = {}) {
   return {
     attempt_count: 0,
+    content_profile_checksum: contentProfileSelectionFixture.canonical_checksum,
+    content_profile_content_type: contentProfileSelectionFixture.content_type,
+    content_profile_id: contentProfileSelectionFixture.profile_id,
+    content_profile_source_manifest_checksum:
+      strongrDailyContentProfileSourceManifestV1.canonical_checksum,
+    content_profile_version: contentProfileSelectionFixture.profile_version,
     id: generationJobId,
     max_attempts: 3,
     organization_id: organizationId,
@@ -150,6 +158,9 @@ test("authenticated exact-job request invokes one development-only provider work
   const runtimeCalls: string[] = [];
   const workerEnvironments: WorkerEnvironment[] = [];
   const handler = createStrongrDailyGenerateHandler({
+    authorizeContentProfile: (selection, sourceManifestChecksum) =>
+      selection.canonical_checksum === contentProfileSelectionFixture.canonical_checksum &&
+      sourceManifestChecksum === strongrDailyContentProfileSourceManifestV1.canonical_checksum,
     environment,
     fetch: successfulFetch(fetchCalls),
     runtimeFactory: runtimeFactory(runtimeCalls, workerEnvironments),
@@ -180,6 +191,57 @@ test("authenticated exact-job request invokes one development-only provider work
   assert.doesNotMatch(serialized, new RegExp(openAiApiKey));
   assert.doesNotMatch(serialized, new RegExp(serviceRoleKey));
   assert.doesNotMatch(serialized, new RegExp(accessToken));
+});
+
+test("production handler fails closed before runtime while every profile is inactive", async () => {
+  const fetchCalls: { readonly input: string; readonly init?: RequestInit }[] = [];
+  let runtimeCalls = 0;
+  const handler = createStrongrDailyGenerateHandler({
+    environment,
+    fetch: successfulFetch(fetchCalls),
+    runtimeFactory: () => ({
+      runJobOnce() {
+        runtimeCalls += 1;
+        return Promise.resolve(succeededSummary);
+      },
+    }),
+  });
+
+  const response = await handler(request());
+
+  assert.equal(response.status, 409);
+  assert.deepEqual(await response.json(), { error_code: "content_profile_not_active" });
+  assert.equal(runtimeCalls, 0);
+  assert.equal(fetchCalls.length, 3);
+});
+
+test("profile source-manifest provenance fails closed before runtime", async () => {
+  let runtimeCalls = 0;
+  for (const job of [
+    jobRow({ content_profile_source_manifest_checksum: "0".repeat(64) }),
+    jobRow({ content_profile_source_manifest_checksum: null }),
+  ]) {
+    const fetchCalls: { readonly input: string; readonly init?: RequestInit }[] = [];
+    const handler = createStrongrDailyGenerateHandler({
+      authorizeContentProfile: () => true,
+      environment,
+      fetch: successfulFetch(fetchCalls, [job]),
+      runtimeFactory: () => ({
+        runJobOnce() {
+          runtimeCalls += 1;
+          return Promise.resolve(succeededSummary);
+        },
+      }),
+    });
+
+    const response = await handler(request());
+    const isPartial = job.content_profile_source_manifest_checksum === null;
+    assert.equal(response.status, isPartial ? 404 : 409);
+    assert.deepEqual(await response.json(), {
+      error_code: isPartial ? "generation_job_not_found" : "content_profile_not_active",
+    });
+  }
+  assert.equal(runtimeCalls, 0);
 });
 
 test("untrusted origins and malformed exact-job requests stop before authentication", async () => {
@@ -349,6 +411,9 @@ test("provider/runtime exceptions return only a stable safe failure", async () =
   const fetchCalls: { readonly input: string; readonly init?: RequestInit }[] = [];
   const privateDetail = `upstream ${openAiApiKey} ${serviceRoleKey}`;
   const handler = createStrongrDailyGenerateHandler({
+    authorizeContentProfile: (selection, sourceManifestChecksum) =>
+      selection.canonical_checksum === contentProfileSelectionFixture.canonical_checksum &&
+      sourceManifestChecksum === strongrDailyContentProfileSourceManifestV1.canonical_checksum,
     environment,
     fetch: successfulFetch(fetchCalls),
     runtimeFactory: () => ({

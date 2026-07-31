@@ -37,6 +37,13 @@ import {
   GenerationRuntimeDeferredError,
 } from "./brief-to-draft-flow.ts";
 import {
+  contentProfileGateForBinding,
+  contentProfileGateForOption,
+  findStudioContentProfileOption,
+  studioContentProfileOptions,
+  type StudioContentProfileOption,
+} from "./content-profile-foundation.ts";
+import {
   ReviewToPackageOperatorFlow,
   type ReviewToPackageWorkspace,
 } from "./review-to-package-flow.ts";
@@ -534,6 +541,9 @@ const GENERATION_POLL_LIMIT = 15;
 const GENERATION_POLL_DELAY_MS = 2_000;
 
 function generationFailureGuidance(errorCode: string | null): string {
+  if (errorCode === "content_profile_not_active") {
+    return "This content format is not active yet, so Studio stopped before contacting the provider. Your brief and any earlier draft are unchanged.";
+  }
   if (errorCode === "generation.provider_invalid_response") {
     return "The provider returned a draft Studio could not safely validate. Your brief and any earlier draft are unchanged.";
   }
@@ -581,6 +591,7 @@ function GenerationStatus({
   const [pollCount, setPollCount] = useState(0);
   const [runtimeErrorCode, setRuntimeErrorCode] = useState<string | null>(null);
   const latestJob = generationJobs[0];
+  const profileGate = contentProfileGateForBinding(brief.contentProfile);
   const active = latestJob?.state === "queued" || latestJob?.state === "running";
   const pollingFinished = pollingRequested && active && pollCount >= GENERATION_POLL_LIMIT;
   const failed =
@@ -606,6 +617,9 @@ function GenerationStatus({
   }, [active]);
 
   const requestFreshGeneration = (retry: boolean) => {
+    if (!profileGate.allowed) {
+      return;
+    }
     setRuntimeErrorCode(null);
     setPollCount(0);
     setPollingRequested(true);
@@ -656,16 +670,22 @@ function GenerationStatus({
           Refreshing or reopening Studio never starts a generation.
         </p>
         <button
-          aria-describedby={!canCreate || pending ? "generation-start-reason" : undefined}
+          aria-describedby={
+            !profileGate.allowed || !canCreate || pending ? "generation-start-reason" : undefined
+          }
           className="primary-button"
           data-primary-action
-          disabled={!canCreate || pending}
+          disabled={!profileGate.allowed || !canCreate || pending}
           onClick={() => requestFreshGeneration(false)}
           type="button"
         >
           Generate first draft
         </button>
-        {!canCreate ? (
+        {!profileGate.allowed ? (
+          <p className="permission-note" id="generation-start-reason">
+            {profileGate.reason}
+          </p>
+        ) : !canCreate ? (
           <p className="permission-note" id="generation-start-reason">
             Your current role cannot request a draft. Ask an organization owner for content-creation
             access.
@@ -699,6 +719,7 @@ function GenerationStatus({
         <label className="generation-retry-confirmation">
           <input
             checked={confirmRetry}
+            disabled={!profileGate.allowed}
             onChange={(event) => setConfirmRetry(event.currentTarget.checked)}
             type="checkbox"
           />
@@ -706,17 +727,23 @@ function GenerationStatus({
         </label>
         <button
           aria-describedby={
-            !canCreate || !confirmRetry || pending ? "generation-retry-reason" : undefined
+            !profileGate.allowed || !canCreate || !confirmRetry || pending
+              ? "generation-retry-reason"
+              : undefined
           }
           className="primary-button"
           data-primary-action
-          disabled={!canCreate || !confirmRetry || pending}
+          disabled={!profileGate.allowed || !canCreate || !confirmRetry || pending}
           onClick={() => requestFreshGeneration(true)}
           type="button"
         >
           Try generation again
         </button>
-        {!canCreate ? (
+        {!profileGate.allowed ? (
+          <p className="permission-note" id="generation-retry-reason">
+            {profileGate.reason}
+          </p>
+        ) : !canCreate ? (
           <p className="permission-note" id="generation-retry-reason">
             Your current role cannot request another draft.
           </p>
@@ -832,6 +859,7 @@ function BriefComposer({
   readonly pending: boolean;
 }) {
   const [brief, setBrief] = useState(initialBrief);
+  const [selectedProfileKey, setSelectedProfileKey] = useState("");
   const [requiredElements, setRequiredElements] = useState(
     initialBrief.required_elements.join("\n"),
   );
@@ -839,6 +867,8 @@ function BriefComposer({
     initialBrief.prohibited_claims_or_wording.join("\n"),
   );
   const reference = brief.scripture_reference;
+  const selectedProfile = findStudioContentProfileOption(selectedProfileKey);
+  const profileGate = contentProfileGateForOption(selectedProfile);
   const updateReference = (patch: Partial<typeof brief.scripture_reference>) => {
     setBrief({
       ...brief,
@@ -863,8 +893,12 @@ function BriefComposer({
         className="workflow-form"
         onSubmit={(event) => {
           event.preventDefault();
+          if (!selectedProfile || !profileGate.allowed) {
+            return;
+          }
           const payload: StrongrDailyAudioReflectionV2Brief = {
             ...brief,
+            content_profile: selectedProfile.selection,
             prohibited_claims_or_wording: lines(prohibitedWording, 12),
             required_elements: lines(requiredElements, 12),
           };
@@ -884,118 +918,135 @@ function BriefComposer({
           );
         }}
       >
-        <div className="form-grid">
-          <Field
-            label="Working title"
-            maxLength={200}
-            onChange={(value) => setBrief({ ...brief, working_title: value })}
-            value={brief.working_title}
-          />
-          <Field
-            label="Audience"
-            maxLength={160}
-            onChange={(value) => setBrief({ ...brief, audience: value })}
-            value={brief.audience}
-          />
-          <Field
-            label="Theme"
-            maxLength={500}
-            onChange={(value) => setBrief({ ...brief, theme: value })}
-            value={brief.theme}
-          />
-          <label>
-            Tone
-            <select
-              onChange={(event) =>
-                setBrief({
-                  ...brief,
-                  tone: event.currentTarget.value as StrongrDailyAudioReflectionV2Brief["tone"],
-                })
-              }
-              value={brief.tone}
-            >
-              <option value="reflective">Reflective</option>
-              <option value="pastoral">Pastoral</option>
-              <option value="encouraging">Encouraging</option>
-              <option value="challenging">Challenging</option>
-            </select>
-          </label>
-          <label>
-            Desired duration in seconds
-            <input
-              max={1200}
-              min={60}
-              onChange={(event) =>
-                setBrief({
-                  ...brief,
-                  desired_duration_seconds: Number(event.currentTarget.value),
-                })
-              }
-              required
-              type="number"
-              value={brief.desired_duration_seconds}
+        <ContentProfileSelector onSelect={setSelectedProfileKey} selectedKey={selectedProfileKey} />
+        {selectedProfile?.profile.profile_id === "strongr_daily_audio_reflection_v2" ? (
+          <>
+            <div className="form-grid">
+              <Field
+                label="Working title"
+                maxLength={200}
+                onChange={(value) => setBrief({ ...brief, working_title: value })}
+                value={brief.working_title}
+              />
+              <Field
+                label="Audience"
+                maxLength={160}
+                onChange={(value) => setBrief({ ...brief, audience: value })}
+                value={brief.audience}
+              />
+              <Field
+                label="Theme"
+                maxLength={500}
+                onChange={(value) => setBrief({ ...brief, theme: value })}
+                value={brief.theme}
+              />
+              <label>
+                Tone
+                <select
+                  onChange={(event) =>
+                    setBrief({
+                      ...brief,
+                      tone: event.currentTarget.value as StrongrDailyAudioReflectionV2Brief["tone"],
+                    })
+                  }
+                  value={brief.tone}
+                >
+                  <option value="reflective">Reflective</option>
+                  <option value="pastoral">Pastoral</option>
+                  <option value="encouraging">Encouraging</option>
+                  <option value="challenging">Challenging</option>
+                </select>
+              </label>
+              <label>
+                Desired duration in seconds
+                <input
+                  max={1200}
+                  min={60}
+                  onChange={(event) =>
+                    setBrief({
+                      ...brief,
+                      desired_duration_seconds: Number(event.currentTarget.value),
+                    })
+                  }
+                  required
+                  type="number"
+                  value={brief.desired_duration_seconds}
+                />
+              </label>
+              <Field
+                label="Scripture reference"
+                maxLength={160}
+                onChange={(value) => updateReference({ reference: value })}
+                value={reference.reference}
+              />
+              <Field
+                label="Translation"
+                maxLength={80}
+                onChange={(value) => updateReference({ translation: value })}
+                value={reference.translation}
+              />
+              <Field
+                label="Source citation"
+                maxLength={500}
+                onChange={(value) => updateReference({ source_citation: value })}
+                value={reference.source_citation}
+              />
+              <Field
+                label="Source brief identifier"
+                maxLength={160}
+                onChange={(value) => setBrief({ ...brief, source_brief_identifier: value })}
+                value={brief.source_brief_identifier}
+              />
+            </div>
+            <label>
+              Required elements, one per line
+              <textarea
+                maxLength={4000}
+                onChange={(event) => setRequiredElements(event.currentTarget.value)}
+                required
+                rows={4}
+                value={requiredElements}
+              />
+            </label>
+            <label>
+              Prohibited claims or wording, one per line
+              <textarea
+                maxLength={6000}
+                onChange={(event) => setProhibitedWording(event.currentTarget.value)}
+                rows={4}
+                value={prohibitedWording}
+              />
+            </label>
+            <TextArea
+              label="Pastoral purpose"
+              maxLength={1000}
+              onChange={(value) => setBrief({ ...brief, pastoral_purpose: value })}
+              value={brief.pastoral_purpose}
             />
-          </label>
-          <Field
-            label="Scripture reference"
-            maxLength={160}
-            onChange={(value) => updateReference({ reference: value })}
-            value={reference.reference}
-          />
-          <Field
-            label="Translation"
-            maxLength={80}
-            onChange={(value) => updateReference({ translation: value })}
-            value={reference.translation}
-          />
-          <Field
-            label="Source citation"
-            maxLength={500}
-            onChange={(value) => updateReference({ source_citation: value })}
-            value={reference.source_citation}
-          />
-          <Field
-            label="Source brief identifier"
-            maxLength={160}
-            onChange={(value) => setBrief({ ...brief, source_brief_identifier: value })}
-            value={brief.source_brief_identifier}
-          />
-        </div>
-        <label>
-          Required elements, one per line
-          <textarea
-            maxLength={4000}
-            onChange={(event) => setRequiredElements(event.currentTarget.value)}
-            required
-            rows={4}
-            value={requiredElements}
-          />
-        </label>
-        <label>
-          Prohibited claims or wording, one per line
-          <textarea
-            maxLength={6000}
-            onChange={(event) => setProhibitedWording(event.currentTarget.value)}
-            rows={4}
-            value={prohibitedWording}
-          />
-        </label>
-        <TextArea
-          label="Pastoral purpose"
-          maxLength={1000}
-          onChange={(value) => setBrief({ ...brief, pastoral_purpose: value })}
-          value={brief.pastoral_purpose}
-        />
+          </>
+        ) : (
+          <p className="permission-note">
+            {selectedProfile
+              ? "Profile-specific brief fields are not available because the approved creative rules are unresolved. Studio will not reuse the audio-reflection form or guess this format."
+              : "Choose a content format to review its status before any brief fields are shown."}
+          </p>
+        )}
         <button
-          aria-describedby={!canCreate || pending ? "brief-access-reason" : undefined}
+          aria-describedby={
+            !profileGate.allowed || !canCreate || pending ? "brief-access-reason" : undefined
+          }
           className="primary-button"
           data-primary-action
-          disabled={!canCreate || pending}
+          disabled={!profileGate.allowed || !canCreate || pending}
           type="submit"
         >
           Save brief
         </button>
-        {!canCreate ? (
+        {!profileGate.allowed ? (
+          <p className="permission-note" id="brief-access-reason">
+            {profileGate.reason}
+          </p>
+        ) : !canCreate ? (
           <p className="permission-note" id="brief-access-reason">
             Your current role cannot create content. Ask an organization owner for content-creation
             access.
@@ -1012,6 +1063,87 @@ function BriefComposer({
         ) : null}
       </form>
     </section>
+  );
+}
+
+function ContentProfileSelector({
+  onSelect,
+  selectedKey,
+}: {
+  readonly onSelect: (key: string) => void;
+  readonly selectedKey: string;
+}) {
+  const selected = findStudioContentProfileOption(selectedKey);
+
+  return (
+    <section className="content-profile-selector" aria-labelledby="content-profile-heading">
+      <div>
+        <p className="eyebrow">Choose the exact format first</p>
+        <h3 id="content-profile-heading">Content format</h3>
+        <p>
+          Each format keeps its own approved structure. Studio will never guess a format from the
+          title.
+        </p>
+      </div>
+      <label>
+        Content format and version
+        <select onChange={(event) => onSelect(event.currentTarget.value)} value={selectedKey}>
+          <option value="">Choose a content format</option>
+          {studioContentProfileOptions.map((option) => (
+            <option key={option.key} value={option.key}>
+              {option.profile.display_name} · version {option.profile.profile_version} ·{" "}
+              {option.statusLabel}
+            </option>
+          ))}
+        </select>
+      </label>
+      {selected ? <ContentProfileReview option={selected} /> : null}
+    </section>
+  );
+}
+
+function ContentProfileReview({ option }: { readonly option: StudioContentProfileOption }) {
+  return (
+    <div className="content-profile-review" role="status">
+      <div className="section-heading">
+        <div>
+          <strong>{option.profile.display_name}</strong>
+          <p>{option.statusSummary}</p>
+        </div>
+        <span className="status-pill status-pill--neutral">{option.statusLabel}</span>
+      </div>
+      <p className="permission-note">
+        Phase 4B.1 is review-only. This selection cannot save a new brief or contact the provider
+        until this exact profile version is explicitly activated later.
+      </p>
+      {option.profile.unresolved_decisions.length > 0 ? (
+        <details className="advanced-details">
+          <summary>What still needs approval?</summary>
+          <ul>
+            {option.profile.unresolved_decisions.map((decision) => (
+              <li key={decision}>{decision}</li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+      <details className="advanced-details">
+        <summary>Exact profile details</summary>
+        <dl className="evidence-list">
+          <div>
+            <dt>Profile</dt>
+            <dd>{option.profile.profile_id}</dd>
+          </div>
+          <div>
+            <dt>Version</dt>
+            <dd>{option.profile.profile_version}</dd>
+          </div>
+          <div>
+            <dt>Checksum</dt>
+            <dd>{shortHash(option.profile.canonical_checksum)}</dd>
+          </div>
+        </dl>
+      </details>
+    </div>
   );
 }
 
@@ -1037,6 +1169,7 @@ function VersionWorkspace({
   readonly versions: readonly TenantContentVersionSummary[];
 }) {
   const reflection = reflectionFromVersion(selectedVersion);
+  const profileGate = contentProfileGateForBinding(selectedVersion?.contentProfile ?? null);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [confirmRegenerate, setConfirmRegenerate] = useState(false);
 
@@ -1115,6 +1248,7 @@ function VersionWorkspace({
                     <label>
                       <input
                         checked={confirmRegenerate}
+                        disabled={!profileGate.allowed}
                         onChange={(event) => setConfirmRegenerate(event.currentTarget.checked)}
                         type="checkbox"
                       />
@@ -1122,13 +1256,16 @@ function VersionWorkspace({
                     </label>
                     <button
                       aria-describedby={
-                        !canCreate || !confirmRegenerate || pending
+                        !profileGate.allowed || !canCreate || !confirmRegenerate || pending
                           ? "regenerate-version-reason"
                           : undefined
                       }
                       className="secondary-button"
-                      disabled={!canCreate || !confirmRegenerate || pending}
+                      disabled={!profileGate.allowed || !canCreate || !confirmRegenerate || pending}
                       onClick={() => {
+                        if (!profileGate.allowed) {
+                          return;
+                        }
                         void execute(
                           "regenerate-version",
                           "A new private draft request was sent. The current version remains unchanged.",
@@ -1148,7 +1285,11 @@ function VersionWorkspace({
                     >
                       Generate a different draft
                     </button>
-                    {!canCreate ? (
+                    {!profileGate.allowed ? (
+                      <p className="permission-note" id="regenerate-version-reason">
+                        {profileGate.reason}
+                      </p>
+                    ) : !canCreate ? (
                       <p className="permission-note" id="regenerate-version-reason">
                         Your current role cannot request another draft.
                       </p>

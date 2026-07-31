@@ -23,6 +23,7 @@ export const studioGenerationSafeErrorCodes = [
   "api_error",
   "authentication_failed",
   "authentication_required",
+  "content_profile_not_active",
   "content_type_not_allowed",
   "development_project_not_allowed",
   "generation.adapter_failed",
