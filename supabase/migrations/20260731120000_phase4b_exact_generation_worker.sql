@@ -315,11 +315,11 @@ begin
        'strongr.audio_reflection.v1',
        'strongr.strongr_daily_audio_reflection.v2'
      )
-     or v_brief.schema_id <> case
+     or v_brief.schema_id <> (case
        when p_response_schema_id = 'strongr.audio_reflection.v1'
          then 'strongr.audio_reflection_brief.v1'
        else 'strongr.strongr_daily_audio_reflection_brief.v2'
-     end then
+     end) then
     raise exception using errcode = '22023',
       message = 'invalid response schema id';
   end if;
