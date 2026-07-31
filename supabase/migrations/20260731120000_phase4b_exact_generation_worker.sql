@@ -157,8 +157,14 @@ security definer
 set search_path = pg_catalog, public, app_private
 as $$
 declare
-  v_completion record;
+  v_event public.outbox_events%rowtype;
+  v_job public.generation_jobs%rowtype;
   v_attempt public.generation_job_attempts%rowtype;
+  v_claim app_private.m1_generation_attempt_claims%rowtype;
+  v_brief public.content_briefs%rowtype;
+  v_version public.content_versions%rowtype;
+  v_version_number integer;
+  v_payload_hash text;
 begin
   if p_input_tokens is null or p_input_tokens < 0 then
     raise exception using errcode = '22023', message = 'invalid input token count';
@@ -172,6 +178,22 @@ begin
   if p_cost_microunits > 100000 then
     raise exception using errcode = '22023',
       message = 'provider cost exceeds per-job limit';
+  end if;
+  if length(btrim(p_provider_response_id)) not between 1 and 255 then
+    raise exception using errcode = '22023',
+      message = 'invalid provider response id';
+  end if;
+  if jsonb_typeof(p_output) <> 'object'
+     or p_output ->> 'schema_id' <> p_response_schema_id
+     or octet_length(p_output::text) > 524288 then
+    raise exception using errcode = '22023',
+      message = 'invalid generation output';
+  end if;
+  if p_output_hash !~ '^[a-f0-9]{64}$' then
+    raise exception using errcode = '22023', message = 'invalid output hash';
+  end if;
+  if p_latency_ms < 0 then
+    raise exception using errcode = '22023', message = 'invalid latency';
   end if;
 
   -- Recompute the same PostgreSQL-canonical hash used by the adapter. A v2
@@ -191,74 +213,191 @@ begin
     raise exception using errcode = '22023', message = 'invalid response schema id';
   end if;
 
-  -- The accepted completion command owns every lease, tenant, job, attempt,
-  -- schema, immutable-draft, and replay check. Calling it here keeps the new
-  -- usage fields inside the same database transaction as draft creation.
-  select c.* into v_completion
-  from public.m1_complete_generation_attempt(
-    p_event_id,
-    p_worker_id,
-    p_lease_token,
-    p_attempt_id,
-    p_provider_response_id,
-    p_response_schema_id,
-    p_output,
-    p_output_hash,
-    p_latency_ms
-  ) as c;
+  -- Keep the accepted lease, tenant, claim, replay, draft, and audit rules,
+  -- while writing provider usage in the original append-only attempt insert.
+  v_payload_hash := app_private.sha256_jsonb(p_output);
+  v_event := app_private.m1_require_generation_event_lease(
+    p_event_id, p_worker_id, p_lease_token
+  );
+
+  select j.* into v_job
+  from public.generation_jobs as j
+  where j.id = v_event.aggregate_id
+    and j.organization_id = v_event.organization_id
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0002',
+      message = 'generation job not found';
+  end if;
+  if v_job.prompt_key is distinct from 'strongr.strongr_daily.v2'
+     or v_job.prompt_version is distinct from 1 then
+    raise exception using errcode = '22023',
+      message = 'generation job is not eligible for the Phase 4B provider';
+  end if;
+
+  select c.* into v_claim
+  from app_private.m1_generation_attempt_claims as c
+  where c.attempt_id = p_attempt_id
+    and c.generation_job_id = v_job.id
+    and c.organization_id = v_job.organization_id;
+
+  if not found then
+    raise exception using errcode = 'P0002',
+      message = 'generation attempt claim not found';
+  end if;
+  if v_claim.event_id <> v_event.id
+     or v_claim.worker_id <> p_worker_id
+     or v_claim.lease_token <> p_lease_token then
+    raise exception using errcode = '55000',
+      message = 'generation attempt is not current';
+  end if;
 
   select a.* into v_attempt
   from public.generation_job_attempts as a
-  join public.generation_jobs as j
-    on j.id = a.generation_job_id
-   and j.organization_id = a.organization_id
-  join public.outbox_events as e
-    on e.aggregate_id = j.id
-   and e.organization_id = j.organization_id
   where a.id = p_attempt_id
-    and e.id = p_event_id
-    and e.event_type = 'content.generation_requested.v1'
-    and e.aggregate_type = 'generation_job'
-    and j.prompt_key = 'strongr.strongr_daily.v2'
-    and j.prompt_version = 1
-    and a.status = 'succeeded'
-    and a.provider_response_id = p_provider_response_id
-    and a.response_schema_id = p_response_schema_id
-    and a.latency_ms = p_latency_ms
-  for update of a;
+    and a.generation_job_id = v_job.id
+    and a.organization_id = v_job.organization_id;
+
+  if found then
+    if v_job.state = 'succeeded' and v_attempt.status = 'succeeded' then
+      select cv.* into v_version
+      from public.content_versions as cv
+      where cv.organization_id = v_job.organization_id
+        and cv.source_job_id = v_job.id;
+
+      if not found
+         or v_job.output_hash <> p_output_hash
+         or v_attempt.provider_response_id <> p_provider_response_id
+         or v_attempt.response_schema_id <> p_response_schema_id
+         or v_attempt.latency_ms <> p_latency_ms
+         or v_attempt.provider <> v_claim.provider
+         or v_attempt.model <> v_claim.model
+         or v_attempt.prompt_checksum <> v_claim.prompt_checksum
+         or v_version.brief_id <> v_job.brief_id
+         or v_version.payload <> p_output
+         or v_version.payload_hash <> v_payload_hash
+         or v_version.source <> 'ai_assisted' then
+        raise exception using errcode = '22023',
+          message = 'generation completion does not match existing provenance';
+      end if;
+      if v_attempt.input_tokens is distinct from p_input_tokens
+         or v_attempt.output_tokens is distinct from p_output_tokens
+         or v_attempt.cost_microunits is distinct from p_cost_microunits then
+        raise exception using errcode = '22023',
+          message = 'generation completion usage does not match existing provenance';
+      end if;
+
+      return query select 'succeeded'::text, v_version.id;
+      return;
+    end if;
+
+    raise exception using errcode = '55000',
+      message = 'generation attempt is not current';
+  end if;
+
+  if v_job.state <> 'running'
+     or v_claim.attempt_number <> v_job.attempt_count then
+    raise exception using errcode = '55000',
+      message = 'generation attempt is not current';
+  end if;
+
+  select b.* into v_brief
+  from public.content_briefs as b
+  where b.id = v_job.brief_id
+    and b.organization_id = v_job.organization_id;
 
   if not found then
-    raise exception using errcode = '55000',
-      message = 'completed generation attempt provenance is missing';
+    raise exception using errcode = 'P0002',
+      message = 'generation brief not found';
   end if;
-
-  if v_attempt.input_tokens is null
-     and v_attempt.output_tokens is null
-     and v_attempt.cost_microunits is null then
-    update public.generation_job_attempts as a
-    set input_tokens = p_input_tokens,
-        output_tokens = p_output_tokens,
-        cost_microunits = p_cost_microunits
-    where a.id = v_attempt.id
-      and a.organization_id = v_attempt.organization_id
-      and a.input_tokens is null
-      and a.output_tokens is null
-      and a.cost_microunits is null;
-
-    if not found then
-      raise exception using errcode = '55000',
-        message = 'generation usage is not current';
-    end if;
-  elsif v_attempt.input_tokens <> p_input_tokens
-     or v_attempt.output_tokens <> p_output_tokens
-     or v_attempt.cost_microunits <> p_cost_microunits then
+  if p_response_schema_id not in (
+       'strongr.audio_reflection.v1',
+       'strongr.strongr_daily_audio_reflection.v2'
+     )
+     or v_brief.schema_id <> case
+       when p_response_schema_id = 'strongr.audio_reflection.v1'
+         then 'strongr.audio_reflection_brief.v1'
+       else 'strongr.strongr_daily_audio_reflection_brief.v2'
+     end then
     raise exception using errcode = '22023',
-      message = 'generation completion usage does not match existing provenance';
+      message = 'invalid response schema id';
   end if;
 
-  return query select
-    v_completion.completion_state::text,
-    v_completion.content_version_id::uuid;
+  update public.content_items as i
+  set next_version_number = i.next_version_number + 1
+  where i.id = v_brief.content_item_id
+    and i.organization_id = v_job.organization_id
+  returning i.next_version_number - 1 into v_version_number;
+
+  if v_version_number is null then
+    raise exception using errcode = 'P0002',
+      message = 'content item not found';
+  end if;
+
+  insert into public.generation_job_attempts (
+    id, organization_id, generation_job_id, attempt_number, provider, model,
+    prompt_checksum, request_schema_id, response_schema_id,
+    provider_response_id, status, input_tokens, output_tokens,
+    cost_microunits, latency_ms, correlation_id, started_at, finished_at
+  ) values (
+    v_claim.attempt_id, v_claim.organization_id,
+    v_claim.generation_job_id, v_claim.attempt_number,
+    v_claim.provider, v_claim.model, v_claim.prompt_checksum,
+    v_claim.request_schema_id, p_response_schema_id,
+    p_provider_response_id, 'succeeded', p_input_tokens, p_output_tokens,
+    p_cost_microunits, p_latency_ms, v_job.correlation_id,
+    v_claim.started_at, statement_timestamp()
+  )
+  returning * into v_attempt;
+
+  insert into public.content_versions (
+    organization_id, content_item_id, brief_id, version_number,
+    schema_id, payload, payload_hash, source, source_job_id,
+    created_by_membership_id
+  ) values (
+    v_job.organization_id, v_brief.content_item_id, v_brief.id,
+    v_version_number, p_response_schema_id, p_output, v_payload_hash,
+    'ai_assisted', v_job.id, v_job.requested_by_membership_id
+  )
+  returning * into v_version;
+
+  insert into public.workflow_transitions (
+    organization_id, content_version_id, from_state, to_state,
+    actor_membership_id, reason_code, correlation_id
+  ) values (
+    v_job.organization_id, v_version.id, null, 'draft',
+    v_job.requested_by_membership_id, 'generated_draft_created',
+    v_job.correlation_id
+  );
+
+  update public.generation_jobs as j
+  set state = 'succeeded',
+      provider = v_claim.provider,
+      model = v_claim.model,
+      provider_response_id = p_provider_response_id,
+      output_hash = p_output_hash,
+      last_error_code = null,
+      finished_at = statement_timestamp()
+  where j.id = v_job.id;
+
+  perform app_private.record_worker_audit(
+    v_job.organization_id,
+    'generation.attempt_succeeded',
+    v_event.id,
+    'attempt_succeeded',
+    v_job.correlation_id
+  );
+
+  insert into public.audit_events (
+    organization_id, action, target_type, target_id, reason_code,
+    correlation_id, source_channel
+  ) values (
+    v_job.organization_id, 'content.version_created', 'content_version',
+    v_version.id, 'ai_assisted_draft', v_job.correlation_id, 'worker'
+  );
+
+  return query select 'succeeded'::text, v_version.id;
 end;
 $$;
 

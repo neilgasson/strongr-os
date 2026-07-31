@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, pg_catalog;
 
-select plan(45);
+select plan(46);
 
 select ok(
   to_regprocedure(
@@ -738,6 +738,16 @@ select ok(
     where id = (select attempt_id from phase4b_attempts where label = 'success')
   ),
   'the terminal attempt stores exact nonnegative usage and cost evidence'
+);
+select throws_ok(
+  $sql$
+    update public.generation_job_attempts
+    set input_tokens = input_tokens
+    where id = (select attempt_id from phase4b_attempts where label = 'success')
+  $sql$,
+  '55000',
+  'generation_job_attempts is append-only',
+  'provider usage remains immutable after the original terminal insert'
 );
 select ok(
   (

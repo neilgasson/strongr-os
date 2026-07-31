@@ -235,8 +235,10 @@ const governedContentSource = await readFile(
   "utf8",
 );
 for (const requiredGovernedOperation of [
-  "createBriefAndRequestGeneration",
+  "flow.createBrief({",
+  "flow.requestGeneration({",
   "GenerationRequestDeferredError",
+  "GenerationRuntimeDeferredError",
   "createManualDraft",
   "submitDraft",
   "activateReviewPolicy",
@@ -256,8 +258,10 @@ for (const requiredGovernedOperation of [
   );
 }
 for (const forbiddenGovernedToken of [
+  "flow.createBriefAndRequestGeneration(",
   "service_role",
   "SUPABASE_SECRET",
+  "/functions/v1/strongr-daily-generate",
   "/storage/v1/",
   "/rest/v1/content_briefs",
   "/rest/v1/content_versions",
@@ -270,9 +274,26 @@ for (const forbiddenGovernedToken of [
   );
 }
 record(
-  sessionSource.includes("createStudioFoundation(gateway, gateway, gateway)"),
-  "session-context.tsx: governed workspace must use the authenticated Studio gateway",
+  /const gateway = createStudioSupabaseGateway\(\{\s*accessToken: session\.access_token,\s*environment: environment\.value,\s*\}\);\s*return createStudioFoundation\(gateway, gateway, gateway, gateway\);/s.test(
+    sessionSource,
+  ),
+  "session-context.tsx: reads, commands, media, and generation must share the authenticated Studio gateway",
 );
+
+const studioGatewaySource = await readFile(
+  resolve(repositoryRoot, "apps/studio/src/supabase-http.ts"),
+  "utf8",
+);
+for (const requiredGenerationBoundary of [
+  "async startGeneration(",
+  "/functions/v1/strongr-daily-generate",
+  "generation_job_id: generationJobId",
+]) {
+  record(
+    studioGatewaySource.includes(requiredGenerationBoundary),
+    `supabase-http.ts: missing governed generation boundary ${requiredGenerationBoundary}`,
+  );
+}
 
 const governedMediaSource = await readFile(
   resolve(repositoryRoot, "apps/studio/src/media-release-page.tsx"),
