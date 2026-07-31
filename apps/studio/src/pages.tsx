@@ -4,11 +4,11 @@ import { Link, Navigate } from "react-router-dom";
 import { preventDefault, useStudioSession } from "./session-context.tsx";
 
 const workflowStages = [
-  ["01", "Brief", "Define a synthetic audio-reflection brief."],
-  ["02", "Draft", "Generate and inspect an immutable version."],
-  ["03", "Evidence", "Keep automated checks separate from human authority."],
-  ["04", "Approve", "Bind AAL2 approval to the exact evidence snapshot."],
-  ["05", "Stage", "Verify private media, stage, and revoke without publishing."],
+  ["01", "Brief", "Describe the content you want to create."],
+  ["02", "Draft", "Prepare and read the saved draft."],
+  ["03", "Review", "Complete the safety and human reviews in order."],
+  ["04", "Approve", "Approve only the exact version you reviewed."],
+  ["05", "Package", "Create private files without publishing."],
 ] as const;
 
 export function HomePage() {
@@ -19,12 +19,11 @@ export function HomePage() {
     <>
       <section className="hero" aria-labelledby="home-heading">
         <div>
-          <p className="eyebrow">Operator console</p>
-          <h1 id="home-heading">Governed work, clearly in view.</h1>
+          <p className="eyebrow">Strongr Studio</p>
+          <h1 id="home-heading">Create and review content one clear step at a time.</h1>
           <p className="hero-copy">
-            Strongr Studio restores each operator session from Supabase Auth, discovers only active
-            organizations visible through current RLS, and reconstructs work from canonical tenant
-            records.
+            Studio keeps sensitive work protected while showing only what you need to do now and
+            what comes next.
           </p>
         </div>
         <div className="hero-state" aria-label="Current access state" role="status">
@@ -34,9 +33,9 @@ export function HomePage() {
             <span>
               {signedIn
                 ? activeOrganization
-                  ? `${activeOrganization.name} is the explicit tenant context.`
-                  : "Choose an active organization before opening governed work."
-                : "No privileged operation is available."}
+                  ? `${activeOrganization.name} is selected.`
+                  : "Choose an organization before opening its work."
+                : "Sign in to open your work."}
             </span>
           </div>
         </div>
@@ -72,8 +71,8 @@ export function HomePage() {
             </strong>
             <p>
               {capabilities.status === "ready"
-                ? `${Object.values(capabilities.value).filter(Boolean).length} governed capabilities confirmed for the active organization.`
-                : "Capabilities are not assumed until the database confirms them."}
+                ? `${Object.values(capabilities.value).filter(Boolean).length} actions are available for your role.`
+                : "Studio is checking which actions are available for your role."}
             </p>
           </div>
         </section>
@@ -143,6 +142,7 @@ export function SignInPage() {
       >
         <label htmlFor="email">Email</label>
         <input
+          aria-describedby={!configured || pending ? "sign-in-lock-reason" : undefined}
           autoComplete="username"
           disabled={!configured || pending}
           id="email"
@@ -153,6 +153,7 @@ export function SignInPage() {
         />
         <label htmlFor="password">Password</label>
         <input
+          aria-describedby={!configured || pending ? "sign-in-lock-reason" : undefined}
           autoComplete="current-password"
           disabled={!configured || pending}
           id="password"
@@ -161,9 +162,24 @@ export function SignInPage() {
           type="password"
           value={password}
         />
-        <button className="primary-button" disabled={!configured || pending} type="submit">
+        <button
+          aria-describedby={!configured || pending ? "sign-in-lock-reason" : undefined}
+          className="primary-button"
+          data-primary-action
+          disabled={!configured || pending}
+          type="submit"
+        >
           {pending ? "Signing in…" : "Sign in"}
         </button>
+        {!configured ? (
+          <p className="permission-note" id="sign-in-lock-reason">
+            This private preview is not configured. Ask the Studio operator for help.
+          </p>
+        ) : pending ? (
+          <p className="permission-note" id="sign-in-lock-reason">
+            Checking your sign-in details now…
+          </p>
+        ) : null}
       </form>
     </section>
   );
@@ -177,6 +193,11 @@ export function SecurityPage() {
   const [pending, setPending] = useState(false);
   const canOfferEnrollment =
     mfa.status === "ready" && mfa.value.factors.length === 0 && totpEnrollment === null;
+  const firstFactor =
+    mfa.status === "ready"
+      ? (mfa.value.factors.find(({ status }) => status === "verified") ?? mfa.value.factors[0])
+      : undefined;
+  const secureSession = mfa.status === "ready" && mfa.value.currentLevel === "aal2";
 
   const submitVerification = async (factorId: string) => {
     setPending(true);
@@ -191,51 +212,68 @@ export function SecurityPage() {
     <>
       <div className="page-heading">
         <p className="eyebrow">Session security</p>
-        <h1>Authenticator assurance stays explicit.</h1>
+        <h1>Confirm sensitive actions securely.</h1>
         <p>
-          Studio can guide AAL2 step-up, but every sensitive database command rechecks real
-          assurance, membership, and permission inside its transaction.
+          Most work needs no extra step. Before a sensitive review or approval, enter the current
+          six-digit code from your authenticator app.
         </p>
       </div>
 
-      <section className="security-grid" aria-label="Authenticator status">
-        <article>
-          <h2>Current assurance</h2>
-          {mfa.status === "loading" || mfa.status === "idle" ? (
-            <p role="status">Loading authenticator status…</p>
-          ) : null}
-          {mfa.status === "error" ? <p role="alert">{mfa.message}</p> : null}
-          {mfa.status === "ready" ? (
-            <>
-              <strong className="assurance-level">
-                {mfa.value.currentLevel?.toUpperCase() ?? "Unknown"}
-              </strong>
-              <p>
-                {mfa.value.nextLevel === "aal2" && mfa.value.currentLevel !== "aal2"
-                  ? "A verified factor is available. Enter a code below to step up this session."
-                  : "Displayed assurance is guidance; the database remains authoritative."}
-              </p>
-            </>
-          ) : null}
-        </article>
+      {mfa.status === "loading" || mfa.status === "idle" ? (
+        <p role="status">Checking your security setup…</p>
+      ) : null}
+      {mfa.status === "error" ? (
+        <section className="workflow-recovery" role="alert">
+          <h2>Studio could not check your security setup</h2>
+          <p>No security setting changed. Reload this screen and try again.</p>
+          <button
+            className="primary-button"
+            data-primary-action
+            onClick={() => globalThis.location.reload()}
+            type="button"
+          >
+            Reload security screen
+          </button>
+          <details className="advanced-details">
+            <summary>Advanced error details</summary>
+            <p>{mfa.message}</p>
+          </details>
+        </section>
+      ) : null}
 
-        {canOfferEnrollment ? (
-          <article>
-            <h2>Set up an authenticator</h2>
-            <p>
-              Do this once. After setup, Studio asks only for the current six-digit code when a
-              sensitive approval needs extra confirmation.
-            </p>
-            <form
-              onSubmit={preventDefault(async () => {
-                setPending(true);
-                try {
-                  await enrollTotp(friendlyName);
-                } finally {
-                  setPending(false);
-                }
-              })}
-            >
+      {secureSession ? (
+        <section className="security-current-step" aria-label="Current security step">
+          <p className="eyebrow">Completed</p>
+          <h2>Secure session confirmed</h2>
+          <p>You can return to the content workflow and complete the protected step.</p>
+          <Link className="button-link" to="/content">
+            Return to content
+          </Link>
+        </section>
+      ) : null}
+
+      {canOfferEnrollment ? (
+        <section className="security-current-step" aria-label="Current security step">
+          <p className="eyebrow">One-time setup</p>
+          <h2>Set up extra security</h2>
+          <p>You only need to do this once.</p>
+          <ol className="simple-steps">
+            <li>Open an authenticator app on your phone.</li>
+            <li>Start setup below, then scan the QR code.</li>
+            <li>Enter the current six-digit code to finish.</li>
+          </ol>
+          <form
+            onSubmit={preventDefault(async () => {
+              setPending(true);
+              try {
+                await enrollTotp(friendlyName);
+              } finally {
+                setPending(false);
+              }
+            })}
+          >
+            <details className="advanced-details">
+              <summary>Advanced setup details</summary>
               <label htmlFor="factor-name">Authenticator name</label>
               <input
                 id="factor-name"
@@ -245,24 +283,43 @@ export function SecurityPage() {
                 required
                 value={friendlyName}
               />
-              <button className="primary-button" disabled={pending} type="submit">
-                Begin TOTP enrollment
-              </button>
-            </form>
-          </article>
-        ) : null}
-      </section>
+            </details>
+            <button
+              aria-describedby={pending ? "start-setup-reason" : undefined}
+              className="primary-button"
+              data-primary-action
+              disabled={pending}
+              type="submit"
+            >
+              {pending ? "Starting setup…" : "Start setup"}
+            </button>
+            {pending ? (
+              <p className="permission-note" id="start-setup-reason">
+                Creating the one-time setup code now…
+              </p>
+            ) : null}
+          </form>
+        </section>
+      ) : null}
 
       {totpEnrollment ? (
-        <section className="enrollment-panel" aria-labelledby="enrollment-heading">
+        <section
+          className="enrollment-panel security-current-step"
+          aria-label="Current security step"
+          aria-labelledby="enrollment-heading"
+        >
           <div>
-            <p className="eyebrow">Enrollment in progress</p>
-            <h2 id="enrollment-heading">Scan and verify</h2>
+            <p className="eyebrow">Step 2 of 2</p>
+            <h2 id="enrollment-heading">Scan the code and confirm</h2>
             <p>
-              Scan this one-time QR code. If scanning is unavailable, enter the manual setup key. Do
-              not share or retain it outside your authenticator.
+              Scan this one-time QR code with your authenticator app. Then enter the six-digit code
+              currently shown in the app. Codes changing about every 30 seconds is normal.
             </p>
-            <code className="sensitive-value">{totpEnrollment.secret}</code>
+            <details className="advanced-details">
+              <summary>Use a manual setup key instead</summary>
+              <p>Do not share or retain this key outside your authenticator.</p>
+              <code className="sensitive-value">{totpEnrollment.secret}</code>
+            </details>
           </div>
           <img alt="One-time TOTP enrollment QR code" src={totpEnrollment.qrCode} />
           <FactorVerificationForm
@@ -276,18 +333,36 @@ export function SecurityPage() {
         </section>
       ) : null}
 
-      <section className="factor-list" aria-labelledby="factor-list-heading">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Current account</p>
-            <h2 id="factor-list-heading">TOTP authenticators</h2>
-          </div>
-        </div>
-        {mfa.status === "ready" && mfa.value.factors.length === 0 ? (
-          <p>No TOTP authenticators are enrolled.</p>
-        ) : null}
-        {mfa.status === "ready"
-          ? mfa.value.factors.map((factor) => (
+      {!secureSession && !totpEnrollment && firstFactor ? (
+        <section className="security-current-step" aria-label="Current security step">
+          <p className="eyebrow">Current step</p>
+          <h2>Enter your current code</h2>
+          <p>
+            Open your authenticator app and enter the six-digit code shown for Strongr Studio. The
+            code changes about every 30 seconds. That is normal—use whichever code is visible now.
+          </p>
+          <FactorVerificationForm
+            code={codes[firstFactor.id] ?? ""}
+            factorId={firstFactor.id}
+            label={firstFactor.status === "verified" ? "Confirm secure session" : "Finish setup"}
+            onChange={(code) => setCodes({ ...codes, [firstFactor.id]: code })}
+            onSubmit={() => submitVerification(firstFactor.id)}
+            pending={pending}
+          />
+        </section>
+      ) : null}
+
+      {mfa.status === "ready" && mfa.value.factors.length > 0 ? (
+        <details className="advanced-details security-management">
+          <summary>Advanced authenticator management</summary>
+          <section className="factor-list" aria-labelledby="factor-list-heading">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Current account</p>
+                <h2 id="factor-list-heading">Enrolled authenticators</h2>
+              </div>
+            </div>
+            {mfa.value.factors.map((factor) => (
               <article key={factor.id}>
                 <div>
                   <h3>{factor.friendlyName}</h3>
@@ -297,14 +372,6 @@ export function SecurityPage() {
                       : "Enrollment has not been verified"}
                   </p>
                 </div>
-                <FactorVerificationForm
-                  code={codes[factor.id] ?? ""}
-                  factorId={factor.id}
-                  label={factor.status === "verified" ? "Step up session" : "Verify enrollment"}
-                  onChange={(code) => setCodes({ ...codes, [factor.id]: code })}
-                  onSubmit={() => submitVerification(factor.id)}
-                  pending={pending}
-                />
                 <div className="remove-factor">
                   <label>
                     <input
@@ -317,6 +384,11 @@ export function SecurityPage() {
                     Confirm removal of {factor.friendlyName}
                   </label>
                   <button
+                    aria-describedby={
+                      confirmRemoval !== factor.id || pending
+                        ? `remove-factor-${factor.id}-reason`
+                        : undefined
+                    }
                     className="danger-button"
                     disabled={confirmRemoval !== factor.id || pending}
                     onClick={() => {
@@ -330,11 +402,30 @@ export function SecurityPage() {
                   >
                     Remove authenticator
                   </button>
+                  {confirmRemoval !== factor.id ? (
+                    <p className="permission-note" id={`remove-factor-${factor.id}-reason`}>
+                      Check the confirmation box before removing this authenticator.
+                    </p>
+                  ) : pending ? (
+                    <p className="permission-note" id={`remove-factor-${factor.id}-reason`}>
+                      Removing this authenticator now…
+                    </p>
+                  ) : null}
                 </div>
               </article>
-            ))
-          : null}
-      </section>
+            ))}
+          </section>
+        </details>
+      ) : null}
+
+      <details className="advanced-details security-explanation">
+        <summary>Advanced security details</summary>
+        <p>
+          Strongr Studio calls this AAL2 step-up with TOTP. The browser only guides the step; each
+          sensitive database command still rechecks your session, membership, tenant, and role
+          permission.
+        </p>
+      </details>
     </>
   );
 }
@@ -367,9 +458,20 @@ function FactorVerificationForm({
         required
         value={code}
       />
-      <button className="secondary-button" disabled={pending} type="submit">
-        {label}
+      <button
+        aria-describedby={pending ? `factor-code-${factorId}-reason` : undefined}
+        className="primary-button"
+        data-primary-action
+        disabled={pending}
+        type="submit"
+      >
+        {pending ? "Checking code…" : label}
       </button>
+      {pending ? (
+        <p className="permission-note" id={`factor-code-${factorId}-reason`}>
+          Confirming the current code now…
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -384,33 +486,51 @@ export function WorkQueuePage() {
     <>
       <div className="page-heading">
         <p className="eyebrow">Work queue · {activeOrganization.name}</p>
-        <h1>Canonical work, reconstructed safely.</h1>
+        <h1>See what needs attention.</h1>
         <p>
-          Counts come from current tenant-scoped records. Empty, loading, failed, blocked, and
-          revoked states are never presented as success.
+          Each card shows saved work for this organization. Items that need help are clearly marked
+          and never shown as complete.
         </p>
       </div>
 
       <div className="queue-toolbar">
         <p>
           {capabilities.status === "ready"
-            ? `${Object.values(capabilities.value).filter(Boolean).length} governed capabilities are available for usability guidance.`
-            : "Governed actions remain unavailable until permissions are confirmed."}
+            ? `${Object.values(capabilities.value).filter(Boolean).length} actions are available for your role.`
+            : "Studio is checking which actions are available for your role."}
         </p>
-        <button
-          className="secondary-button"
-          disabled={workQueue.status === "loading"}
-          onClick={() => void refreshWorkQueue()}
-          type="button"
-        >
-          Refresh canonical status
-        </button>
+        {workQueue.status === "ready" ? (
+          <button
+            className="secondary-button"
+            onClick={() => void refreshWorkQueue()}
+            type="button"
+          >
+            Refresh work queue
+          </button>
+        ) : null}
       </div>
 
       {workQueue.status === "loading" || workQueue.status === "idle" ? (
-        <p role="status">Loading canonical tenant work…</p>
+        <p role="status">Loading your saved work…</p>
       ) : null}
-      {workQueue.status === "error" ? <p role="alert">{workQueue.message}</p> : null}
+      {workQueue.status === "error" ? (
+        <section className="workflow-recovery" role="alert">
+          <h2>The work queue could not load</h2>
+          <p>No changes were made. Check your connection, then try again.</p>
+          <button
+            className="primary-button"
+            data-primary-action
+            onClick={() => void refreshWorkQueue()}
+            type="button"
+          >
+            Try loading again
+          </button>
+          <details className="advanced-details">
+            <summary>Advanced error details</summary>
+            <p>{workQueue.message}</p>
+          </details>
+        </section>
+      ) : null}
       {workQueue.status === "ready" ? (
         <>
           <section className="queue-grid" aria-label="Work queue lanes">
@@ -431,12 +551,12 @@ export function WorkQueuePage() {
                     ? "Read failed safely"
                     : lane.status === "attention"
                       ? "Needs operator attention"
-                      : "Canonical status loaded"}
+                      : "Saved status loaded"}
                 </small>
               </article>
             ))}
           </section>
-          <p className="loaded-at">Last reconstructed: {workQueue.value.loadedAt}</p>
+          <p className="loaded-at">Last refreshed: {workQueue.value.loadedAt}</p>
         </>
       ) : null}
     </>

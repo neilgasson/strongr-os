@@ -40,7 +40,7 @@ async function productionPackage() {
 }
 
 test("v2 export is an exact approved-package projection with no publication action", async () => {
-  const files = createStrongrDailyApprovedExport({
+  const files = await createStrongrDailyApprovedExport({
     exportedAt: "2026-07-28T12:34:56Z",
     productionPackage: await productionPackage(),
   });
@@ -60,8 +60,8 @@ test("v2 export rejects a changed reviewed field instead of silently exporting i
   const package_ = await productionPackage();
   const content = package_.manifest.content as Record<string, unknown>;
   content.prayer = "Changed after review.";
-  assert.throws(
-    () =>
+  await assert.rejects(
+    async () =>
       createStrongrDailyApprovedExport({
         exportedAt: "2026-07-28T12:34:56Z",
         productionPackage: package_,

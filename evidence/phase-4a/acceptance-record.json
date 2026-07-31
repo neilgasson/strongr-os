@@ -1,0 +1,88 @@
+{
+  "schema": "strongr.strongr_daily_phase_4a_checkpoint.v1",
+  "status": "merge_candidate",
+  "recorded_at_utc": "2026-07-31T06:40:00Z",
+  "repository": "neilgasson/strongr-os",
+  "pull_request": {
+    "number": 49,
+    "base_branch": "main",
+    "head_branch": "agent/studio-guided-product-flow",
+    "required_checks": "must_pass_before_merge",
+    "merge_strategy": "squash"
+  },
+  "pilot": {
+    "identifier": "strongr-daily-quiet-trust-psalm-46-10-v1",
+    "title": "Quiet Trust",
+    "scripture_reference": "Psalm 46:10",
+    "translation_reference": "NIV",
+    "content_version_id": "051f4e6f-f749-4c30-b5cd-df7a1856eb50",
+    "version_number": 1,
+    "version_payload_hash": "239b4d2d16f376e3a578463532e35c7420bba325370515aedbf1cfe47ab5938a",
+    "content_hash": "4f90e7e08ce4e728f927bdfd621ea18339998e26e443a2faa3e23cace8f8c4c4",
+    "generation": {
+      "provider": "openai",
+      "model": "gpt-4.1-mini",
+      "attempts": 1,
+      "status": "succeeded",
+      "input_tokens_recorded": null,
+      "output_tokens_recorded": null,
+      "cost_microunits_recorded": null
+    }
+  },
+  "governance": {
+    "automated_check_run_id": "4ed0169b-b17d-41a3-802f-4e48a61a8ebb",
+    "automated_check_status": "completed",
+    "scripture_review": "approved",
+    "theology_review": "approved",
+    "editorial_review": "approved",
+    "approval_snapshot_id": "64b8ed80-8c19-4ad2-97bd-c33517b2246f",
+    "authentication_assurance": "aal2",
+    "evidence_bundle_hash": "68717b9542ba77af71c310a46d184e7ea5b682881f33f9b8fa2749fb6324721b",
+    "production_package_id": "9272b4a2-2341-424a-8a6e-15347f53796c",
+    "production_package_manifest_hash": "e10d22345f9ef6eb7501dbd9c745c4d6b87785b06fe14802f7e48fece06e254f",
+    "package_is_immutable": true,
+    "package_is_public": false
+  },
+  "human_facing_validation": {
+    "private_preview_url": "https://strongr-studio-preview.meetwagon.chatgpt.site",
+    "preview_version": 7,
+    "preview_source_commit": "e2d6aedf5f978c4f749a30ac10745c1918b2b9db",
+    "access_mode": "custom_owner_only",
+    "allowed_user_count": 1,
+    "allowed_group_count": 0,
+    "purpose_is_clear": true,
+    "one_primary_action_is_clear": true,
+    "workflow_order_is_clear": true,
+    "blocked_actions_have_plain_reasons": true,
+    "real_pilot_has_synthetic_placeholders": false,
+    "mfa_guidance_is_plain_language": true,
+    "json_download_verified": true,
+    "markdown_download_verified": true,
+    "download_confirmation_states_nothing_was_published_or_uploaded": true
+  },
+  "security_statement": {
+    "migration_changed": false,
+    "schema_changed": false,
+    "rls_or_grant_changed": false,
+    "mfa_enforcement_changed": false,
+    "approval_authority_changed": false,
+    "tenant_isolation_changed": false,
+    "audit_boundary_changed": false,
+    "service_role_exposed": false,
+    "current_strongr_daily_changed": false,
+    "production_changed": false,
+    "public_access_enabled": false,
+    "publication_occurred": false,
+    "audio_generated": false,
+    "phase_4b_started": false
+  },
+  "stop_boundary": {
+    "remaining_content_items_generated": 0,
+    "elevenlabs_called": false,
+    "existing_synthetic_audio_request_state": "queued_unprocessed",
+    "existing_synthetic_audio_request_attempts": 0,
+    "audio_uploaded": false,
+    "content_published": false,
+    "phase_4b_authorized": false
+  }
+}

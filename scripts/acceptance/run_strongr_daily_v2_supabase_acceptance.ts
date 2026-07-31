@@ -5,11 +5,6 @@ import { createHmac, randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import {
-  databaseCommandDiagnostic,
-  type DatabaseCommandDiagnostic,
-} from "./database-command-diagnostics.ts";
-import { deepEqualJson } from "./json-equality.ts";
 import { createStrongrDailyApprovedExport } from "../../apps/studio/src/strongr-daily-export.ts";
 import {
   AutomatedReviewCheckRunner,
@@ -33,6 +28,11 @@ import {
   audioReflectionBriefFixture,
   strongrDailyAudioReflectionV2BriefFixture,
 } from "../../packages/testing/src/index.ts";
+import {
+  type DatabaseCommandDiagnostic,
+  databaseCommandDiagnostic,
+} from "./database-command-diagnostics.ts";
+import { deepEqualJson } from "./json-equality.ts";
 
 type EvidenceStatus = "pass" | "fail";
 type UnknownRecord = Readonly<Record<string, unknown>>;
@@ -1264,7 +1264,7 @@ select has_function_privilege(
       organizationId: fixture.organizationOne,
     });
     const exportedAt = new Date().toISOString();
-    const exported = createStrongrDailyApprovedExport({ exportedAt, productionPackage });
+    const exported = await createStrongrDailyApprovedExport({ exportedAt, productionPackage });
     const exportedJson = requireRecord(JSON.parse(exported.json), "json_export");
     const exportedContent = requireRecord(exportedJson.content, "json_export_content");
     const creativeFieldValues = [

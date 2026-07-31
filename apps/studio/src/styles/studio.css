@@ -786,6 +786,176 @@ label {
   font-size: clamp(1.35rem, 2.4vw, 1.8rem);
 }
 
+.optional-workflow,
+.advanced-details,
+.security-management,
+.security-explanation {
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface-subtle);
+}
+
+.optional-workflow > .workflow-section {
+  margin-top: var(--space-4);
+  box-shadow: none;
+}
+
+.advanced-details > *:not(summary),
+.security-management > *:not(summary),
+.security-explanation > *:not(summary) {
+  margin-top: var(--space-4);
+}
+
+.workflow-notice,
+.workflow-recovery {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-medium);
+  background: var(--color-brand-soft);
+}
+
+.workflow-notice > *,
+.workflow-recovery > * {
+  margin: 0;
+}
+
+.workflow-notice--error,
+.workflow-recovery {
+  border-color: rgba(174, 69, 41, 0.35);
+  background: var(--color-warning-soft);
+}
+
+.workflow-progress {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-5) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workflow-progress__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-small);
+  color: var(--color-ink-muted);
+  background: var(--color-surface-subtle);
+}
+
+.workflow-progress__marker {
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.workflow-progress__item strong {
+  font-size: var(--text-small);
+}
+
+.workflow-progress__item--completed {
+  color: var(--color-brand-strong);
+  background: var(--color-brand-soft);
+}
+
+.workflow-progress__item--completed .workflow-progress__marker {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+}
+
+.workflow-progress__item--current {
+  border-width: 2px;
+  border-color: var(--color-brand);
+  color: var(--color-ink-strong);
+  background: var(--color-surface);
+}
+
+.workflow-progress__item--blocked {
+  border-width: 2px;
+  border-color: var(--color-warning-ink);
+  color: var(--color-warning-ink);
+  background: var(--color-warning-soft);
+}
+
+.workflow-current-action {
+  display: grid;
+  gap: var(--space-4);
+  padding: clamp(var(--space-5), 4vw, var(--space-7));
+  border: 2px solid var(--color-brand);
+  border-radius: var(--radius-medium);
+  background: var(--color-brand-soft);
+}
+
+.workflow-current-action > * {
+  margin: 0;
+}
+
+.workflow-current-action--blocked {
+  border-color: var(--color-warning-ink);
+  background: var(--color-warning-soft);
+}
+
+.workflow-blocked,
+.simple-action {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+
+.workflow-blocked > *,
+.simple-action > * {
+  margin: 0;
+}
+
+.workflow-advanced {
+  margin-top: var(--space-5);
+}
+
+.security-current-step {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: clamp(var(--space-5), 4vw, var(--space-7));
+  border: 2px solid var(--color-brand);
+  border-radius: var(--radius-large);
+  background: var(--color-brand-soft);
+}
+
+.security-current-step > * {
+  margin: 0;
+}
+
+.security-current-step form {
+  display: grid;
+  width: min(100%, 36rem);
+  gap: var(--space-4);
+}
+
+.simple-steps {
+  display: grid;
+  gap: var(--space-2);
+  padding-left: var(--space-5);
+}
+
+.text-button {
+  padding: 0;
+  border: 0;
+  color: var(--color-brand-strong);
+  background: transparent;
+  font: inherit;
+  font-weight: 750;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .automated-evidence {
   display: grid;
   grid-template-columns: minmax(16rem, 0.7fr) minmax(0, 1.3fr);
@@ -902,6 +1072,27 @@ label {
   grid-column: 1 / -1;
   border-color: rgba(174, 69, 41, 0.35);
   background: rgba(255, 246, 242, 0.8);
+}
+
+.workflow-current-action > article,
+.workflow-current-action .authority-card {
+  padding: var(--space-5);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+}
+
+.workflow-advanced .canonical-summary {
+  margin-top: var(--space-4);
+}
+
+.authority-grid--single {
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 0;
+}
+
+.authority-management {
+  margin-top: var(--space-4);
 }
 
 .auth-panel {
