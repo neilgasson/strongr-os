@@ -1,6 +1,7 @@
 import {
   type Dispatch,
   type FormEvent,
+  type ReactNode,
   type SetStateAction,
   useCallback,
   useEffect,
@@ -49,6 +50,11 @@ type WorkspaceState =
   | Readonly<{ status: "loading" }>
   | Readonly<{ message: string; status: "error" }>
   | Readonly<{ status: "ready"; value: ContentWorkspace }>;
+
+type WorkflowNotice = Readonly<{
+  kind: "error" | "success";
+  message: string;
+}>;
 
 type ExecuteMutation = (
   key: string,
@@ -148,12 +154,27 @@ function contentTitle(value: ImmutableContent): string {
   return isStrongrDailyV2(value) ? value.final_title : value.title;
 }
 
+function versionStateLabel(state: TenantContentVersionSummary["state"]): string {
+  if (state === "submitted") {
+    return "Submitted for review";
+  }
+  if (state === "superseded") {
+    return "Replaced";
+  }
+  return "Draft";
+}
+
+function versionSourceLabel(source: TenantContentVersionSummary["source"]): string {
+  return source === "ai_assisted" ? "AI-assisted" : "Written manually";
+}
+
 export function ContentWorkspacePage() {
   const { activeOrganization, announce, capabilities, foundation, mfa, reportWorkflowFailure } =
     useStudioSession();
   const [workspace, setWorkspace] = useState<WorkspaceState>({ status: "loading" });
   const [selectedVersionId, setSelectedVersionId] = useState<Uuid | null>(null);
   const [pendingMutation, setPendingMutation] = useState<string | null>(null);
+  const [workflowNotice, setWorkflowNotice] = useState<WorkflowNotice | null>(null);
   const mutationLock = useRef(false);
   const draftFlow = useMemo(
     () => (foundation ? new BriefToDraftOperatorFlow(foundation) : null),
@@ -176,9 +197,9 @@ export function ContentWorkspacePage() {
       ]);
       setWorkspace({ status: "ready", value: Object.freeze({ draft, review }) });
     } catch (error) {
-      reportWorkflowFailure(error, "The governed content workspace could not be loaded");
+      reportWorkflowFailure(error, "The content screen could not be loaded");
       setWorkspace({
-        message: "Canonical content state could not be loaded. No workflow success is assumed.",
+        message: "Your saved work could not be loaded. No action was taken.",
         status: "error",
       });
     }
@@ -209,13 +230,19 @@ export function ContentWorkspacePage() {
       try {
         await action();
         announce(success);
+        setWorkflowNotice({ kind: "success", message: success });
       } catch (error) {
         if (error instanceof GenerationRequestDeferredError) {
-          announce(
-            `The brief is durable, but generation was not requested. Brief ${error.briefId}; content item ${error.contentItemId}. Reload canonical state before deciding whether to continue.`,
-          );
+          const message =
+            "The brief was saved, but generation did not start. Nothing was approved or published. Refresh the status before trying again.";
+          announce(message);
+          setWorkflowNotice({ kind: "error", message });
         } else {
           reportWorkflowFailure(error, failure);
+          setWorkflowNotice({
+            kind: "error",
+            message: `${failure}. Nothing was approved or published. The current step is still open; review it and try again.`,
+          });
         }
       } finally {
         await refresh();
@@ -239,12 +266,11 @@ export function ContentWorkspacePage() {
   return (
     <>
       <div className="page-heading">
-        <p className="eyebrow">Governed content · {activeOrganization.name}</p>
-        <h1>Brief through immutable package.</h1>
+        <p className="eyebrow">Content workflow · {activeOrganization.name}</p>
+        <h1>Finish one clear step at a time.</h1>
         <p>
-          Studio guides the work and reloads canonical records. Every mutation names this active
-          organization; PostgreSQL rechecks tenant, permission, workflow state, exact identity, and
-          assurance.
+          Studio shows what is finished, what needs attention now, and what comes next. Sensitive
+          actions remain protected even though the normal workflow stays simple.
         </p>
       </div>
 
@@ -254,65 +280,178 @@ export function ContentWorkspacePage() {
         aria-label="Current workflow safety"
       >
         <div>
-          <strong>{aal2 ? "AAL2 session" : "AAL2 not confirmed"}</strong>
+          <strong>
+            {aal2 ? "Secure session confirmed" : "Extra confirmation may be required"}
+          </strong>
           <p>
             {aal2
-              ? "Sensitive commands still recheck assurance inside the database transaction."
-              : "Brief and draft work may continue where permitted. Human evidence, review, approval, package, and revocation require step-up."}
+              ? "You can complete sensitive review and approval steps during this session."
+              : "Studio will tell you when to enter the current six-digit code from your authenticator."}
           </p>
+          <details className="advanced-details">
+            <summary>Advanced security details</summary>
+            <p>
+              {aal2
+                ? "This session has AAL2 assurance. Every sensitive command still rechecks assurance, membership, tenant, and permission."
+                : "This session has not confirmed AAL2 assurance. The database will reject sensitive commands until step-up succeeds."}
+            </p>
+          </details>
         </div>
-        {!aal2 ? (
-          <Link className="button-link" to="/security">
-            Open session security
-          </Link>
-        ) : null}
-        <button
-          className="secondary-button"
-          disabled={workspace.status === "loading" || pendingMutation !== null}
-          onClick={() => void refresh()}
-          type="button"
-        >
-          Reload canonical state
-        </button>
+        <div>
+          <button
+            aria-describedby={
+              workspace.status === "loading" || pendingMutation !== null
+                ? "refresh-work-reason"
+                : undefined
+            }
+            className="secondary-button"
+            disabled={workspace.status === "loading" || pendingMutation !== null}
+            onClick={() => void refresh()}
+            type="button"
+          >
+            Refresh saved work
+          </button>
+          {workspace.status === "loading" || pendingMutation !== null ? (
+            <p className="permission-note" id="refresh-work-reason">
+              Studio is already updating this screen.
+            </p>
+          ) : null}
+        </div>
       </section>
 
-      {workspace.status === "loading" ? (
-        <p role="status">Loading canonical briefs, versions, evidence, reviews, and packages…</p>
+      {workspace.status === "loading" ? <p role="status">Loading your saved work…</p> : null}
+      {workspace.status === "error" ? (
+        <section className="workflow-recovery" role="alert">
+          <h2>Studio could not load this work</h2>
+          <p>No changes were made. Check your connection, then try loading the saved work again.</p>
+          <button className="primary-button" onClick={() => void refresh()} type="button">
+            Try loading again
+          </button>
+        </section>
       ) : null}
-      {workspace.status === "error" ? <p role="alert">{workspace.message}</p> : null}
       {workspace.status === "ready" ? (
         <div className="content-workspace">
-          <BriefComposer
-            canCreate={capabilities.status === "ready" && capabilities.value["content.create"]}
-            execute={execute}
-            flow={draftFlow}
-            organizationId={activeOrganization.id}
-            pending={pendingMutation !== null}
-          />
-          <VersionWorkspace
-            canCreate={capabilities.status === "ready" && capabilities.value["content.create"]}
-            canSubmit={capabilities.status === "ready" && capabilities.value["content.submit"]}
-            execute={execute}
-            flow={draftFlow}
-            organizationId={activeOrganization.id}
-            pending={pendingMutation !== null}
-            selectedVersion={selectedVersion}
-            selectVersion={setSelectedVersionId}
-            versions={workspace.value.draft.versions}
-          />
-          <ReviewWorkspace
-            aal2={aal2}
-            capabilities={capabilities.status === "ready" ? capabilities.value : null}
-            execute={execute}
-            flow={reviewFlow}
-            organizationId={activeOrganization.id}
-            pending={pendingMutation !== null}
-            selectedVersion={selectedVersion}
-            workspace={workspace.value.review}
-          />
+          {workflowNotice ? (
+            <div
+              className={`workflow-notice workflow-notice--${workflowNotice.kind}`}
+              role={workflowNotice.kind === "error" ? "alert" : "status"}
+            >
+              <strong>
+                {workflowNotice.kind === "success" ? "Step completed" : "Step not saved"}
+              </strong>
+              <p>{workflowNotice.message}</p>
+              <button className="text-button" onClick={() => setWorkflowNotice(null)} type="button">
+                Dismiss
+              </button>
+            </div>
+          ) : null}
+          {workspace.value.draft.versions.length === 0 ? (
+            workspace.value.draft.briefs.length === 0 ? (
+              <BriefComposer
+                canCreate={capabilities.status === "ready" && capabilities.value["content.create"]}
+                execute={execute}
+                flow={draftFlow}
+                organizationId={activeOrganization.id}
+                pending={pendingMutation !== null}
+              />
+            ) : (
+              <GenerationStatus
+                generationJobs={workspace.value.draft.generationJobs}
+                pending={pendingMutation !== null}
+                refresh={refresh}
+              />
+            )
+          ) : (
+            <>
+              <VersionWorkspace
+                canCreate={capabilities.status === "ready" && capabilities.value["content.create"]}
+                canSubmit={capabilities.status === "ready" && capabilities.value["content.submit"]}
+                execute={execute}
+                flow={draftFlow}
+                organizationId={activeOrganization.id}
+                pending={pendingMutation !== null}
+                selectedVersion={selectedVersion}
+                selectVersion={setSelectedVersionId}
+                versions={workspace.value.draft.versions}
+              />
+              <ReviewWorkspace
+                aal2={aal2}
+                capabilities={capabilities.status === "ready" ? capabilities.value : null}
+                execute={execute}
+                flow={reviewFlow}
+                organizationId={activeOrganization.id}
+                pending={pendingMutation !== null}
+                refresh={refresh}
+                selectedVersion={selectedVersion}
+                workspace={workspace.value.review}
+              />
+            </>
+          )}
         </div>
       ) : null}
     </>
+  );
+}
+
+function GenerationStatus({
+  generationJobs,
+  pending,
+  refresh,
+}: {
+  readonly generationJobs: BriefToDraftWorkspace["generationJobs"];
+  readonly pending: boolean;
+  readonly refresh: () => Promise<void>;
+}) {
+  const latestJob = [...generationJobs].sort(
+    (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt),
+  )[0];
+  const needsHelp = !latestJob || ["cancelled", "dead_letter", "failed"].includes(latestJob.state);
+  const finished = latestJob?.state === "succeeded";
+  return (
+    <section
+      className={`workflow-current-action${needsHelp ? " workflow-current-action--blocked" : ""}`}
+      aria-label="Current step"
+      aria-labelledby="generation-status-heading"
+    >
+      <p className="eyebrow">{needsHelp ? "Needs attention" : "Current step"}</p>
+      <h2 id="generation-status-heading">
+        {needsHelp
+          ? "The draft could not be prepared"
+          : finished
+            ? "The draft is almost ready"
+            : "Studio is preparing the draft"}
+      </h2>
+      <p>
+        {needsHelp
+          ? "Your brief is saved, and nothing was approved or published. Check once more; if this message remains, ask the Studio operator for help."
+          : finished
+            ? "Generation finished. Check again to load the saved draft."
+            : "Your brief is saved. You can leave this screen and return later without starting another request."}
+      </p>
+      <button
+        aria-describedby={pending ? "generation-refresh-reason" : undefined}
+        className="primary-button"
+        data-primary-action
+        disabled={pending}
+        onClick={() => void refresh()}
+        type="button"
+      >
+        Check draft status
+      </button>
+      {pending ? (
+        <p className="permission-note" id="generation-refresh-reason">
+          Checking the saved draft status now…
+        </p>
+      ) : null}
+      {latestJob ? (
+        <details className="advanced-details">
+          <summary>Advanced generation details</summary>
+          <p>
+            Job state: <code>{latestJob.state}</code>. Attempts: {latestJob.attemptCount}.
+          </p>
+        </details>
+      ) : null}
+    </section>
   );
 }
 
@@ -352,11 +491,11 @@ function BriefComposer({
           <p className="eyebrow">Step 1</p>
           <h2 id="brief-heading">Create a Strongr Daily brief</h2>
         </div>
-        <span className="status-pill status-pill--neutral">Schema validated</span>
+        <span className="status-pill status-pill--neutral">Ready</span>
       </div>
       <p>
-        Brief creation and generation request are separate durable commands. The current idempotency
-        key is stable until this request succeeds.
+        Describe the content once. Studio will save the brief and prepare a private draft for
+        review.
       </p>
       <form
         className="workflow-form"
@@ -369,8 +508,8 @@ function BriefComposer({
           };
           void execute(
             "create-brief",
-            "Brief created and generation requested. Canonical job status was reloaded.",
-            "The brief-to-generation request did not complete",
+            "Brief saved. Studio started preparing the private draft.",
+            "The brief was not fully started",
             async () => {
               await flow.createBriefAndRequestGeneration({
                 brief: payload,
@@ -488,16 +627,29 @@ function BriefComposer({
           onChange={(value) => setBrief({ ...brief, pastoral_purpose: value })}
           value={brief.pastoral_purpose}
         />
-        <p className="operation-detail">
-          Stable request key: <code>{idempotencyKey}</code>
-        </p>
-        <button className="primary-button" disabled={!canCreate || pending} type="submit">
+        <details className="advanced-details">
+          <summary>Advanced request details</summary>
+          <p className="operation-detail">
+            Stable request key: <code>{idempotencyKey}</code>
+          </p>
+        </details>
+        <button
+          aria-describedby={!canCreate || pending ? "brief-access-reason" : undefined}
+          className="primary-button"
+          data-primary-action
+          disabled={!canCreate || pending}
+          type="submit"
+        >
           Create brief and request generation
         </button>
         {!canCreate ? (
-          <p className="permission-note">
-            `content.create` is not confirmed. The database remains authoritative if a request is
-            forced.
+          <p className="permission-note" id="brief-access-reason">
+            Your current role cannot create content. Ask an organization owner for content-creation
+            access.
+          </p>
+        ) : pending ? (
+          <p className="permission-note" id="brief-access-reason">
+            Saving the brief and starting the private draft now…
           </p>
         ) : null}
       </form>
@@ -534,23 +686,24 @@ function VersionWorkspace({
       <div className="section-heading">
         <div>
           <p className="eyebrow">Steps 2–3</p>
-          <h2 id="version-heading">Inspect an immutable version</h2>
+          <h2 id="version-heading">Read the saved draft</h2>
         </div>
         <span className="status-pill status-pill--neutral">{versions.length} versions</span>
       </div>
       {versions.length === 0 ? (
-        <p>No canonical version exists yet. Refresh after the durable worker succeeds.</p>
+        <p>Your draft is still being prepared. Use refresh in a moment to check again.</p>
       ) : (
         <>
           <label>
-            Exact content version
+            Content version
             <select
               onChange={(event) => selectVersion(event.currentTarget.value)}
               value={selectedVersion?.id ?? ""}
             >
               {versions.map((version) => (
                 <option key={version.id} value={version.id}>
-                  Version {version.versionNumber} · {version.state} · {version.source}
+                  Version {version.versionNumber} · {versionStateLabel(version.state)} ·{" "}
+                  {versionSourceLabel(version.source)}
                 </option>
               ))}
             </select>
@@ -562,24 +715,29 @@ function VersionWorkspace({
                   <p className="eyebrow">Version {selectedVersion.versionNumber}</p>
                   <h3>{contentTitle(reflection)}</h3>
                 </div>
-                <span className="status-pill status-pill--positive">{selectedVersion.state}</span>
+                <span className="status-pill status-pill--positive">
+                  {versionStateLabel(selectedVersion.state)}
+                </span>
               </div>
-              <dl className="evidence-list">
-                <div>
-                  <dt>Exact identity</dt>
-                  <dd>{selectedVersion.id}</dd>
-                </div>
-                <div>
-                  <dt>Payload SHA-256</dt>
-                  <dd>{selectedVersion.payloadHash}</dd>
-                </div>
-                <div>
-                  <dt>Created</dt>
-                  <dd>{formatDate(selectedVersion.createdAt)}</dd>
-                </div>
-              </dl>
+              <details className="advanced-details">
+                <summary>Advanced version details</summary>
+                <dl className="evidence-list">
+                  <div>
+                    <dt>Exact identity</dt>
+                    <dd>{selectedVersion.id}</dd>
+                  </div>
+                  <div>
+                    <dt>Payload SHA-256</dt>
+                    <dd>{selectedVersion.payloadHash}</dd>
+                  </div>
+                  <div>
+                    <dt>Created</dt>
+                    <dd>{formatDate(selectedVersion.createdAt)}</dd>
+                  </div>
+                </dl>
+              </details>
               <details>
-                <summary>Read immutable content</summary>
+                <summary>Read full draft</summary>
                 <ImmutableContentPreview value={reflection} />
               </details>
               {selectedVersion.state === "draft" ? (
@@ -590,17 +748,20 @@ function VersionWorkspace({
                       onChange={(event) => setConfirmSubmit(event.currentTarget.checked)}
                       type="checkbox"
                     />
-                    Submit exact version {selectedVersion.versionNumber} (
-                    {shortHash(selectedVersion.payloadHash)}) for review. The stored version will
-                    not be edited.
+                    Submit version {selectedVersion.versionNumber} for review. The saved draft will
+                    not be changed.
                   </label>
                   <button
+                    aria-describedby={
+                      !canSubmit || !confirmSubmit || pending ? "submit-version-reason" : undefined
+                    }
                     className="primary-button"
+                    data-primary-action
                     disabled={!canSubmit || !confirmSubmit || pending}
                     onClick={() => {
                       void execute(
                         "submit-version",
-                        `Version ${selectedVersion.versionNumber} submitted. Canonical state was reloaded.`,
+                        `Version ${selectedVersion.versionNumber} submitted for review. The saved status was refreshed.`,
                         "The exact version was not confirmed as submitted",
                         () =>
                           flow.submitDraft({
@@ -612,13 +773,29 @@ function VersionWorkspace({
                     }}
                     type="button"
                   >
-                    Submit exact version
+                    Submit this version
                   </button>
+                  {!canSubmit ? (
+                    <p className="permission-note" id="submit-version-reason">
+                      Your current role cannot submit content for review. Ask an organization owner
+                      for submission access.
+                    </p>
+                  ) : !confirmSubmit ? (
+                    <p className="permission-note" id="submit-version-reason">
+                      Read the draft and check the confirmation box to unlock submission.
+                    </p>
+                  ) : pending ? (
+                    <p className="permission-note" id="submit-version-reason">
+                      Submitting this exact version now…
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
             </article>
           ) : (
-            <p role="alert">The selected immutable payload does not match the accepted schema.</p>
+            <p role="alert">
+              Studio could not read this saved draft. No review or approval action is available.
+            </p>
           )}
           {selectedVersion && reflection && !isStrongrDailyV2(reflection) ? (
             <ManualSuccessorForm
@@ -794,23 +971,89 @@ function ManualSuccessorForm({
           onChange={(closing) => setEditor({ ...editor, closing })}
           value={editor.closing}
         />
-        <button className="secondary-button" disabled={!canCreate || pending} type="submit">
+        <button
+          aria-describedby={!canCreate || pending ? "successor-lock-reason" : undefined}
+          className="secondary-button"
+          disabled={!canCreate || pending}
+          type="submit"
+        >
           Create immutable successor
         </button>
+        {!canCreate ? (
+          <p className="permission-note" id="successor-lock-reason">
+            Your current role cannot create a replacement version.
+          </p>
+        ) : pending ? (
+          <p className="permission-note" id="successor-lock-reason">
+            Saving the replacement version now…
+          </p>
+        ) : null}
       </form>
     </details>
   );
 }
 
+type GuidedReviewStepKey =
+  | "submit"
+  | "secure-session"
+  | "review-policy"
+  | "automated-checks"
+  | "scripture-evidence"
+  | "rights"
+  | "scripture-review"
+  | "theology-review"
+  | "editorial-review"
+  | "approval"
+  | "package"
+  | "download";
+
 interface GuidedReviewStep {
   readonly detail: string;
+  readonly key: GuidedReviewStepKey;
   readonly targetId: string;
   readonly title: string;
 }
 
-function guidedReviewStep({
+const guidedStepLabels: ReadonlyArray<Readonly<{ key: GuidedReviewStepKey; label: string }>> = [
+  { key: "submit", label: "Submit the draft" },
+  { key: "secure-session", label: "Confirm your secure session" },
+  { key: "review-policy", label: "Confirm the review rules" },
+  { key: "automated-checks", label: "Complete safety checks" },
+  { key: "scripture-evidence", label: "Verify the Scripture source" },
+  { key: "rights", label: "Confirm usage rights" },
+  { key: "scripture-review", label: "Complete Scripture review" },
+  { key: "theology-review", label: "Complete pastoral review" },
+  { key: "editorial-review", label: "Complete editorial review" },
+  { key: "approval", label: "Approve the final version" },
+  { key: "package", label: "Create the private package" },
+  { key: "download", label: "Download the completed files" },
+];
+
+const stepPermission: Partial<Record<GuidedReviewStepKey, string>> = {
+  approval: "approval.grant",
+  download: "export.request",
+  "editorial-review": "review.editorial",
+  package: "export.request",
+  "review-policy": "role.manage",
+  rights: "review.editorial",
+  "scripture-evidence": "review.scripture",
+  "scripture-review": "review.scripture",
+  submit: "content.submit",
+  "theology-review": "review.theology",
+};
+
+type GuidedCheckState = "blocked" | "complete" | "waiting";
+
+interface GuidedCompletion {
+  readonly completed: ReadonlySet<GuidedReviewStepKey>;
+  readonly checkState: GuidedCheckState;
+}
+
+function guidedCompletion({
   aal2,
   activeApprovals,
+  checkDefinitions,
+  checkResults,
   checkRuns,
   packages,
   policies,
@@ -821,6 +1064,96 @@ function guidedReviewStep({
 }: {
   readonly aal2: boolean;
   readonly activeApprovals: ReviewToPackageWorkspace["approvalSnapshots"];
+  readonly checkDefinitions: ReviewToPackageWorkspace["checkDefinitions"];
+  readonly checkResults: ReviewToPackageWorkspace["checkResults"];
+  readonly checkRuns: ReviewToPackageWorkspace["checkRuns"];
+  readonly packages: ReviewToPackageWorkspace["productionPackages"];
+  readonly policies: ReviewToPackageWorkspace["reviewPolicies"];
+  readonly reviews: ReviewToPackageWorkspace["reviewDecisions"];
+  readonly rightsSnapshots: ReviewToPackageWorkspace["rightsSnapshots"];
+  readonly scriptureEvidence: ReviewToPackageWorkspace["scriptureEvidence"];
+  readonly version: TenantContentVersionSummary;
+}): GuidedCompletion {
+  const completed = new Set<GuidedReviewStepKey>();
+  const submitted = version.state === "submitted";
+  if (submitted) {
+    completed.add("submit");
+  }
+  if (aal2) {
+    completed.add("secure-session");
+  }
+  if (policies.some(({ isActive }) => isActive)) {
+    completed.add("review-policy");
+  }
+
+  const latestRun = [...checkRuns].sort(
+    (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt),
+  )[0];
+  const latestResults = latestRun
+    ? checkResults.filter(({ checkRunId }) => checkRunId === latestRun.id)
+    : [];
+  const latestResultsByDefinition = new Map(
+    latestResults.map((result) => [result.checkDefinitionId, result]),
+  );
+  const requiredChecksPassed = checkDefinitions.every((definition) => {
+    const result = latestResultsByDefinition.get(definition.id);
+    if (!result) {
+      return false;
+    }
+    return definition.blocksApproval
+      ? result.outcome === "pass"
+      : result.outcome === "pass" || result.outcome === "warn";
+  });
+  const checkState: GuidedCheckState =
+    latestRun?.status === "failed" || (latestRun?.status === "completed" && !requiredChecksPassed)
+      ? "blocked"
+      : latestRun?.status === "completed" && requiredChecksPassed
+        ? "complete"
+        : "waiting";
+  if (checkState === "complete") {
+    completed.add("automated-checks");
+  }
+  if (scriptureEvidence.some(({ verificationStatus }) => verificationStatus === "verified")) {
+    completed.add("scripture-evidence");
+  }
+  if (rightsSnapshots.some(({ status }) => status === "cleared")) {
+    completed.add("rights");
+  }
+  for (const lane of ["scripture", "theology", "editorial"] as const) {
+    if (reviews.some((review) => review.lane === lane && review.decision === "approved")) {
+      completed.add(`${lane}-review`);
+    }
+  }
+  if (activeApprovals.length > 0) {
+    completed.add("approval");
+  }
+  if (
+    packages.some(({ approvalSnapshotId }) =>
+      activeApprovals.some(({ id }) => id === approvalSnapshotId),
+    )
+  ) {
+    completed.add("package");
+  }
+  return { completed, checkState };
+}
+
+function guidedReviewStep({
+  aal2,
+  activeApprovals,
+  checkDefinitions,
+  checkResults,
+  checkRuns,
+  packages,
+  policies,
+  reviews,
+  rightsSnapshots,
+  scriptureEvidence,
+  version,
+}: {
+  readonly aal2: boolean;
+  readonly activeApprovals: ReviewToPackageWorkspace["approvalSnapshots"];
+  readonly checkDefinitions: ReviewToPackageWorkspace["checkDefinitions"];
+  readonly checkResults: ReviewToPackageWorkspace["checkResults"];
   readonly checkRuns: ReviewToPackageWorkspace["checkRuns"];
   readonly packages: ReviewToPackageWorkspace["productionPackages"];
   readonly policies: ReviewToPackageWorkspace["reviewPolicies"];
@@ -829,71 +1162,135 @@ function guidedReviewStep({
   readonly scriptureEvidence: ReviewToPackageWorkspace["scriptureEvidence"];
   readonly version: TenantContentVersionSummary;
 }): GuidedReviewStep {
+  const completion = guidedCompletion({
+    aal2,
+    activeApprovals,
+    checkDefinitions,
+    checkResults,
+    checkRuns,
+    packages,
+    policies,
+    reviews,
+    rightsSnapshots,
+    scriptureEvidence,
+    version,
+  });
   if (version.state !== "submitted") {
     return {
       detail:
-        "Read the immutable draft above, then submit that exact version. Nothing is approved or published by submitting it.",
+        "Read the draft above, then submit that exact version for review. Submitting does not approve or publish it.",
+      key: "submit",
       targetId: "version-heading",
-      title: "Review and submit this version",
-    };
-  }
-  if (!aal2) {
-    return {
-      detail:
-        "Open Session security and enter the current six-digit code from your authenticator. Return here after Studio shows AAL2.",
-      targetId: "session-security",
-      title: "Confirm your secure session",
+      title: "Submit this draft for review",
     };
   }
   if (!policies.some(({ isActive }) => isActive)) {
+    if (!aal2) {
+      return {
+        detail:
+          "Open Session security and enter the six-digit code currently shown in your authenticator app. The code changing about every 30 seconds is normal.",
+        key: "secure-session",
+        targetId: "session-security",
+        title: "Confirm your secure session",
+      };
+    }
     return {
       detail:
-        "Activate the existing review policy below. This selects the rules for review; it does not approve or publish the content.",
+        "Confirm the review rules for this item. This chooses the required checks and reviews; it does not approve or publish anything.",
+      key: "review-policy",
       targetId: "review-policy",
-      title: "Activate the review policy",
+      title: "Confirm the review rules",
     };
   }
-  if (!checkRuns.some(({ status }) => status === "completed")) {
+  if (completion.checkState !== "complete") {
     return {
       detail:
-        "No completed automated check run exists for this exact version yet. Reload canonical state after the checks finish.",
+        completion.checkState === "blocked"
+          ? "A required safety check needs attention. Nothing was approved or published. Check the status again; if it remains blocked, ask the Studio operator for help."
+          : "Your draft is saved, but the automated safety checks have not finished. Check the status again before continuing.",
+      key: "automated-checks",
       targetId: "automated-heading",
-      title: "Wait for automated checks",
+      title: "Wait for the safety checks",
     };
   }
   if (!scriptureEvidence.some(({ verificationStatus }) => verificationStatus === "verified")) {
+    if (!aal2) {
+      return {
+        detail:
+          "Open Session security and enter the six-digit code currently shown in your authenticator app. The code changing about every 30 seconds is normal.",
+        key: "secure-session",
+        targetId: "session-security",
+        title: "Confirm your secure session",
+      };
+    }
     return {
       detail:
         "Confirm the reference and translation, add the source you checked, then record the Scripture evidence for this exact version.",
+      key: "scripture-evidence",
       targetId: "scripture-evidence",
       title: "Verify the Scripture reference",
     };
   }
   if (!rightsSnapshots.some(({ status }) => status === "cleared")) {
+    if (!aal2) {
+      return {
+        detail:
+          "Open Session security and enter the six-digit code currently shown in your authenticator app. The code changing about every 30 seconds is normal.",
+        key: "secure-session",
+        targetId: "session-security",
+        title: "Confirm your secure session",
+      };
+    }
     return {
       detail:
         "Record why the Scripture and other material may be used. This pilot stores the reference only; do not add unlicensed NIV text.",
+      key: "rights",
       targetId: "rights-review",
-      title: "Confirm content rights",
+      title: "Confirm usage rights",
     };
   }
   const missingLane = (["scripture", "theology", "editorial"] as const).find(
     (lane) => !reviews.some((review) => review.lane === lane && review.decision === "approved"),
   );
   if (missingLane) {
+    if (!aal2) {
+      return {
+        detail:
+          "Open Session security and enter the six-digit code currently shown in your authenticator app. The code changing about every 30 seconds is normal.",
+        key: "secure-session",
+        targetId: "session-security",
+        title: "Confirm your secure session",
+      };
+    }
+    const labels = {
+      editorial: "editorial",
+      scripture: "Scripture",
+      theology: "pastoral",
+    } as const;
     return {
       detail:
         "Choose your decision and write a short note describing what you personally checked. Studio never fills in or approves a human review for you.",
+      key: `${missingLane}-review`,
       targetId: `${missingLane}-review`,
-      title: `Complete the ${missingLane} review`,
+      title: `Complete the ${labels[missingLane]} review`,
     };
   }
   if (activeApprovals.length === 0) {
+    if (!aal2) {
+      return {
+        detail:
+          "Open Session security and enter the six-digit code currently shown in your authenticator app. The code changing about every 30 seconds is normal.",
+        key: "secure-session",
+        targetId: "session-security",
+        title: "Confirm your secure session",
+      };
+    }
     return {
       detail:
-        "All required evidence is ready. Confirm the exact version and evidence bundle below. This still does not publish anything.",
+        "All required reviews are ready. Confirm this final version below. This still does not publish anything.",
+      key: "approval",
       targetId: "exact-approval",
-      title: "Approve the exact version",
+      title: "Approve the final version",
     };
   }
   if (
@@ -901,16 +1298,27 @@ function guidedReviewStep({
       activeApprovals.some(({ id }) => id === approvalSnapshotId),
     )
   ) {
+    if (!aal2) {
+      return {
+        detail:
+          "Open Session security and enter the six-digit code currently shown in your authenticator app. The code changing about every 30 seconds is normal.",
+        key: "secure-session",
+        targetId: "session-security",
+        title: "Confirm your secure session",
+      };
+    }
     return {
       detail:
-        "Create the immutable JSON and Markdown package. Package creation is non-public and does not upload anything to Strongr Daily.",
+        "Create private JSON and Markdown files. This does not upload anything to Strongr Daily.",
+      key: "package",
       targetId: "production-package",
-      title: "Create the non-public package",
+      title: "Create the private download package",
     };
   }
   return {
     detail:
-      "The governed pilot package is ready to download. No content has been published and no audio has been generated.",
+      "The pilot files are ready to download. No content has been published and no audio has been generated.",
+    key: "download",
     targetId: "production-package",
     title: "Download the completed pilot package",
   };
@@ -923,6 +1331,7 @@ function ReviewWorkspace({
   flow,
   organizationId,
   pending,
+  refresh,
   selectedVersion,
   workspace,
 }: {
@@ -932,13 +1341,14 @@ function ReviewWorkspace({
   readonly flow: ReviewToPackageOperatorFlow;
   readonly organizationId: Uuid;
   readonly pending: boolean;
+  readonly refresh: () => Promise<void>;
   readonly selectedVersion: TenantContentVersionSummary | undefined;
   readonly workspace: ReviewToPackageWorkspace;
 }) {
   if (!selectedVersion) {
     return (
       <section className="workflow-section">
-        <p>Select an immutable version before loading evidence and human-review actions.</p>
+        <p>Select a saved version before continuing its review.</p>
       </section>
     );
   }
@@ -979,6 +1389,21 @@ function ReviewWorkspace({
   const nextStep = guidedReviewStep({
     aal2,
     activeApprovals,
+    checkDefinitions: workspace.checkDefinitions,
+    checkResults,
+    checkRuns,
+    packages,
+    policies,
+    reviews,
+    rightsSnapshots,
+    scriptureEvidence,
+    version: selectedVersion,
+  });
+  const completion = guidedCompletion({
+    aal2,
+    activeApprovals,
+    checkDefinitions: workspace.checkDefinitions,
+    checkResults,
     checkRuns,
     packages,
     policies,
@@ -988,66 +1413,152 @@ function ReviewWorkspace({
     version: selectedVersion,
   });
   const reviewActionsAllowed = selectedVersion.state === "submitted" && aal2;
+  const requiredPermission = stepPermission[nextStep.key];
+  const permissionConfirmed =
+    requiredPermission === undefined || Boolean(capabilities?.[requiredPermission]);
+  const blockedReason = !permissionConfirmed
+    ? "Your current Studio role cannot complete this step. Ask an organization owner to grant the required access."
+    : nextStep.key === "automated-checks" && completion.checkState === "blocked"
+      ? "The latest safety check did not finish successfully. Nothing was approved or published. Check the status again; if it still fails, ask the Studio operator for help."
+      : null;
+  const progress = guidedStepLabels.map((step) => ({
+    ...step,
+    status: completion.completed.has(step.key)
+      ? ("completed" as const)
+      : step.key === nextStep.key
+        ? blockedReason
+          ? ("blocked" as const)
+          : ("current" as const)
+        : ("upcoming" as const),
+  }));
 
-  return (
-    <section className="workflow-section" aria-labelledby="review-heading">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">Finish this item</p>
-          <h2 id="review-heading">Follow one clear next step</h2>
-        </div>
-        <span className="status-pill status-pill--warning">Human authority</span>
+  let currentAction: ReactNode;
+  if (blockedReason) {
+    currentAction = (
+      <div className="workflow-blocked">
+        <strong>This step needs attention</strong>
+        <p>{blockedReason}</p>
+        {nextStep.key === "automated-checks" ? (
+          <button
+            aria-describedby={pending ? "check-again-reason" : undefined}
+            className="primary-button"
+            data-primary-action
+            disabled={pending}
+            onClick={() => void refresh()}
+            type="button"
+          >
+            Check again
+          </button>
+        ) : null}
+        {nextStep.key === "automated-checks" && pending ? (
+          <p className="permission-note" id="check-again-reason">
+            Checking the saved status now…
+          </p>
+        ) : null}
+        {requiredPermission ? (
+          <details className="advanced-details">
+            <summary>Advanced access details</summary>
+            <p>
+              Required permission: <code>{requiredPermission}</code>. The database remains the final
+              authority.
+            </p>
+          </details>
+        ) : null}
       </div>
-      <div className="exact-target">
-        <strong>
-          Exact version {selectedVersion.versionNumber} · {shortHash(selectedVersion.payloadHash)}
-        </strong>
-        <span>{selectedVersion.id}</span>
-      </div>
-
-      <section className="workflow-guide" aria-labelledby="next-action-heading" aria-live="polite">
-        <p className="eyebrow">What to do next</p>
-        <h3 id="next-action-heading">{nextStep.title}</h3>
-        <p>{nextStep.detail}</p>
-        <a className="button-link" href={`#${nextStep.targetId}`}>
-          Go to this step
-        </a>
-        <p className="operation-detail">
-          Complete one action. Studio will reload the saved records and update this instruction.
-        </p>
-      </section>
-
-      <AutomatedEvidence checkResults={checkResults} checkRuns={checkRuns} />
-
-      <div className="human-governance-grid">
-        <PolicyForm
-          allowed={Boolean(capabilities?.["role.manage"]) && reviewActionsAllowed}
-          execute={execute}
-          flow={flow}
-          organizationId={organizationId}
-          pending={pending}
-        />
-        <ScriptureEvidenceForm
-          allowed={Boolean(capabilities?.["review.scripture"]) && reviewActionsAllowed}
-          execute={execute}
-          flow={flow}
-          initialReference={selectedScriptureReference?.reference ?? ""}
-          initialTranslation={selectedScriptureReference?.translation ?? ""}
-          key={`scripture-evidence-${versionId}`}
-          organizationId={organizationId}
-          pending={pending}
-          versionId={versionId}
-        />
-        <RightsForm
-          allowed={Boolean(capabilities?.["review.editorial"]) && reviewActionsAllowed}
-          execute={execute}
-          flow={flow}
-          key={`rights-${versionId}`}
-          organizationId={organizationId}
-          pending={pending}
-          versionId={versionId}
-        />
-        {(["scripture", "theology", "editorial"] as const).map((lane) => (
+    );
+  } else {
+    switch (nextStep.key) {
+      case "submit":
+        currentAction = (
+          <p className="status-copy">
+            Read the saved draft above, confirm the checkbox, and use the single “Submit this
+            version” button.
+          </p>
+        );
+        break;
+      case "secure-session":
+        currentAction = (
+          <div className="simple-action">
+            <p>
+              This is a one-time confirmation for the current session. Your authenticator code
+              changing about every 30 seconds is normal.
+            </p>
+            <Link className="button-link" data-primary-action to="/security">
+              Enter the current six-digit code
+            </Link>
+          </div>
+        );
+        break;
+      case "review-policy":
+        currentAction = (
+          <PolicyForm
+            allowed={Boolean(capabilities?.["role.manage"]) && reviewActionsAllowed}
+            execute={execute}
+            flow={flow}
+            organizationId={organizationId}
+            pending={pending}
+          />
+        );
+        break;
+      case "automated-checks":
+        currentAction = (
+          <div className="simple-action">
+            <AutomatedEvidence
+              checkResults={checkResults}
+              checkRuns={checkRuns}
+              checkState={completion.checkState}
+            />
+            <button
+              aria-describedby={pending ? "check-again-reason" : undefined}
+              className="primary-button"
+              data-primary-action
+              disabled={pending}
+              onClick={() => void refresh()}
+              type="button"
+            >
+              Check again
+            </button>
+            {pending ? (
+              <p className="permission-note" id="check-again-reason">
+                Checking the saved status now…
+              </p>
+            ) : null}
+          </div>
+        );
+        break;
+      case "scripture-evidence":
+        currentAction = (
+          <ScriptureEvidenceForm
+            allowed={Boolean(capabilities?.["review.scripture"]) && reviewActionsAllowed}
+            execute={execute}
+            flow={flow}
+            initialReference={selectedScriptureReference?.reference ?? ""}
+            initialTranslation={selectedScriptureReference?.translation ?? ""}
+            key={`scripture-evidence-${versionId}`}
+            organizationId={organizationId}
+            pending={pending}
+            versionId={versionId}
+          />
+        );
+        break;
+      case "rights":
+        currentAction = (
+          <RightsForm
+            allowed={Boolean(capabilities?.["review.editorial"]) && reviewActionsAllowed}
+            execute={execute}
+            flow={flow}
+            key={`rights-${versionId}`}
+            organizationId={organizationId}
+            pending={pending}
+            versionId={versionId}
+          />
+        );
+        break;
+      case "scripture-review":
+      case "theology-review":
+      case "editorial-review": {
+        const lane = nextStep.key.replace("-review", "") as ReviewLane;
+        currentAction = (
           <ReviewLaneForm
             allowed={Boolean(capabilities?.[`review.${lane}`]) && reviewActionsAllowed}
             execute={execute}
@@ -1058,36 +1569,141 @@ function ReviewWorkspace({
             pending={pending}
             versionId={versionId}
           />
-        ))}
+        );
+        break;
+      }
+      case "approval":
+      case "package":
+      case "download":
+        currentAction = (
+          <AuthorityActions
+            key={versionId}
+            aal2={aal2}
+            approvals={activeApprovals}
+            canApprove={Boolean(capabilities?.["approval.grant"])}
+            canExport={Boolean(capabilities?.["export.request"])}
+            canRevoke={Boolean(capabilities?.["approval.revoke"])}
+            checkRuns={checkRuns}
+            execute={execute}
+            flow={flow}
+            mode={nextStep.key}
+            organizationId={organizationId}
+            packages={packages}
+            pending={pending}
+            policies={policies}
+            reviews={reviews}
+            rightsSnapshots={rightsSnapshots}
+            scriptureEvidence={scriptureEvidence}
+            version={selectedVersion}
+          />
+        );
+        break;
+    }
+  }
+
+  return (
+    <section
+      className="workflow-section"
+      aria-label="Guided content workflow"
+      aria-labelledby="review-heading"
+    >
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Finish this item</p>
+          <h2 id="review-heading">Follow one clear next step</h2>
+        </div>
+        <span className="status-pill status-pill--neutral">
+          {progress.filter(({ status }) => status === "completed").length} completed
+        </span>
       </div>
+      <ol className="workflow-progress" aria-label="Content workflow progress">
+        {progress.map((step) => (
+          <li
+            aria-current={
+              step.status === "current" || step.status === "blocked" ? "step" : undefined
+            }
+            className={`workflow-progress__item workflow-progress__item--${step.status}`}
+            key={step.key}
+          >
+            <span aria-hidden="true" className="workflow-progress__marker" />
+            <span>{step.label}</span>
+            <strong>{step.status[0]?.toUpperCase() + step.status.slice(1)}</strong>
+          </li>
+        ))}
+      </ol>
 
-      <CanonicalEvidenceSummary
-        approvals={approvals}
-        packages={packages}
-        reviews={reviews}
-        rightsSnapshots={rightsSnapshots}
-        scriptureEvidence={scriptureEvidence}
-      />
+      <section
+        className={`workflow-current-action${blockedReason ? " workflow-current-action--blocked" : ""}`}
+        aria-label="Current step"
+        aria-labelledby="next-action-heading"
+        aria-live="polite"
+      >
+        <p className="eyebrow">{blockedReason ? "Blocked step" : "Current step"}</p>
+        <h3 id="next-action-heading">{nextStep.title}</h3>
+        <p>{nextStep.detail}</p>
+        {currentAction}
+      </section>
 
-      <AuthorityActions
-        key={versionId}
-        aal2={aal2}
-        approvals={activeApprovals}
-        canApprove={Boolean(capabilities?.["approval.grant"])}
-        canExport={Boolean(capabilities?.["export.request"])}
-        canRevoke={Boolean(capabilities?.["approval.revoke"])}
-        checkRuns={checkRuns}
-        execute={execute}
-        flow={flow}
-        organizationId={organizationId}
-        packages={packages}
-        pending={pending}
-        policies={policies}
-        reviews={reviews}
-        rightsSnapshots={rightsSnapshots}
-        scriptureEvidence={scriptureEvidence}
-        version={selectedVersion}
-      />
+      {policies.length > 0 && aal2 && capabilities?.["role.manage"] ? (
+        <details className="advanced-details workflow-management">
+          <summary>Advanced review-rule management</summary>
+          <PolicyForm
+            advanced
+            allowed={reviewActionsAllowed}
+            execute={execute}
+            flow={flow}
+            organizationId={organizationId}
+            pending={pending}
+          />
+        </details>
+      ) : null}
+
+      {activeApprovals.length > 0 ? (
+        <AuthorityActions
+          key={`${versionId}-management`}
+          aal2={aal2}
+          approvals={activeApprovals}
+          canApprove={Boolean(capabilities?.["approval.grant"])}
+          canExport={Boolean(capabilities?.["export.request"])}
+          canRevoke={Boolean(capabilities?.["approval.revoke"])}
+          checkRuns={checkRuns}
+          execute={execute}
+          flow={flow}
+          mode="management"
+          organizationId={organizationId}
+          packages={packages}
+          pending={pending}
+          policies={policies}
+          reviews={reviews}
+          rightsSnapshots={rightsSnapshots}
+          scriptureEvidence={scriptureEvidence}
+          version={selectedVersion}
+        />
+      ) : null}
+
+      <details className="advanced-details workflow-advanced">
+        <summary>Advanced workflow details</summary>
+        <div className="exact-target">
+          <strong>
+            Exact version {selectedVersion.versionNumber} · {shortHash(selectedVersion.payloadHash)}
+          </strong>
+          <span>{selectedVersion.id}</span>
+        </div>
+        {nextStep.key !== "automated-checks" ? (
+          <AutomatedEvidence
+            checkResults={checkResults}
+            checkRuns={checkRuns}
+            checkState={completion.checkState}
+          />
+        ) : null}
+        <CanonicalEvidenceSummary
+          approvals={approvals}
+          packages={packages}
+          reviews={reviews}
+          rightsSnapshots={rightsSnapshots}
+          scriptureEvidence={scriptureEvidence}
+        />
+      </details>
     </section>
   );
 }
@@ -1095,62 +1711,77 @@ function ReviewWorkspace({
 function AutomatedEvidence({
   checkResults,
   checkRuns,
+  checkState,
 }: {
   readonly checkResults: ReviewToPackageWorkspace["checkResults"];
   readonly checkRuns: ReviewToPackageWorkspace["checkRuns"];
+  readonly checkState: GuidedCheckState;
 }) {
   return (
     <section className="automated-evidence" aria-labelledby="automated-heading">
       <div>
-        <p className="eyebrow">Automated evidence only</p>
-        <h3 id="automated-heading">Checks cannot approve this version</h3>
+        <p className="eyebrow">Automated safety checks</p>
+        <h3 id="automated-heading">Checks support—but never replace—human review</h3>
         <p>
-          These deterministic results may identify risk. Separate authorized humans still own
-          Scripture, theology, editorial, rights, and approval decisions.
+          {checkState === "complete"
+            ? "The required checks completed without a blocking result. People still make every Scripture, pastoral, editorial, rights, and final approval decision."
+            : checkState === "blocked"
+              ? "A required check needs attention. Nothing was approved or published."
+              : "The checks are not complete yet. No approval is assumed."}
         </p>
       </div>
-      {checkRuns.length === 0 ? (
-        <p>No canonical check run exists for this exact version.</p>
-      ) : (
-        <ul className="result-list">
-          {checkRuns.map((run) => {
-            const results = checkResults.filter(({ checkRunId }) => checkRunId === run.id);
-            return (
-              <li key={run.id}>
-                <strong>
-                  {run.engineKey}@{run.engineVersion} · {run.status}
-                </strong>
-                <span>
-                  {results.length} result{results.length === 1 ? "" : "s"} ·{" "}
-                  {shortHash(run.artifactHash)}
-                </span>
-                <ul>
-                  {results.map((result) => (
-                    <li key={result.id}>
-                      {result.outcome}: {result.detailCode}
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <details className="advanced-details">
+        <summary>Advanced check results</summary>
+        {checkRuns.length === 0 ? (
+          <p>No saved check run exists for this exact version.</p>
+        ) : (
+          <ul className="result-list">
+            {checkRuns.map((run) => {
+              const results = checkResults.filter(({ checkRunId }) => checkRunId === run.id);
+              return (
+                <li key={run.id}>
+                  <strong>
+                    {run.engineKey}@{run.engineVersion} · {run.status}
+                  </strong>
+                  <span>
+                    {results.length} result{results.length === 1 ? "" : "s"} ·{" "}
+                    {shortHash(run.artifactHash)}
+                  </span>
+                  <ul>
+                    {results.map((result) => (
+                      <li key={result.id}>
+                        {result.outcome}: {result.detailCode}
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </details>
     </section>
   );
 }
 
-function PolicyForm({ allowed, execute, flow, organizationId, pending }: HumanFormProps) {
+function PolicyForm({
+  advanced = false,
+  allowed,
+  execute,
+  flow,
+  organizationId,
+  pending,
+}: HumanFormProps & { readonly advanced?: boolean }) {
   const [key, setKey] = useState("m1_3_default");
   const [version, setVersion] = useState(1);
   return (
-    <HumanActionCard id="review-policy" title="Activate review policy">
+    <HumanActionCard id="review-policy" title="Confirm the review rules">
       <form
         className="workflow-form"
         onSubmit={submit(async () => {
           await execute(
             "review-policy",
-            "Review policy activation completed. Canonical policy state was reloaded.",
+            "Review rules confirmed. The saved status was refreshed.",
             "The review policy was not confirmed as active",
             () =>
               flow.activateReviewPolicy({
@@ -1163,23 +1794,40 @@ function PolicyForm({ allowed, execute, flow, organizationId, pending }: HumanFo
         })}
       >
         <p className="status-copy">
-          Select the governance rules for this review. Activating a policy does not approve or
-          publish content.
+          Use the approved review rules for this item. This does not approve or publish content.
         </p>
-        <Field label="Policy key" maxLength={100} onChange={setKey} value={key} />
-        <label>
-          Policy version
-          <input
-            min={1}
-            onChange={(event) => setVersion(Number(event.currentTarget.value))}
-            required
-            type="number"
-            value={version}
-          />
-        </label>
-        <button className="secondary-button" disabled={!allowed || pending} type="submit">
-          Activate policy
+        <details className="advanced-details">
+          <summary>Advanced review-rule details</summary>
+          <Field label="Policy key" maxLength={100} onChange={setKey} value={key} />
+          <label>
+            Policy version
+            <input
+              min={1}
+              onChange={(event) => setVersion(Number(event.currentTarget.value))}
+              required
+              type="number"
+              value={version}
+            />
+          </label>
+        </details>
+        <button
+          aria-describedby={!allowed || pending ? "policy-lock-reason" : undefined}
+          className={advanced ? "secondary-button" : "primary-button"}
+          data-primary-action={advanced ? undefined : true}
+          disabled={!allowed || pending}
+          type="submit"
+        >
+          Use these review rules
         </button>
+        {!allowed ? (
+          <p className="permission-note" id="policy-lock-reason">
+            Your current role cannot choose review rules. Ask an organization owner for access.
+          </p>
+        ) : pending ? (
+          <p className="permission-note" id="policy-lock-reason">
+            Saving the review rules now…
+          </p>
+        ) : null}
       </form>
     </HumanActionCard>
   );
@@ -1226,22 +1874,33 @@ function ScriptureEvidenceForm({
         )}
       >
         <p className="status-copy">
-          Confirm the reference and translation shown in the immutable content. Add the source you
+          Confirm the reference and translation shown in the saved draft. Add the source you
           personally checked. Do not paste unlicensed Scripture text.
         </p>
         <Field label="Reference" maxLength={160} onChange={setReference} value={reference} />
         <Field label="Translation" maxLength={80} onChange={setTranslation} value={translation} />
         <TextArea label="Source citation" maxLength={500} onChange={setCitation} value={citation} />
         <button
-          className="secondary-button"
+          aria-describedby={!allowed || !complete || pending ? "scripture-lock-reason" : undefined}
+          className="primary-button"
+          data-primary-action
           disabled={!allowed || !complete || pending}
           type="submit"
         >
-          Record verified evidence
+          Save Scripture verification
         </button>
-        {!complete ? (
-          <p className="permission-note">
+        {!allowed ? (
+          <p className="permission-note" id="scripture-lock-reason">
+            Your current role cannot verify Scripture sources. Ask an organization owner for
+            Scripture-review access.
+          </p>
+        ) : !complete ? (
+          <p className="permission-note" id="scripture-lock-reason">
             Add the reference, translation, and source citation to unlock this action.
+          </p>
+        ) : pending ? (
+          <p className="permission-note" id="scripture-lock-reason">
+            Saving the Scripture verification now…
           </p>
         ) : null}
       </form>
@@ -1259,7 +1918,7 @@ function RightsForm({
 }: HumanFormProps & { readonly versionId: Uuid }) {
   const [summary, setSummary] = useState("");
   return (
-    <HumanActionCard id="rights-review" title="Confirm content rights">
+    <HumanActionCard id="rights-review" title="Confirm usage rights">
       <form
         className="workflow-form"
         onSubmit={submit(() =>
@@ -1289,14 +1948,29 @@ function RightsForm({
           value={summary}
         />
         <button
-          className="secondary-button"
+          aria-describedby={
+            !allowed || !summary.trim() || pending ? "rights-lock-reason" : undefined
+          }
+          className="primary-button"
+          data-primary-action
           disabled={!allowed || !summary.trim() || pending}
           type="submit"
         >
-          Record cleared rights
+          Save rights decision
         </button>
-        {!summary.trim() ? (
-          <p className="permission-note">Add the source and rights basis to unlock this action.</p>
+        {!allowed ? (
+          <p className="permission-note" id="rights-lock-reason">
+            Your current role cannot clear usage rights. Ask an organization owner for editorial
+            review access.
+          </p>
+        ) : !summary.trim() ? (
+          <p className="permission-note" id="rights-lock-reason">
+            Add the source and rights basis to unlock this action.
+          </p>
+        ) : pending ? (
+          <p className="permission-note" id="rights-lock-reason">
+            Saving the usage-rights decision now…
+          </p>
         ) : null}
       </form>
     </HumanActionCard>
@@ -1318,10 +1992,13 @@ function ReviewLaneForm({
   const [decision, setDecision] = useState<ReviewDecision | "">("");
   const [evidence, setEvidence] = useState("");
   const complete = Boolean(decision && evidence.trim());
+  const laneLabel =
+    lane === "theology" ? "pastoral" : lane === "scripture" ? "Scripture" : "editorial";
+  const reasonId = `${lane}-review-lock-reason`;
   return (
     <HumanActionCard
       id={`${lane}-review`}
-      title={`${lane[0]?.toUpperCase()}${lane.slice(1)} review`}
+      title={`${laneLabel[0]?.toUpperCase()}${laneLabel.slice(1)} review`}
     >
       <form
         className="workflow-form"
@@ -1351,7 +2028,7 @@ function ReviewLaneForm({
           you checked; Studio will not write or approve the review for you.
         </p>
         <label>
-          Human decision
+          Decision
           <select
             onChange={(event) => setDecision(event.currentTarget.value as ReviewDecision | "")}
             value={decision}
@@ -1365,21 +2042,32 @@ function ReviewLaneForm({
           </select>
         </label>
         <TextArea
-          label="Human evidence note"
+          label="What you checked"
           maxLength={2000}
           onChange={setEvidence}
           value={evidence}
         />
         <button
-          className="secondary-button"
+          aria-describedby={!allowed || !complete || pending ? reasonId : undefined}
+          className="primary-button"
+          data-primary-action
           disabled={!allowed || !complete || pending}
           type="submit"
         >
-          Record {lane} decision
+          Save {laneLabel} review
         </button>
-        {!complete ? (
-          <p className="permission-note">
-            Choose a decision and write your evidence note to unlock this action.
+        {!allowed ? (
+          <p className="permission-note" id={reasonId}>
+            Your current role cannot complete this review. Ask an organization owner for {laneLabel}{" "}
+            review access.
+          </p>
+        ) : !complete ? (
+          <p className="permission-note" id={reasonId}>
+            Choose a decision and write what you checked to unlock this action.
+          </p>
+        ) : pending ? (
+          <p className="permission-note" id={reasonId}>
+            Saving this review now…
           </p>
         ) : null}
       </form>
@@ -1438,6 +2126,7 @@ function AuthorityActions({
   checkRuns,
   execute,
   flow,
+  mode,
   organizationId,
   packages,
   pending,
@@ -1455,6 +2144,7 @@ function AuthorityActions({
   readonly checkRuns: ReviewToPackageWorkspace["checkRuns"];
   readonly execute: ExecuteMutation;
   readonly flow: ReviewToPackageOperatorFlow;
+  readonly mode: "approval" | "download" | "management" | "package";
   readonly organizationId: Uuid;
   readonly packages: ReviewToPackageWorkspace["productionPackages"];
   readonly pending: boolean;
@@ -1529,153 +2219,191 @@ function AuthorityActions({
   );
 
   return (
-    <div className="authority-grid">
-      <section
-        className="authority-card"
-        id="exact-approval"
-        aria-labelledby="approval-action-heading"
-      >
-        <p className="eyebrow">AAL2 authority</p>
-        <h3 id="approval-action-heading">Approve exact evidence bundle</h3>
-        <p>
-          Automated results are inputs only. PostgreSQL binds this submitted version to the exact
-          policy, check run, evidence, rights, and three human decisions.
-        </p>
-        <div className="form-grid">
-          <EvidenceSelect
-            label="Active review policy"
-            onChange={setPolicyId}
-            options={policies.map((policy) => ({
-              id: policy.id,
-              label: `${policy.key}@${policy.version} · ${shortHash(policy.policyHash)}`,
-            }))}
-            value={policyId}
-          />
-          <EvidenceSelect
-            label="Completed automated check run"
-            onChange={setCheckRunId}
-            options={checkRuns
-              .filter(({ status }) => status === "completed")
-              .map((run) => ({
-                id: run.id,
-                label: `${run.engineKey}@${run.engineVersion} · ${shortHash(run.artifactHash)}`,
-              }))}
-            value={checkRunId}
-          />
-          <EvidenceSelect
-            label="Verified Scripture evidence"
-            onChange={setScriptureEvidenceId}
-            options={scriptureEvidence
-              .filter(({ verificationStatus }) => verificationStatus === "verified")
-              .map((record) => ({ id: record.id, label: `${record.reference} · verified` }))}
-            value={scriptureEvidenceId}
-          />
-          <EvidenceSelect
-            label="Cleared rights snapshot"
-            onChange={setRightsSnapshotId}
-            options={rightsSnapshots
-              .filter(({ status }) => status === "cleared")
-              .map((record) => ({
-                id: record.id,
-                label: `Cleared · ${shortHash(record.snapshotHash)}`,
-              }))}
-            value={rightsSnapshotId}
-          />
-          <EvidenceSelect
-            label="Approved Scripture review"
-            onChange={setScriptureReviewId}
-            options={reviewOptions(reviews, "scripture")}
-            value={scriptureReviewId}
-          />
-          <EvidenceSelect
-            label="Approved theology review"
-            onChange={setTheologyReviewId}
-            options={reviewOptions(reviews, "theology")}
-            value={theologyReviewId}
-          />
-          <EvidenceSelect
-            label="Approved editorial review"
-            onChange={setEditorialReviewId}
-            options={reviewOptions(reviews, "editorial")}
-            value={editorialReviewId}
-          />
-        </div>
-        <label className="confirmation-label">
-          <input
-            checked={confirmApproval}
-            onChange={(event) => setConfirmApproval(event.currentTarget.checked)}
-            type="checkbox"
-          />
-          I confirm approval targets version {version.versionNumber}, payload{" "}
-          {shortHash(version.payloadHash)}, and only the selected canonical evidence.
-        </label>
-        <button
-          className="primary-button"
-          disabled={!aal2 || !canApprove || !approvalComplete || !confirmApproval || pending}
-          onClick={() => {
-            void execute(
-              "approve-version",
-              `Version ${version.versionNumber} approval completed. Canonical authority was reloaded.`,
-              "The exact version was not confirmed as approved",
-              () =>
-                flow.approveVersion({
-                  checkRunId,
-                  contentVersionId: version.id,
-                  correlationId: newUuid(),
-                  editorialReviewId,
-                  organizationId,
-                  reasonCode: "m3_2_operator_approval",
-                  reviewPolicyId: policyId,
-                  rightsSnapshotId,
-                  scriptureEvidenceId,
-                  scriptureReviewId,
-                  theologyReviewId,
-                }),
-            ).finally(() => setConfirmApproval(false));
-          }}
-          type="button"
+    <div className="authority-grid authority-grid--single">
+      {mode === "approval" ? (
+        <section
+          className="authority-card"
+          id="exact-approval"
+          aria-labelledby="approval-action-heading"
         >
-          Approve exact version
-        </button>
-        {!aal2 ? (
-          <p className="permission-note">Approval is locked until Session security shows AAL2.</p>
-        ) : missingApprovalEvidence.length > 0 ? (
-          <p className="permission-note">
-            Approval is locked. Complete: {missingApprovalEvidence.join(", ")}.
+          <p className="eyebrow">Final human approval</p>
+          <h3 id="approval-action-heading">Approve this exact version</h3>
+          <p>
+            Confirm that you are approving this version and the completed reviews shown in the
+            workflow. This does not publish anything.
           </p>
-        ) : null}
-      </section>
-
-      <section
-        className="authority-card"
-        id="production-package"
-        aria-labelledby="package-action-heading"
-      >
-        <p className="eyebrow">Immutable, non-public</p>
-        <h3 id="package-action-heading">Create production package</h3>
-        <EvidenceSelect
-          label="Unrevoked approval"
-          onChange={setApprovalId}
-          options={approvals.map((approval) => ({
-            id: approval.id,
-            label: `${formatDate(approval.approvedAt)} · ${shortHash(approval.evidenceBundleHash)}`,
-          }))}
-          value={approvalId}
-        />
-        {selectedApproval ? (
-          <p className="operation-detail">
-            Exact approval {selectedApproval.id}; evidence{" "}
-            {shortHash(selectedApproval.evidenceBundleHash)}.
-          </p>
-        ) : null}
-        {existingPackage ? (
-          <>
-            <p className="status-copy">
-              Package already exists: {existingPackage.id} ·{" "}
-              {shortHash(existingPackage.manifestHash)}.
+          <details className="advanced-details">
+            <summary>Advanced evidence details</summary>
+            <p>
+              The database binds the exact version, policy, check run, Scripture source, rights
+              record, and three human decisions. These selections are loaded from the completed
+              steps.
             </p>
+            <div className="form-grid">
+              <EvidenceSelect
+                label="Active review policy"
+                onChange={setPolicyId}
+                options={policies.map((policy) => ({
+                  id: policy.id,
+                  label: `${policy.key}@${policy.version} · ${shortHash(policy.policyHash)}`,
+                }))}
+                value={policyId}
+              />
+              <EvidenceSelect
+                label="Completed automated check run"
+                onChange={setCheckRunId}
+                options={checkRuns
+                  .filter(({ status }) => status === "completed")
+                  .map((run) => ({
+                    id: run.id,
+                    label: `${run.engineKey}@${run.engineVersion} · ${shortHash(run.artifactHash)}`,
+                  }))}
+                value={checkRunId}
+              />
+              <EvidenceSelect
+                label="Verified Scripture evidence"
+                onChange={setScriptureEvidenceId}
+                options={scriptureEvidence
+                  .filter(({ verificationStatus }) => verificationStatus === "verified")
+                  .map((record) => ({ id: record.id, label: `${record.reference} · verified` }))}
+                value={scriptureEvidenceId}
+              />
+              <EvidenceSelect
+                label="Cleared rights snapshot"
+                onChange={setRightsSnapshotId}
+                options={rightsSnapshots
+                  .filter(({ status }) => status === "cleared")
+                  .map((record) => ({
+                    id: record.id,
+                    label: `Cleared · ${shortHash(record.snapshotHash)}`,
+                  }))}
+                value={rightsSnapshotId}
+              />
+              <EvidenceSelect
+                label="Approved Scripture review"
+                onChange={setScriptureReviewId}
+                options={reviewOptions(reviews, "scripture")}
+                value={scriptureReviewId}
+              />
+              <EvidenceSelect
+                label="Approved pastoral review"
+                onChange={setTheologyReviewId}
+                options={reviewOptions(reviews, "theology")}
+                value={theologyReviewId}
+              />
+              <EvidenceSelect
+                label="Approved editorial review"
+                onChange={setEditorialReviewId}
+                options={reviewOptions(reviews, "editorial")}
+                value={editorialReviewId}
+              />
+            </div>
+          </details>
+          <label className="confirmation-label">
+            <input
+              checked={confirmApproval}
+              onChange={(event) => setConfirmApproval(event.currentTarget.checked)}
+              type="checkbox"
+            />
+            I confirm I am approving version {version.versionNumber} and only its completed review
+            evidence.
+          </label>
+          <button
+            className="primary-button"
+            aria-describedby={
+              !aal2 || !canApprove || !approvalComplete || !confirmApproval || pending
+                ? "approval-lock-reason"
+                : undefined
+            }
+            data-primary-action
+            disabled={!aal2 || !canApprove || !approvalComplete || !confirmApproval || pending}
+            onClick={() => {
+              void execute(
+                "approve-version",
+                `Version ${version.versionNumber} approved. The saved status was refreshed.`,
+                "The exact version was not confirmed as approved",
+                () =>
+                  flow.approveVersion({
+                    checkRunId,
+                    contentVersionId: version.id,
+                    correlationId: newUuid(),
+                    editorialReviewId,
+                    organizationId,
+                    reasonCode: "m3_2_operator_approval",
+                    reviewPolicyId: policyId,
+                    rightsSnapshotId,
+                    scriptureEvidenceId,
+                    scriptureReviewId,
+                    theologyReviewId,
+                  }),
+              ).finally(() => setConfirmApproval(false));
+            }}
+            type="button"
+          >
+            Approve this version
+          </button>
+          {!aal2 ? (
+            <p className="permission-note" id="approval-lock-reason">
+              Confirm your secure session before approving.
+            </p>
+          ) : !canApprove ? (
+            <p className="permission-note" id="approval-lock-reason">
+              Your current role cannot approve content. Ask an organization owner for approval
+              access.
+            </p>
+          ) : missingApprovalEvidence.length > 0 ? (
+            <p className="permission-note" id="approval-lock-reason">
+              Approval is locked. Complete: {missingApprovalEvidence.join(", ")}.
+            </p>
+          ) : !confirmApproval ? (
+            <p className="permission-note" id="approval-lock-reason">
+              Check the confirmation box to unlock the approval button.
+            </p>
+          ) : pending ? (
+            <p className="permission-note" id="approval-lock-reason">
+              Saving this approval now…
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {mode === "package" || mode === "download" ? (
+        <section
+          className="authority-card"
+          id="production-package"
+          aria-labelledby="package-action-heading"
+        >
+          <p className="eyebrow">Private files</p>
+          <h3 id="package-action-heading">
+            {mode === "download" ? "Download the completed package" : "Create the private package"}
+          </h3>
+          <p>
+            {mode === "download"
+              ? "The approved JSON and Markdown files are ready. Downloading does not publish or upload them."
+              : "This creates private JSON and Markdown files for review or later manual use. It does not publish or upload anything."}
+          </p>
+          <details className="advanced-details">
+            <summary>Advanced approval details</summary>
+            <EvidenceSelect
+              label="Unrevoked approval"
+              onChange={setApprovalId}
+              options={approvals.map((approval) => ({
+                id: approval.id,
+                label: `${formatDate(approval.approvedAt)} · ${shortHash(approval.evidenceBundleHash)}`,
+              }))}
+              value={approvalId}
+            />
+            {selectedApproval ? (
+              <p className="operation-detail">
+                Exact approval {selectedApproval.id}; evidence{" "}
+                {shortHash(selectedApproval.evidenceBundleHash)}.
+              </p>
+            ) : null}
+          </details>
+          {mode === "download" && existingPackage ? (
             <button
-              className="secondary-button"
+              className="primary-button"
+              data-primary-action
               onClick={() => {
                 try {
                   downloadStrongrDailyPackage(existingPackage);
@@ -1691,100 +2419,174 @@ function AuthorityActions({
               }}
               type="button"
             >
-              Download approved JSON and Markdown
+              Download JSON and Markdown
             </button>
-          </>
-        ) : null}
-        <label className="confirmation-label">
-          <input
-            checked={confirmPackage}
-            onChange={(event) => setConfirmPackage(event.currentTarget.checked)}
-            type="checkbox"
-          />
-          I confirm this creates an immutable package manifest only. It does not publish.
-        </label>
-        <button
-          className="primary-button"
-          disabled={
-            !aal2 ||
-            !canExport ||
-            !approvalId ||
-            Boolean(existingPackage) ||
-            !confirmPackage ||
-            pending
-          }
-          onClick={() => {
-            void execute(
-              "create-package",
-              "Immutable production package created. No publication occurred.",
-              "The package was not confirmed as created",
-              () =>
-                flow.createProductionPackage({
-                  approvalSnapshotId: approvalId,
-                  correlationId: newUuid(),
-                  organizationId,
-                }),
-            ).finally(() => setConfirmPackage(false));
-          }}
-          type="button"
-        >
-          Create immutable package
-        </button>
-        {!approvalId ? (
-          <p className="permission-note">
-            Package creation is locked until this exact version has an unrevoked approval.
-          </p>
-        ) : null}
-      </section>
+          ) : null}
+          {mode === "package" ? (
+            <>
+              <label className="confirmation-label">
+                <input
+                  checked={confirmPackage}
+                  onChange={(event) => setConfirmPackage(event.currentTarget.checked)}
+                  type="checkbox"
+                />
+                I confirm this creates private files only. It does not publish.
+              </label>
+              <button
+                aria-describedby={
+                  !aal2 ||
+                  !canExport ||
+                  !approvalId ||
+                  existingPackage ||
+                  !confirmPackage ||
+                  pending
+                    ? "package-lock-reason"
+                    : undefined
+                }
+                className="primary-button"
+                data-primary-action
+                disabled={
+                  !aal2 ||
+                  !canExport ||
+                  !approvalId ||
+                  Boolean(existingPackage) ||
+                  !confirmPackage ||
+                  pending
+                }
+                onClick={() => {
+                  void execute(
+                    "create-package",
+                    "Private package created. No publication occurred.",
+                    "The package was not confirmed as created",
+                    () =>
+                      flow.createProductionPackage({
+                        approvalSnapshotId: approvalId,
+                        correlationId: newUuid(),
+                        organizationId,
+                      }),
+                  ).finally(() => setConfirmPackage(false));
+                }}
+                type="button"
+              >
+                Create private package
+              </button>
+              {!aal2 ? (
+                <p className="permission-note" id="package-lock-reason">
+                  Confirm your secure session before creating private files.
+                </p>
+              ) : !approvalId ? (
+                <p className="permission-note" id="package-lock-reason">
+                  Final approval must be completed before creating the package.
+                </p>
+              ) : !canExport ? (
+                <p className="permission-note" id="package-lock-reason">
+                  Your current role cannot create export files. Ask an organization owner for export
+                  access.
+                </p>
+              ) : !confirmPackage ? (
+                <p className="permission-note" id="package-lock-reason">
+                  Check the confirmation box to unlock package creation.
+                </p>
+              ) : existingPackage ? (
+                <p className="permission-note" id="package-lock-reason">
+                  The private package already exists and cannot be overwritten.
+                </p>
+              ) : pending ? (
+                <p className="permission-note" id="package-lock-reason">
+                  Creating the private package now…
+                </p>
+              ) : null}
+            </>
+          ) : null}
+        </section>
+      ) : null}
 
-      <section className="authority-card authority-card--danger" aria-labelledby="revoke-heading">
-        <p className="eyebrow">Append-only revocation</p>
-        <h3 id="revoke-heading">Revoke approval authority</h3>
-        <EvidenceSelect
-          label="Unrevoked approval"
-          onChange={setRevocationApprovalId}
-          options={approvals.map((approval) => ({
-            id: approval.id,
-            label: `${formatDate(approval.approvedAt)} · ${shortHash(approval.evidenceBundleHash)}`,
-          }))}
-          value={revocationApprovalId}
-        />
-        <Field
-          label="Machine reason code"
-          maxLength={80}
-          onChange={setRevocationReason}
-          value={revocationReason}
-        />
-        <label className="confirmation-label">
-          <input
-            checked={confirmRevocation}
-            onChange={(event) => setConfirmRevocation(event.currentTarget.checked)}
-            type="checkbox"
-          />
-          I confirm this append-only revocation removes future authority from the exact approval.
-        </label>
-        <button
-          className="danger-button"
-          disabled={!aal2 || !canRevoke || !revocationApprovalId || !confirmRevocation || pending}
-          onClick={() => {
-            void execute(
-              "revoke-approval",
-              "Approval revocation recorded. Canonical authority was reloaded.",
-              "The approval was not confirmed as revoked",
-              () =>
-                flow.revokeApproval({
-                  approvalSnapshotId: revocationApprovalId,
-                  correlationId: newUuid(),
-                  organizationId,
-                  reasonCode: revocationReason,
-                }),
-            ).finally(() => setConfirmRevocation(false));
-          }}
-          type="button"
-        >
-          Revoke exact approval
-        </button>
-      </section>
+      {mode === "management" && approvals.length > 0 ? (
+        <details className="advanced-details authority-management">
+          <summary>Advanced: revoke an approval</summary>
+          <section
+            className="authority-card authority-card--danger"
+            aria-labelledby="revoke-heading"
+          >
+            <p className="eyebrow">Append-only revocation</p>
+            <h3 id="revoke-heading">Revoke approval authority</h3>
+            <EvidenceSelect
+              label="Unrevoked approval"
+              onChange={setRevocationApprovalId}
+              options={approvals.map((approval) => ({
+                id: approval.id,
+                label: `${formatDate(approval.approvedAt)} · ${shortHash(approval.evidenceBundleHash)}`,
+              }))}
+              value={revocationApprovalId}
+            />
+            <Field
+              label="Machine reason code"
+              maxLength={80}
+              onChange={setRevocationReason}
+              value={revocationReason}
+            />
+            <label className="confirmation-label">
+              <input
+                checked={confirmRevocation}
+                onChange={(event) => setConfirmRevocation(event.currentTarget.checked)}
+                type="checkbox"
+              />
+              I confirm this append-only revocation removes future authority from the exact
+              approval.
+            </label>
+            <button
+              className="danger-button"
+              aria-describedby={
+                !aal2 || !canRevoke || !revocationApprovalId || !confirmRevocation || pending
+                  ? "revocation-lock-reason"
+                  : undefined
+              }
+              disabled={
+                !aal2 || !canRevoke || !revocationApprovalId || !confirmRevocation || pending
+              }
+              onClick={() => {
+                void execute(
+                  "revoke-approval",
+                  "Approval revoked. The saved status was refreshed.",
+                  "The approval was not confirmed as revoked",
+                  () =>
+                    flow.revokeApproval({
+                      approvalSnapshotId: revocationApprovalId,
+                      correlationId: newUuid(),
+                      organizationId,
+                      reasonCode: revocationReason,
+                    }),
+                ).finally(() => setConfirmRevocation(false));
+              }}
+              type="button"
+            >
+              Revoke exact approval
+            </button>
+            {!aal2 ? (
+              <p className="permission-note" id="revocation-lock-reason">
+                Confirm your secure session before revoking an approval.
+              </p>
+            ) : !canRevoke ? (
+              <p className="permission-note" id="revocation-lock-reason">
+                Your current role cannot revoke approvals. Ask an organization owner for revocation
+                access.
+              </p>
+            ) : !revocationApprovalId ? (
+              <p className="permission-note" id="revocation-lock-reason">
+                Choose the exact approval to revoke.
+              </p>
+            ) : !confirmRevocation ? (
+              <p className="permission-note" id="revocation-lock-reason">
+                Check the confirmation box to unlock revocation.
+              </p>
+            ) : pending ? (
+              <p className="permission-note" id="revocation-lock-reason">
+                Saving the revocation now…
+              </p>
+            ) : null}
+          </section>
+        </details>
+      ) : null}
     </div>
   );
 }
