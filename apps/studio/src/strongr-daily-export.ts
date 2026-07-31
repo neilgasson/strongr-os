@@ -143,4 +143,3 @@ export async function createStrongrDailyApprovedExport(input: {
   const value = await approvedExport(input);
   return Object.freeze({ json: `${JSON.stringify(value, null, 2)}\n`, markdown: markdown(value) });
 }
-  
