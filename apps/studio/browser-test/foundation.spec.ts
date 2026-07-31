@@ -65,7 +65,15 @@ const nowSeconds = Math.floor(Date.now() / 1000);
 
 interface MockState {
   aal: "aal1" | "aal2";
+  approvalCreated: boolean;
   approvalRevoked: boolean;
+  readonly approvedReviewLanes: Set<"editorial" | "scripture" | "theology">;
+  briefPresent: boolean;
+  checkDefinitionBlocksApproval: boolean;
+  checkResultOutcome: "error" | "fail" | "pass" | "warn";
+  checkResultPresent: boolean;
+  checkRunStatus: "completed" | "failed" | "missing" | "running";
+  contentVersionPresent: boolean;
   expired: boolean;
   factorNameConflict: boolean;
   factorPresent: boolean;
@@ -74,9 +82,13 @@ interface MockState {
   packageCreated: boolean;
   releaseRevoked: boolean;
   releaseStaged: boolean;
+  reviewPolicyActive: boolean;
+  rightsCleared: boolean;
   readonly rpcCalls: Array<Readonly<{ body: Readonly<Record<string, unknown>>; command: string }>>;
+  scriptureEvidenceVerified: boolean;
   readonly storageRequests: string[];
   readonly tenantReads: string[];
+  versionState: "draft" | "submitted";
 }
 
 function createJwt(aal: "aal1" | "aal2"): string {
@@ -129,8 +141,14 @@ function organizationFilter(url: URL): string | null {
   return url.searchParams.get("organization_id")?.replace(/^eq\./, "") ?? null;
 }
 
-function briefRows(organizationId: string | null) {
-  const count = organizationId === organizationA ? 1 : organizationId === organizationB ? 2 : 0;
+function briefRows(organizationId: string | null, state: MockState) {
+  const count = state.briefPresent
+    ? organizationId === organizationA
+      ? 1
+      : organizationId === organizationB
+        ? 2
+        : 0
+    : 0;
   return Array.from({ length: count }, (_, index) => ({
     content_item_id: `00000000-0000-4000-8000-${String(100 + index).padStart(12, "0")}`,
     created_at: `2026-07-27T00:0${index}:00.000Z`,
@@ -147,7 +165,7 @@ function governedRows(
   state: MockState,
 ): unknown[] {
   if (pathname === "/rest/v1/content_briefs") {
-    return briefRows(organizationId);
+    return briefRows(organizationId, state);
   }
   if (
     organizationId !== organizationA &&
@@ -162,41 +180,43 @@ function governedRows(
     case "/rest/v1/generation_jobs":
       return [];
     case "/rest/v1/content_versions":
-      return [
-        {
-          brief_id: briefId,
-          content_item_id: contentItemId,
-          created_at: createdAt,
-          id: contentVersionId,
-          organization_id: organizationA,
-          payload: {
-            closing: "A synthetic closing for browser acceptance.",
-            opening: "A synthetic opening for browser acceptance.",
-            reflection: "A synthetic reflection that is never production content.",
-            reflection_questions: ["What did this deterministic fixture demonstrate?"],
-            schema_id: "strongr.audio_reflection.v1",
-            scripture_references: [
-              {
-                reference: "Synthetic Reference 1:1",
-                source_citation: "Synthetic fixture; not a Scripture quotation",
-                translation: "TEST",
+      return state.contentVersionPresent
+        ? [
+            {
+              brief_id: briefId,
+              content_item_id: contentItemId,
+              created_at: createdAt,
+              id: contentVersionId,
+              organization_id: organizationA,
+              payload: {
+                closing: "A synthetic closing for browser acceptance.",
+                opening: "A synthetic opening for browser acceptance.",
+                reflection: "A synthetic reflection that is never production content.",
+                reflection_questions: ["What did this deterministic fixture demonstrate?"],
+                schema_id: "strongr.audio_reflection.v1",
+                scripture_references: [
+                  {
+                    reference: "Synthetic Reference 1:1",
+                    source_citation: "Synthetic fixture; not a Scripture quotation",
+                    translation: "TEST",
+                  },
+                ],
+                title: "Synthetic Governed Reflection",
               },
-            ],
-            title: "Synthetic Governed Reflection",
-          },
-          payload_hash: hash("b"),
-          schema_id: "strongr.audio_reflection.v1",
-          source: "ai_assisted",
-          source_job_id: null,
-          state: "submitted",
-          submitted_at: createdAt,
-          version_number: 1,
-        },
-      ];
+              payload_hash: hash("b"),
+              schema_id: "strongr.audio_reflection.v1",
+              source: "ai_assisted",
+              source_job_id: null,
+              state: state.versionState,
+              submitted_at: state.versionState === "submitted" ? createdAt : null,
+              version_number: 1,
+            },
+          ]
+        : [];
     case "/rest/v1/check_definitions":
       return [
         {
-          blocks_approval: true,
+          blocks_approval: state.checkDefinitionBlocksApproval,
           id: checkDefinitionId,
           key: "synthetic.schema",
           lane: "editorial",
@@ -205,102 +225,118 @@ function governedRows(
         },
       ];
     case "/rest/v1/check_runs":
-      return [
-        {
-          artifact_hash: hash("c"),
-          content_version_id: contentVersionId,
-          correlation_id: "00000000-0000-4000-8000-000000000404",
-          created_at: createdAt,
-          engine_key: "synthetic.checks",
-          engine_version: "1.0.0",
-          id: checkRunId,
-          organization_id: organizationA,
-          status: "completed",
-        },
-      ];
+      return state.checkRunStatus === "missing"
+        ? []
+        : [
+            {
+              artifact_hash: hash("c"),
+              content_version_id: contentVersionId,
+              correlation_id: "00000000-0000-4000-8000-000000000404",
+              created_at: createdAt,
+              engine_key: "synthetic.checks",
+              engine_version: "1.0.0",
+              id: checkRunId,
+              organization_id: organizationA,
+              status: state.checkRunStatus,
+            },
+          ];
     case "/rest/v1/check_results":
-      return [
-        {
-          check_definition_id: checkDefinitionId,
-          check_run_id: checkRunId,
-          created_at: createdAt,
-          detail_code: "synthetic_pass",
-          evidence: { fixture: true },
-          id: checkResultId,
-          organization_id: organizationA,
-          outcome: "pass",
-        },
-      ];
+      return state.checkRunStatus === "missing" || !state.checkResultPresent
+        ? []
+        : [
+            {
+              check_definition_id: checkDefinitionId,
+              check_run_id: checkRunId,
+              created_at: createdAt,
+              detail_code: `synthetic_${state.checkResultOutcome}`,
+              evidence: { fixture: true },
+              id: checkResultId,
+              organization_id: organizationA,
+              outcome: state.checkResultOutcome,
+            },
+          ];
     case "/rest/v1/scripture_evidence":
-      return [
-        {
-          content_version_id: contentVersionId,
-          created_at: createdAt,
-          evidence_hash: hash("d"),
-          id: scriptureEvidenceId,
-          organization_id: organizationA,
-          reference: "Synthetic Reference 1:1",
-          source_citation: "Synthetic fixture; not a Scripture quotation",
-          translation: "TEST",
-          verification_status: "verified",
-        },
-      ];
+      return state.scriptureEvidenceVerified
+        ? [
+            {
+              content_version_id: contentVersionId,
+              created_at: createdAt,
+              evidence_hash: hash("d"),
+              id: scriptureEvidenceId,
+              organization_id: organizationA,
+              reference: "Synthetic Reference 1:1",
+              source_citation: "Synthetic fixture; not a Scripture quotation",
+              translation: "TEST",
+              verification_status: "verified",
+            },
+          ]
+        : [];
     case "/rest/v1/rights_snapshots":
-      return [
-        {
-          content_version_id: contentVersionId,
-          created_at: createdAt,
-          id: rightsSnapshotId,
-          organization_id: organizationA,
-          snapshot_hash: hash("e"),
-          source_summary: "Synthetic acceptance material",
-          status: "cleared",
-        },
-      ];
+      return state.rightsCleared
+        ? [
+            {
+              content_version_id: contentVersionId,
+              created_at: createdAt,
+              id: rightsSnapshotId,
+              organization_id: organizationA,
+              snapshot_hash: hash("e"),
+              source_summary: "Synthetic acceptance material",
+              status: "cleared",
+            },
+          ]
+        : [];
     case "/rest/v1/review_policies":
-      return [
-        {
-          created_at: createdAt,
-          id: reviewPolicyId,
-          is_active: true,
-          key: "synthetic_acceptance",
-          organization_id: organizationA,
-          policy_hash: hash("f"),
-          version: 1,
-        },
-      ];
+      return state.reviewPolicyActive
+        ? [
+            {
+              created_at: createdAt,
+              id: reviewPolicyId,
+              is_active: true,
+              key: "synthetic_acceptance",
+              organization_id: organizationA,
+              policy_hash: hash("f"),
+              version: 1,
+            },
+          ]
+        : [];
     case "/rest/v1/review_decisions":
       return [
         [scriptureReviewId, "scripture"],
         [theologyReviewId, "theology"],
         [editorialReviewId, "editorial"],
-      ].map(([id, lane]) => ({
-        content_version_id: contentVersionId,
-        created_at: createdAt,
-        decision: "approved",
-        evidence: { fixture: true },
-        id,
-        lane,
-        organization_id: organizationA,
-        reason_code: "synthetic_acceptance",
-      }));
-    case "/rest/v1/approval_snapshots":
-      return [
-        {
-          approved_at: createdAt,
-          authentication_assurance: "aal2",
-          check_run_id: checkRunId,
+      ]
+        .filter(([, lane]) =>
+          state.approvedReviewLanes.has(lane as "editorial" | "scripture" | "theology"),
+        )
+        .map(([id, lane]) => ({
           content_version_id: contentVersionId,
-          evidence_bundle_hash: hash("1"),
-          id: approvalSnapshotId,
+          created_at: createdAt,
+          decision: "approved",
+          evidence: { fixture: true },
+          id,
+          lane,
           organization_id: organizationA,
           reason_code: "synthetic_acceptance",
-          review_policy_id: reviewPolicyId,
-          rights_snapshot_id: rightsSnapshotId,
-          scripture_evidence_id: scriptureEvidenceId,
-          version_payload_hash: hash("b"),
-        },
-      ];
+        }));
+    case "/rest/v1/approval_snapshots":
+      return state.approvalCreated
+        ? [
+            {
+              approved_at: createdAt,
+              authentication_assurance: "aal2",
+              check_run_id: checkRunId,
+              content_version_id: contentVersionId,
+              evidence_bundle_hash: hash("1"),
+              id: approvalSnapshotId,
+              organization_id: organizationA,
+              reason_code: "synthetic_acceptance",
+              review_policy_id: reviewPolicyId,
+              rights_snapshot_id: rightsSnapshotId,
+              scripture_evidence_id: scriptureEvidenceId,
+              version_payload_hash: hash("b"),
+            },
+          ]
+        : [];
     case "/rest/v1/approval_revocations":
       return state.approvalRevoked
         ? [
@@ -456,7 +492,15 @@ function governedRows(
 async function installMockSupabase(page: Page): Promise<MockState> {
   const state: MockState = {
     aal: "aal1",
+    approvalCreated: true,
     approvalRevoked: false,
+    approvedReviewLanes: new Set(["editorial", "scripture", "theology"]),
+    briefPresent: true,
+    checkDefinitionBlocksApproval: true,
+    checkResultOutcome: "pass",
+    checkResultPresent: true,
+    checkRunStatus: "completed",
+    contentVersionPresent: true,
     expired: false,
     factorNameConflict: false,
     factorPresent: true,
@@ -465,9 +509,13 @@ async function installMockSupabase(page: Page): Promise<MockState> {
     packageCreated: false,
     releaseRevoked: false,
     releaseStaged: false,
+    reviewPolicyActive: true,
+    rightsCleared: true,
     rpcCalls: [],
+    scriptureEvidenceVerified: true,
     storageRequests: [],
     tenantReads: [],
+    versionState: "submitted",
   };
   await page.route("https://example.supabase.co/**", async (route) => {
     const request = route.request();
@@ -617,6 +665,7 @@ async function installMockSupabase(page: Page): Promise<MockState> {
       const body = request.postDataJSON() as Readonly<Record<string, unknown>>;
       state.rpcCalls.push({ body, command });
       if (command === "m1_create_audio_brief") {
+        state.briefPresent = true;
         await route.fulfill({
           json: [{ brief_id: briefId, content_item_id: contentItemId }],
           status: 200,
@@ -624,8 +673,27 @@ async function installMockSupabase(page: Page): Promise<MockState> {
         return;
       }
       if (command === "m1_submit_version") {
+        state.versionState = "submitted";
         await route.fulfill({ json: null, status: 200 });
         return;
+      }
+      if (command === "m1_create_review_policy") {
+        state.reviewPolicyActive = true;
+      }
+      if (command === "m1_record_scripture_evidence") {
+        state.scriptureEvidenceVerified = true;
+      }
+      if (command === "m1_record_rights_snapshot") {
+        state.rightsCleared = true;
+      }
+      if (command === "m1_record_review") {
+        const lane = body.p_lane;
+        if (lane === "editorial" || lane === "scripture" || lane === "theology") {
+          state.approvedReviewLanes.add(lane);
+        }
+      }
+      if (command === "m1_approve_version") {
+        state.approvalCreated = true;
       }
       if (command === "m1_create_production_package") {
         state.packageCreated = true;
@@ -734,7 +802,7 @@ test("signed-out shell is honest and keyboard operable", async ({ page }, testIn
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Governed work, clearly in view.",
+      "Create and review content one clear step at a time.",
     );
     await expect(page.getByText("Not signed in", { exact: true })).toBeVisible();
     await expect(page.getByText("Not selected", { exact: true })).toBeVisible();
@@ -813,7 +881,7 @@ test("expired tenant reads clear the local session and return safely to sign-in"
   await expect(page.getByText("Work queue · Synthetic North")).toBeVisible();
 
   state.expired = true;
-  await page.getByRole("button", { name: "Refresh canonical status" }).click();
+  await page.getByRole("button", { name: "Refresh work queue" }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
   await expect(page.getByRole("heading", { name: "Sign in to Strongr Studio" })).toBeVisible();
   await expect(page.getByText(/session expired/i)).toBeVisible();
@@ -823,14 +891,13 @@ test("verified TOTP can step the current session from AAL1 to AAL2", async ({ pa
   await installMockSupabase(page);
   await signIn(page);
   await page.getByRole("link", { name: "Security" }).click();
-  await expect(page.getByText("AAL1", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Acceptance authenticator" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Begin TOTP enrollment" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Enter your current code" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start setup" })).toHaveCount(0);
   await page.getByLabel("Six-digit authenticator code").fill("123456");
-  await page.getByRole("button", { name: "Step up session" }).click();
-  await expect(page.getByText("AAL2", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm secure session" }).click();
+  await expect(page.getByRole("heading", { name: "Secure session confirmed" })).toBeVisible();
   await expect(page.getByText(/session assurance was refreshed/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Begin TOTP enrollment" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Start setup" })).toHaveCount(0);
 });
 
 test("TOTP enrollment and confirmed unenrollment use supported Auth operations", async ({
@@ -840,19 +907,21 @@ test("TOTP enrollment and confirmed unenrollment use supported Auth operations",
   state.factorPresent = false;
   await signIn(page);
   await page.getByRole("link", { name: "Security" }).click();
-  await expect(page.getByText("No TOTP authenticators are enrolled.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Begin TOTP enrollment" })).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "Set up extra security" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Start setup" })).toHaveCount(1);
 
-  await page.getByRole("button", { name: "Begin TOTP enrollment" }).click();
-  await expect(page.getByRole("heading", { name: "Scan and verify" })).toBeVisible();
+  await page.getByRole("button", { name: "Start setup" }).click();
+  await expect(page.getByRole("heading", { name: "Scan the code and confirm" })).toBeVisible();
   await expect(page.getByAltText("One-time TOTP enrollment QR code")).toBeVisible();
   await page.getByLabel("Six-digit authenticator code").fill("123456");
   await page.getByRole("button", { name: "Finish enrollment" }).click();
 
+  await expect(page.getByRole("heading", { name: "Secure session confirmed" })).toBeVisible();
+  await page.getByText("Advanced authenticator management").click();
   await expect(page.getByRole("heading", { name: "Acceptance authenticator" })).toBeVisible();
   await page.getByLabel("Confirm removal of Acceptance authenticator").check();
   await page.getByRole("button", { name: "Remove authenticator" }).click();
-  await expect(page.getByText("No TOTP authenticators are enrolled.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Set up extra security" })).toBeVisible();
   await expect(
     page.getByText(/Authenticator removed and session assurance refreshed/i),
   ).toBeVisible();
@@ -866,7 +935,7 @@ test("an existing authenticator name is explained without exposing the raw Auth 
   state.factorNameConflict = true;
   await signIn(page);
   await page.getByRole("link", { name: "Security" }).click();
-  await page.getByRole("button", { name: "Begin TOTP enrollment" }).click();
+  await page.getByRole("button", { name: "Start setup" }).click();
   await expect(
     page.getByText(
       "An authenticator with that name is already enrolled. Use the existing authenticator below to step up this session.",
@@ -889,11 +958,13 @@ test("a brief request keeps one stable idempotency key across its two durable co
   page,
 }) => {
   const state = await installMockSupabase(page);
+  state.briefPresent = false;
+  state.contentVersionPresent = false;
   await signIn(page);
   await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
   await page.getByRole("link", { name: "Governed content" }).click();
   await expect(
-    page.getByRole("heading", { name: "Brief through immutable package." }),
+    page.getByRole("heading", { name: "Finish one clear step at a time." }),
   ).toBeVisible();
 
   const briefForm = page.getByRole("region", { name: "Create a Strongr Daily brief" });
@@ -911,7 +982,9 @@ test("a brief request keeps one stable idempotency key across its two durable co
     name: "Create brief and request generation",
   });
   await requestButton.click();
-  await expect(page.getByText(/Brief created and generation requested/i)).toBeVisible();
+  await expect(
+    page.getByText(/Brief saved. Studio started preparing the private draft/i).first(),
+  ).toBeVisible();
 
   const createCalls = state.rpcCalls.filter(({ command }) => command === "m1_create_audio_brief");
   const generationCalls = state.rpcCalls.filter(
@@ -929,78 +1002,171 @@ test("a brief request keeps one stable idempotency key across its two durable co
   expect(createCalls[0]?.body.p_correlation_id).toBe(generationCalls[0]?.body.p_correlation_id);
 });
 
-test("governed review starts neutral and names one clear next action", async ({ page }) => {
+test("guided review shows ordered progress, one action, and safe failed-check recovery", async ({
+  page,
+}) => {
   const state = await installMockSupabase(page);
+  state.aal = "aal2";
+  state.approvalCreated = false;
+  state.approvedReviewLanes.clear();
+  state.checkResultOutcome = "fail";
+  state.checkRunStatus = "failed";
+  state.rightsCleared = false;
+  state.scriptureEvidenceVerified = false;
   await signIn(page);
-  await page.getByRole("link", { name: "Security" }).click();
-  await page.getByLabel("Six-digit authenticator code").fill("123456");
-  await page.getByRole("button", { name: "Step up session" }).click();
-
   await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
   await page.getByRole("link", { name: "Governed content" }).click();
-  await expect(page.getByRole("heading", { name: "Create the non-public package" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Go to this step" })).toHaveAttribute(
-    "href",
-    "#production-package",
-  );
 
-  const scriptureCard = page
-    .getByRole("article")
-    .filter({ has: page.getByRole("heading", { name: "Verify the Scripture reference" }) });
-  await expect(scriptureCard.getByLabel("Source citation")).toHaveValue("");
-  await expect(page.getByLabel("Rights source summary")).toHaveValue("");
-  await expect(page.getByLabel("Human decision")).toHaveCount(3);
-  await expect(page.getByLabel("Human decision").nth(0)).toHaveValue("");
-  await expect(page.getByLabel("Human decision").nth(1)).toHaveValue("");
-  await expect(page.getByLabel("Human decision").nth(2)).toHaveValue("");
-  await expect(page.getByLabel("Human evidence note").nth(0)).toHaveValue("");
-  await expect(page.getByLabel("Human evidence note").nth(1)).toHaveValue("");
-  await expect(page.getByLabel("Human evidence note").nth(2)).toHaveValue("");
-  await expect(page.getByRole("button", { name: "Record verified evidence" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Record cleared rights" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Record scripture decision" })).toBeDisabled();
-  expect(
-    state.rpcCalls.filter(({ command }) =>
-      [
-        "m1_record_scripture_evidence",
-        "m1_record_rights_snapshot",
-        "m1_record_review",
-        "m1_approve_version",
-      ].includes(command),
-    ),
-  ).toEqual([]);
+  const progress = page.getByRole("list", { name: "Content workflow progress" });
+  await expect(progress.getByRole("listitem")).toHaveCount(12);
+  await expect(progress.getByRole("listitem").nth(0)).toContainText("Submit the draftCompleted");
+  await expect(progress.getByRole("listitem").nth(1)).toContainText(
+    "Confirm your secure sessionCompleted",
+  );
+  await expect(progress.getByRole("listitem").nth(2)).toContainText(
+    "Confirm the review rulesCompleted",
+  );
+  await expect(progress.getByRole("listitem").nth(3)).toContainText(
+    "Complete safety checksBlocked",
+  );
+  await expect(page.getByRole("heading", { name: "Wait for the safety checks" })).toBeVisible();
+  await expect(page.getByText(/Nothing was approved or published/).first()).toBeVisible();
+  await expect(page.locator("[data-primary-action]:visible")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+
+  state.checkResultOutcome = "pass";
+  state.checkRunStatus = "completed";
+  await page.getByRole("button", { name: "Check again" }).click();
+
+  await expect(page.locator("#next-action-heading")).toHaveText("Verify the Scripture reference");
+  await expect(progress.getByRole("listitem").nth(3)).toContainText(
+    "Complete safety checksCompleted",
+  );
+  await expect(progress.getByRole("listitem").nth(4)).toContainText(
+    "Verify the Scripture sourceCurrent",
+  );
+  await expect(page.locator("[data-primary-action]:visible")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Save Scripture verification" })).toBeDisabled();
+  await expect(
+    page.getByText("Add the reference, translation, and source citation to unlock this action."),
+  ).toBeVisible();
+  expect(state.rpcCalls).toEqual([]);
 });
+
+const automatedCheckEligibilityScenarios = [
+  {
+    blocksApproval: true,
+    expectedStatus: "Blocked",
+    name: "blocking warning remains blocked",
+    outcome: "warn",
+    resultPresent: true,
+  },
+  {
+    blocksApproval: false,
+    expectedStatus: "Blocked",
+    name: "non-blocking failure remains blocked",
+    outcome: "fail",
+    resultPresent: true,
+  },
+  {
+    blocksApproval: false,
+    expectedStatus: "Blocked",
+    name: "non-blocking error remains blocked",
+    outcome: "error",
+    resultPresent: true,
+  },
+  {
+    blocksApproval: true,
+    expectedStatus: "Blocked",
+    name: "completed run missing a required result remains blocked",
+    outcome: "pass",
+    resultPresent: false,
+  },
+  {
+    blocksApproval: true,
+    expectedStatus: "Completed",
+    name: "passing result advances",
+    outcome: "pass",
+    resultPresent: true,
+  },
+  {
+    blocksApproval: false,
+    expectedStatus: "Completed",
+    name: "non-blocking warning advances",
+    outcome: "warn",
+    resultPresent: true,
+  },
+] as const;
+
+for (const scenario of automatedCheckEligibilityScenarios) {
+  test(`automated check eligibility: ${scenario.name}`, async ({ page }) => {
+    const state = await installMockSupabase(page);
+    state.aal = "aal2";
+    state.approvalCreated = false;
+    state.approvedReviewLanes.clear();
+    state.checkDefinitionBlocksApproval = scenario.blocksApproval;
+    state.checkResultOutcome = scenario.outcome;
+    state.checkResultPresent = scenario.resultPresent;
+    state.checkRunStatus = "completed";
+    state.rightsCleared = false;
+    state.scriptureEvidenceVerified = false;
+
+    await signIn(page);
+    await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
+    await page.getByRole("link", { name: "Governed content" }).click();
+
+    const progress = page.getByRole("list", { name: "Content workflow progress" });
+    await expect(progress.getByRole("listitem").nth(3)).toContainText(
+      `Complete safety checks${scenario.expectedStatus}`,
+    );
+
+    if (scenario.expectedStatus === "Blocked") {
+      await expect(page.getByRole("heading", { name: "Wait for the safety checks" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Check again" })).toBeVisible();
+    } else {
+      await expect(page.locator("#next-action-heading")).toHaveText(
+        "Verify the Scripture reference",
+      );
+      await expect(progress.getByRole("listitem").nth(4)).toContainText(
+        "Verify the Scripture sourceCurrent",
+      );
+    }
+  });
+}
 
 test("AAL2 authority targets canonical evidence, packages without publishing, and revokes append-only", async ({
   page,
 }, testInfo) => {
   const state = await installMockSupabase(page);
+  state.approvalCreated = false;
   await signIn(page);
   await page.getByRole("link", { name: "Security" }).click();
   await page.getByLabel("Six-digit authenticator code").fill("123456");
-  await page.getByRole("button", { name: "Step up session" }).click();
-  await expect(page.getByText("AAL2", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm secure session" }).click();
+  await expect(page.getByRole("heading", { name: "Secure session confirmed" })).toBeVisible();
 
   await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
   await page.getByRole("link", { name: "Governed content" }).click();
-  await expect(page.getByRole("heading", { name: "Approve exact evidence bundle" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Approve this exact version" })).toBeVisible();
 
-  await page.getByRole("checkbox", { name: /I confirm approval targets version 1/ }).check();
-  await page.getByRole("button", { name: "Approve exact version" }).click();
-  await expect(page.getByText(/Version 1 approval completed/i)).toBeVisible();
+  await page.getByRole("checkbox", { name: /I confirm I am approving version 1/ }).check();
+  await page.getByRole("button", { name: "Approve this version" }).click();
+  await expect(page.getByText(/Version 1 approved/i).first()).toBeVisible();
 
-  await page
-    .getByRole("checkbox", { name: /I confirm this creates an immutable package manifest only/ })
-    .check();
-  await page.getByRole("button", { name: "Create immutable package" }).click();
-  await expect(page.getByText(/Immutable production package created/i)).toBeVisible();
+  await page.getByRole("checkbox", { name: /I confirm this creates private files only/ }).check();
+  await page.getByRole("button", { name: "Create private package" }).click();
   await expect(
-    page.getByText(new RegExp(`Package already exists: ${productionPackageId}`)),
+    page.getByText(/Private package created. No publication occurred/i).first(),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Download the completed pilot package" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download JSON and Markdown" })).toBeVisible();
 
+  await page.getByText("Advanced: revoke an approval").click();
   await page.getByRole("checkbox", { name: /I confirm this append-only revocation/ }).check();
   await page.getByRole("button", { name: "Revoke exact approval" }).click();
-  await expect(page.getByText(/Approval revocation recorded/i)).toBeVisible();
+  await expect(page.getByText(/Approval revoked/i).first()).toBeVisible();
 
   const approvalCall = state.rpcCalls.find(({ command }) => command === "m1_approve_version");
   expect(approvalCall?.body).toEqual(
@@ -1059,46 +1225,53 @@ test("private media is checksum verified, human reviewed, staged, and revoked by
   await signIn(page);
   await page.getByRole("link", { name: "Security" }).click();
   await page.getByLabel("Six-digit authenticator code").fill("123456");
-  await page.getByRole("button", { name: "Step up session" }).click();
-  await expect(page.getByText("AAL2", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm secure session" }).click();
+  await expect(page.getByRole("heading", { name: "Secure session confirmed" })).toBeVisible();
 
   await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
   await page.getByRole("link", { name: "Governed media" }).click();
   await expect(
-    page.getByRole("heading", { name: "Private audio through revocable release staging." }),
+    page.getByRole("heading", { name: "Prepare one private audio release." }),
   ).toBeVisible();
+  const primaryActions = page.locator("[data-primary-action]:visible");
+  await expect(primaryActions).toHaveCount(1);
 
-  await page
-    .getByRole("checkbox", { name: /I confirm the exact package and output specification/ })
-    .check();
-  await page.getByRole("button", { name: "Request exact media" }).click();
-  await expect(page.getByText(new RegExp(`Job ${mediaJobId} · succeeded`))).toBeVisible();
+  await page.getByRole("checkbox", { name: /I confirm the selected approved package/ }).check();
+  await page.getByRole("button", { name: "Request private audio" }).click();
+  await expect(page.getByRole("heading", { name: "Verify and listen" })).toBeVisible();
+  await expect(primaryActions).toHaveCount(1);
 
-  await page.getByRole("button", { name: "Verify private artifact" }).click();
-  await expect(page.getByText(new RegExp(`Verified ${mediaBytes.byteLength} bytes`))).toBeVisible();
+  await page.getByRole("button", { name: "Verify and listen" }).click();
+  await expect(page.getByText("Private audio verified.")).toBeVisible();
   await expect(page.locator("audio")).toHaveCount(1);
+  await expect(primaryActions).toHaveCount(1);
 
   await page
-    .getByRole("checkbox", { name: /I confirm this human decision targets artifact/ })
+    .getByRole("checkbox", { name: /I confirm this decision applies to the private audio/ })
     .check();
-  await page.getByRole("button", { name: "Record exact media review" }).click();
-  await expect(page.getByText(new RegExp(`Review ${mediaReviewId} · approved`))).toBeVisible();
+  await page
+    .getByLabel("What did you check?")
+    .fill("Playback, transcript, and accessibility checks completed by the operator.");
+  await page.getByRole("button", { name: "Save audio review" }).click();
+  await expect(page.getByRole("heading", { name: "Stage the private release" })).toBeVisible();
+  await expect(primaryActions).toHaveCount(1);
 
   await page
     .getByRole("checkbox", {
-      name: /I confirm these exact package, artifact, and review identities/,
+      name: /I confirm this approved audio can be placed in an immutable private release bundle/,
     })
     .check();
-  await page.getByRole("button", { name: "Stage exact release bundle" }).click();
-  await expect(page.getByText(new RegExp(`Bundle ${stagedReleaseId}`))).toContainText(
-    "staged, not published",
-  );
+  await page.getByRole("button", { name: "Stage private release" }).click();
+  await expect(page.getByRole("heading", { name: "Private release ready" })).toBeVisible();
+  await expect(page.getByText("Private release staged.", { exact: true })).toBeVisible();
+  await expect(primaryActions).toHaveCount(0);
 
-  await page
-    .getByRole("checkbox", { name: /I confirm this append-only revocation targets/ })
-    .check();
-  await page.getByRole("button", { name: "Revoke exact staged bundle" }).click();
-  await expect(page.getByText(new RegExp(`Bundle ${stagedReleaseId}`))).toContainText("revoked");
+  await page.getByText("Advanced: withdraw a private release").click();
+  await page.getByRole("checkbox", { name: /I confirm this withdraws authority/ }).check();
+  await expect(primaryActions).toHaveCount(0);
+  await page.getByRole("button", { name: "Withdraw private release" }).click();
+  await expect(page.getByRole("heading", { name: "Release authority withdrawn" })).toBeVisible();
+  await expect(primaryActions).toHaveCount(0);
 
   expect(state.rpcCalls.find(({ command }) => command === "m2_request_media")?.body).toEqual(
     expect.objectContaining({
