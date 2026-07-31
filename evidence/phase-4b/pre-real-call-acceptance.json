@@ -27,13 +27,20 @@
     "content_type": "application/json",
     "body_fields": ["generation_job_id"],
     "automatic_provider_retry": false,
-    "deployment_performed": false
+    "deployment_performed": true,
+    "deployed_function": "strongr-daily-generate",
+    "deployed_function_version": 1,
+    "jwt_gateway_smoke": "missing_authorization_rejected",
+    "legacy_phase4a_function_retained": true
   },
   "database_boundary": {
-    "migration": "20260731120000_phase4b_exact_generation_worker.sql",
+    "migration": "20260731152938_phase4b_exact_generation_worker.sql",
     "exact_claim_command": "m1_claim_generation_event_by_job(uuid,text,integer)",
     "usage_completion_command": "m1_complete_generation_attempt_with_usage(uuid,text,uuid,uuid,text,text,jsonb,text,integer,integer,integer,bigint)",
     "legacy_completion_retained": true,
+    "migration_recorded_once": true,
+    "command_and_grant_verification": "pass",
+    "post_migration_advisors_run": true,
     "service_role_direct_generation_dml": false,
     "service_role_approval_authority": false,
     "rls_changed": false,
@@ -51,8 +58,11 @@
     "production_resources_touched": false
   },
   "acceptance": {
-    "local_checks_complete": false,
-    "security_review_complete": false,
+    "local_checks_complete": true,
+    "required_ci_complete": true,
+    "security_review_complete": true,
+    "development_deployment_complete": true,
+    "non_billable_smoke_complete": true,
     "owner_pre_call_approval_required": true,
     "real_call_authorized": false,
     "notes": "No prompt, content payload, credential, authorization header, URL credential, or personal data is stored in this record."
