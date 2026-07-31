@@ -175,6 +175,8 @@ export function SecurityPage() {
   const [codes, setCodes] = useState<Readonly<Record<string, string>>>({});
   const [confirmRemoval, setConfirmRemoval] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const canOfferEnrollment =
+    mfa.status === "ready" && mfa.value.factors.length === 0 && totpEnrollment === null;
 
   const submitVerification = async (factorId: string) => {
     setPending(true);
@@ -217,32 +219,38 @@ export function SecurityPage() {
           ) : null}
         </article>
 
-        <article>
-          <h2>Enroll authenticator</h2>
-          <form
-            onSubmit={preventDefault(async () => {
-              setPending(true);
-              try {
-                await enrollTotp(friendlyName);
-              } finally {
-                setPending(false);
-              }
-            })}
-          >
-            <label htmlFor="factor-name">Authenticator name</label>
-            <input
-              id="factor-name"
-              maxLength={80}
-              minLength={2}
-              onChange={(event) => setFriendlyName(event.currentTarget.value)}
-              required
-              value={friendlyName}
-            />
-            <button className="primary-button" disabled={pending} type="submit">
-              Begin TOTP enrollment
-            </button>
-          </form>
-        </article>
+        {canOfferEnrollment ? (
+          <article>
+            <h2>Set up an authenticator</h2>
+            <p>
+              Do this once. After setup, Studio asks only for the current six-digit code when a
+              sensitive approval needs extra confirmation.
+            </p>
+            <form
+              onSubmit={preventDefault(async () => {
+                setPending(true);
+                try {
+                  await enrollTotp(friendlyName);
+                } finally {
+                  setPending(false);
+                }
+              })}
+            >
+              <label htmlFor="factor-name">Authenticator name</label>
+              <input
+                id="factor-name"
+                maxLength={80}
+                minLength={2}
+                onChange={(event) => setFriendlyName(event.currentTarget.value)}
+                required
+                value={friendlyName}
+              />
+              <button className="primary-button" disabled={pending} type="submit">
+                Begin TOTP enrollment
+              </button>
+            </form>
+          </article>
+        ) : null}
       </section>
 
       {totpEnrollment ? (
