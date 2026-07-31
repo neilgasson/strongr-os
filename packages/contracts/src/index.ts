@@ -25,8 +25,10 @@ export const browserCommands = Object.freeze({
 export const workerCommands = Object.freeze({
   acknowledgeOutboxEvent: "m0_ack_outbox_event",
   beginGenerationAttempt: "m1_begin_generation_attempt",
+  claimGenerationEventByJob: "m1_claim_generation_event_by_job",
   claimGenerationEvents: "m1_claim_generation_events",
   completeGenerationAttempt: "m1_complete_generation_attempt",
+  completeGenerationAttemptWithUsage: "m1_complete_generation_attempt_with_usage",
   failGenerationAttempt: "m1_fail_generation_attempt",
   failOutboxEvent: "m0_fail_outbox_event",
   heartbeat: "m0_heartbeat_worker",

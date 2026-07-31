@@ -1,4 +1,4 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -152,7 +152,9 @@ for (const runtimeBoundary of [
 const bundleFiles = await collectFiles(resolve(repositoryRoot, "apps/studio/dist"));
 record(bundleFiles.length > 0, "apps/studio/dist: built browser artifact missing");
 const forbiddenBundleTokens = [
+  "OPENAI_API_KEY",
   "STRONGR_OS_DATABASE_URL",
+  "STRONGR_OS_OPENAI_API_KEY",
   "STRONGR_OS_SUPABASE_SECRET_KEY",
   "STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY",
   "SUPABASE_ACCESS_TOKEN",
@@ -173,6 +175,9 @@ for (const path of bundleFiles) {
   }
   if (/\bsb_secret_[A-Za-z0-9_-]{8,}\b/.test(content)) {
     violations.push(`${relativePath}: privileged Supabase key literal`);
+  }
+  if (/\bsk-(?:(?:proj|svcacct)-)?[A-Za-z0-9_-]{16,}\b/.test(content)) {
+    violations.push(`${relativePath}: OpenAI key literal`);
   }
   if (/\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b/.test(content)) {
     violations.push(`${relativePath}: JWT-like credential literal`);

@@ -41,3 +41,6 @@ enable_signup = false
 [auth.mfa.totp]
 enroll_enabled = true
 verify_enabled = true
+
+[functions.strongr-daily-generate]
+verify_jwt = true

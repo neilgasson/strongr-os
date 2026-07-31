@@ -902,6 +902,52 @@ label {
   background: var(--color-warning-soft);
 }
 
+.workflow-selector {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(16rem, 0.7fr) auto;
+  align-items: end;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-medium);
+  background: var(--color-surface);
+}
+
+.workflow-selector > * {
+  margin: 0;
+}
+
+.workflow-selector label,
+.generation-retry,
+.generation-retry-confirmation {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.generation-retry {
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-small);
+  background: var(--color-surface-subtle);
+}
+
+.generation-retry > * {
+  margin: 0;
+}
+
+.generation-retry-confirmation,
+.generation-retry label {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+}
+
+.generation-retry-confirmation input,
+.generation-retry label input {
+  width: auto;
+  min-height: auto;
+  margin-top: 0.25rem;
+}
+
 .workflow-blocked,
 .simple-action {
   display: grid;
@@ -1384,7 +1430,8 @@ textarea {
   .automated-evidence,
   .human-governance-grid,
   .canonical-summary dl,
-  .authority-grid {
+  .authority-grid,
+  .workflow-selector {
     grid-template-columns: 1fr;
   }
 

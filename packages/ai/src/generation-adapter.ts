@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 import type {
   AudioReflection,
@@ -28,6 +29,7 @@ export interface GenerationRequest {
 }
 
 export interface GenerationUsage {
+  readonly estimatedCostMicrounits: number;
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly totalTokens: number;
@@ -57,6 +59,28 @@ export class GenerationProviderError extends Error {
     this.name = "GenerationProviderError";
     this.safeCode = safeCode;
   }
+}
+
+export function isGenerationOutputBoundToBrief(
+  brief: GenerationBrief,
+  output: GenerationOutput,
+): boolean {
+  if (brief.schema_id !== "strongr.strongr_daily_audio_reflection_brief.v2") {
+    return output.schema_id === "strongr.audio_reflection.v1";
+  }
+  if (output.schema_id !== "strongr.strongr_daily_audio_reflection.v2") {
+    return false;
+  }
+  return (
+    output.content_type === brief.content_type &&
+    output.source_brief_identifier === brief.source_brief_identifier &&
+    output.audience === brief.audience &&
+    output.pastoral_purpose === brief.pastoral_purpose &&
+    output.tone === brief.tone &&
+    JSON.stringify(output.scripture_reference) === JSON.stringify(brief.scripture_reference) &&
+    JSON.stringify(output.prohibited_claims_or_wording) ===
+      JSON.stringify(brief.prohibited_claims_or_wording)
+  );
 }
 
 function postgresJsonbText(value: unknown): string {

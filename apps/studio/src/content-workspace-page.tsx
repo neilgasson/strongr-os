@@ -24,6 +24,7 @@ import type {
   ReviewDecision,
   ReviewLane,
   TenantApprovalSnapshotSummary,
+  TenantBriefSummary,
   TenantContentVersionSummary,
   TenantProductionPackageSummary,
   Uuid,
@@ -33,6 +34,7 @@ import {
   BriefToDraftOperatorFlow,
   type BriefToDraftWorkspace,
   GenerationRequestDeferredError,
+  GenerationRuntimeDeferredError,
 } from "./brief-to-draft-flow.ts";
 import {
   ReviewToPackageOperatorFlow,
@@ -62,6 +64,8 @@ type ExecuteMutation = (
   failure: string,
   action: () => Promise<unknown>,
 ) => Promise<void>;
+
+type RefreshWorkspace = (options?: Readonly<{ silent?: boolean }>) => Promise<void>;
 
 const initialScriptureReference = Object.freeze({
   reference: "",
@@ -153,7 +157,9 @@ export function ContentWorkspacePage() {
   const { activeOrganization, announce, capabilities, foundation, mfa, reportWorkflowFailure } =
     useStudioSession();
   const [workspace, setWorkspace] = useState<WorkspaceState>({ status: "loading" });
+  const [selectedBriefId, setSelectedBriefId] = useState<Uuid | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<Uuid | null>(null);
+  const [creatingAnotherBrief, setCreatingAnotherBrief] = useState(false);
   const [pendingMutation, setPendingMutation] = useState<string | null>(null);
   const [workflowNotice, setWorkflowNotice] = useState<WorkflowNotice | null>(null);
   const mutationLock = useRef(false);
@@ -166,25 +172,32 @@ export function ContentWorkspacePage() {
     [foundation],
   );
 
-  const refresh = useCallback(async () => {
-    if (!activeOrganization || !draftFlow || !reviewFlow) {
-      return;
-    }
-    setWorkspace({ status: "loading" });
-    try {
-      const [draft, review] = await Promise.all([
-        draftFlow.loadWorkspace(activeOrganization.id),
-        reviewFlow.loadWorkspace(activeOrganization.id),
-      ]);
-      setWorkspace({ status: "ready", value: Object.freeze({ draft, review }) });
-    } catch (error) {
-      reportWorkflowFailure(error, "The content screen could not be loaded");
-      setWorkspace({
-        message: "Your saved work could not be loaded. No action was taken.",
-        status: "error",
-      });
-    }
-  }, [activeOrganization, draftFlow, reportWorkflowFailure, reviewFlow]);
+  const refresh: RefreshWorkspace = useCallback(
+    async (options) => {
+      if (!activeOrganization || !draftFlow || !reviewFlow) {
+        return;
+      }
+      if (!options?.silent) {
+        setWorkspace({ status: "loading" });
+      }
+      try {
+        const [draft, review] = await Promise.all([
+          draftFlow.loadWorkspace(activeOrganization.id),
+          reviewFlow.loadWorkspace(activeOrganization.id),
+        ]);
+        setWorkspace({ status: "ready", value: Object.freeze({ draft, review }) });
+      } catch (error) {
+        reportWorkflowFailure(error, "The content screen could not be loaded");
+        if (!options?.silent) {
+          setWorkspace({
+            message: "Your saved work could not be loaded. No action was taken.",
+            status: "error",
+          });
+        }
+      }
+    },
+    [activeOrganization, draftFlow, reportWorkflowFailure, reviewFlow],
+  );
 
   useEffect(() => {
     void refresh();
@@ -194,12 +207,37 @@ export function ContentWorkspacePage() {
     if (workspace.status !== "ready") {
       return;
     }
-    const versions = workspace.value.draft.versions;
+    const briefs = [...workspace.value.draft.briefs].sort(
+      (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt),
+    );
+    if (briefs.some(({ id }) => id === selectedBriefId)) {
+      return;
+    }
+    setSelectedBriefId(briefs[0]?.id ?? null);
+  }, [selectedBriefId, workspace]);
+
+  useEffect(() => {
+    if (workspace.status !== "ready" || !selectedBriefId) {
+      return;
+    }
+    const jobs = workspace.value.draft.generationJobs
+      .filter(({ briefId }) => briefId === selectedBriefId)
+      .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+    const versions = workspace.value.draft.versions.filter(
+      ({ briefId }) => briefId === selectedBriefId,
+    );
+    const generatedVersion = versions.find(({ sourceJobId }) => sourceJobId === jobs[0]?.id);
+    if (jobs[0]?.state === "succeeded" && generatedVersion) {
+      if (selectedVersionId !== generatedVersion.id) {
+        setSelectedVersionId(generatedVersion.id);
+      }
+      return;
+    }
     if (versions.some(({ id }) => id === selectedVersionId)) {
       return;
     }
     setSelectedVersionId(versions[0]?.id ?? null);
-  }, [selectedVersionId, workspace]);
+  }, [selectedBriefId, selectedVersionId, workspace]);
 
   const execute: ExecuteMutation = useCallback(
     async (key, success, failure, action) => {
@@ -216,6 +254,11 @@ export function ContentWorkspacePage() {
         if (error instanceof GenerationRequestDeferredError) {
           const message =
             "The brief was saved, but generation did not start. Nothing was approved or published. Refresh the status before trying again.";
+          announce(message);
+          setWorkflowNotice({ kind: "error", message });
+        } else if (error instanceof GenerationRuntimeDeferredError) {
+          const message =
+            "The draft request is saved, but the private generator did not finish. Nothing was approved or published. Use Try generation again when you are ready.";
           announce(message);
           setWorkflowNotice({ kind: "error", message });
         } else {
@@ -240,7 +283,9 @@ export function ContentWorkspacePage() {
 
   const selectedVersion =
     workspace.status === "ready"
-      ? workspace.value.draft.versions.find(({ id }) => id === selectedVersionId)
+      ? workspace.value.draft.versions.find(
+          ({ briefId, id }) => briefId === selectedBriefId && id === selectedVersionId,
+        )
       : undefined;
   const aal2 = mfa.status === "ready" && mfa.value.currentLevel === "aal2";
 
@@ -326,47 +371,104 @@ export function ContentWorkspacePage() {
               </button>
             </div>
           ) : null}
-          {workspace.value.draft.versions.length === 0 ? (
-            workspace.value.draft.briefs.length === 0 ? (
-              <BriefComposer
-                canCreate={capabilities.status === "ready" && capabilities.value["content.create"]}
-                execute={execute}
-                flow={draftFlow}
-                organizationId={activeOrganization.id}
-                pending={pendingMutation !== null}
-              />
-            ) : (
-              <GenerationStatus
-                generationJobs={workspace.value.draft.generationJobs}
-                pending={pendingMutation !== null}
-                refresh={refresh}
-              />
-            )
+          {workspace.value.draft.briefs.length === 0 || creatingAnotherBrief ? (
+            <BriefComposer
+              canCreate={capabilities.status === "ready" && capabilities.value["content.create"]}
+              canCancel={workspace.value.draft.briefs.length > 0}
+              execute={execute}
+              flow={draftFlow}
+              onBriefCreated={(briefId) => {
+                setSelectedBriefId(briefId);
+                setSelectedVersionId(null);
+                setCreatingAnotherBrief(false);
+              }}
+              onCancel={() => setCreatingAnotherBrief(false)}
+              organizationId={activeOrganization.id}
+              pending={pendingMutation !== null}
+            />
           ) : (
-            <>
-              <VersionWorkspace
-                canCreate={capabilities.status === "ready" && capabilities.value["content.create"]}
-                canSubmit={capabilities.status === "ready" && capabilities.value["content.submit"]}
-                execute={execute}
-                flow={draftFlow}
-                organizationId={activeOrganization.id}
-                pending={pendingMutation !== null}
-                selectedVersion={selectedVersion}
-                selectVersion={setSelectedVersionId}
-                versions={workspace.value.draft.versions}
-              />
-              <ReviewWorkspace
-                aal2={aal2}
-                capabilities={capabilities.status === "ready" ? capabilities.value : null}
-                execute={execute}
-                flow={reviewFlow}
-                organizationId={activeOrganization.id}
-                pending={pendingMutation !== null}
-                refresh={refresh}
-                selectedVersion={selectedVersion}
-                workspace={workspace.value.review}
-              />
-            </>
+            (() => {
+              const briefs = [...workspace.value.draft.briefs].sort(
+                (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt),
+              );
+              const selectedBrief = briefs.find(({ id }) => id === selectedBriefId) ?? briefs[0];
+              if (!selectedBrief) {
+                return null;
+              }
+              const generationJobs = workspace.value.draft.generationJobs
+                .filter(({ briefId }) => briefId === selectedBrief.id)
+                .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+              const versions = workspace.value.draft.versions.filter(
+                ({ briefId }) => briefId === selectedBrief.id,
+              );
+              // A later failed or in-progress regeneration must never hide an
+              // earlier immutable draft. Generation status owns the screen only
+              // until the first draft exists; after that, the draft workspace
+              // remains the safe recovery path.
+              const showGenerationStep = versions.length === 0;
+              return (
+                <>
+                  <BriefChooser
+                    briefs={briefs}
+                    canCreate={
+                      capabilities.status === "ready" && capabilities.value["content.create"]
+                    }
+                    onCreate={() => setCreatingAnotherBrief(true)}
+                    onSelect={(briefId) => {
+                      setSelectedBriefId(briefId);
+                      setSelectedVersionId(null);
+                    }}
+                    pending={pendingMutation !== null}
+                    selectedBriefId={selectedBrief.id}
+                  />
+                  {showGenerationStep ? (
+                    <GenerationStatus
+                      brief={selectedBrief}
+                      canCreate={
+                        capabilities.status === "ready" && capabilities.value["content.create"]
+                      }
+                      execute={execute}
+                      flow={draftFlow}
+                      generationJobs={generationJobs}
+                      hasEarlierDraft={versions.length > 0}
+                      organizationId={activeOrganization.id}
+                      pending={pendingMutation !== null}
+                      refresh={refresh}
+                    />
+                  ) : (
+                    <>
+                      <VersionWorkspace
+                        canCreate={
+                          capabilities.status === "ready" && capabilities.value["content.create"]
+                        }
+                        canSubmit={
+                          capabilities.status === "ready" && capabilities.value["content.submit"]
+                        }
+                        execute={execute}
+                        flow={draftFlow}
+                        key={selectedVersion?.id ?? "no-version"}
+                        organizationId={activeOrganization.id}
+                        pending={pendingMutation !== null}
+                        selectedVersion={selectedVersion}
+                        selectVersion={setSelectedVersionId}
+                        versions={versions}
+                      />
+                      <ReviewWorkspace
+                        aal2={aal2}
+                        capabilities={capabilities.status === "ready" ? capabilities.value : null}
+                        execute={execute}
+                        flow={reviewFlow}
+                        organizationId={activeOrganization.id}
+                        pending={pendingMutation !== null}
+                        refresh={refresh}
+                        selectedVersion={selectedVersion}
+                        workspace={workspace.value.review}
+                      />
+                    </>
+                  )}
+                </>
+              );
+            })()
           )}
         </div>
       ) : null}
@@ -374,78 +476,358 @@ export function ContentWorkspacePage() {
   );
 }
 
+function BriefChooser({
+  briefs,
+  canCreate,
+  onCreate,
+  onSelect,
+  pending,
+  selectedBriefId,
+}: {
+  readonly briefs: readonly TenantBriefSummary[];
+  readonly canCreate: boolean;
+  readonly onCreate: () => void;
+  readonly onSelect: (briefId: Uuid) => void;
+  readonly pending: boolean;
+  readonly selectedBriefId: Uuid;
+}) {
+  return (
+    <section className="workflow-selector" aria-labelledby="brief-selector-heading">
+      <div>
+        <p className="eyebrow">Saved reflection</p>
+        <h2 id="brief-selector-heading">Choose the brief you want to finish</h2>
+      </div>
+      <label>
+        Brief
+        <select
+          disabled={pending}
+          onChange={(event) => onSelect(event.currentTarget.value)}
+          value={selectedBriefId}
+        >
+          {briefs.map((brief, index) => (
+            <option key={brief.id} value={brief.id}>
+              Brief {briefs.length - index} · saved {formatDate(brief.createdAt)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button
+        aria-describedby={!canCreate ? "new-brief-reason" : undefined}
+        className="secondary-button"
+        disabled={!canCreate || pending}
+        onClick={onCreate}
+        type="button"
+      >
+        Start a new reflection
+      </button>
+      {!canCreate ? (
+        <p className="permission-note" id="new-brief-reason">
+          Your current role cannot create content. Ask an organization owner for content-creation
+          access.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+const GENERATION_POLL_LIMIT = 15;
+const GENERATION_POLL_DELAY_MS = 2_000;
+
+function generationFailureGuidance(errorCode: string | null): string {
+  if (errorCode === "generation.provider_invalid_response") {
+    return "The provider returned a draft Studio could not safely validate. Your brief and any earlier draft are unchanged.";
+  }
+  if (errorCode === "generation.provider_cost_limit_exceeded") {
+    return "The provider request was stopped by the cost limit. Your brief and any earlier draft are unchanged.";
+  }
+  if (errorCode === "generation.provider_timeout") {
+    return "The provider did not finish in time. Your brief and any earlier draft are unchanged.";
+  }
+  if (errorCode === "generation.provider_rate_limited") {
+    return "The provider is temporarily busy. Your brief and any earlier draft are unchanged.";
+  }
+  if (errorCode === "generation.provider_authentication_failed") {
+    return "The private provider connection needs operator attention. Your brief and any earlier draft are unchanged.";
+  }
+  if (errorCode === "generation.provider_unavailable") {
+    return "The provider is temporarily unavailable. Your brief and any earlier draft are unchanged.";
+  }
+  return "The provider did not create a usable draft. Your brief and any earlier draft are unchanged.";
+}
+
 function GenerationStatus({
+  brief,
+  canCreate,
+  execute,
+  flow,
   generationJobs,
+  hasEarlierDraft,
+  organizationId,
   pending,
   refresh,
 }: {
+  readonly brief: TenantBriefSummary;
+  readonly canCreate: boolean;
+  readonly execute: ExecuteMutation;
+  readonly flow: BriefToDraftOperatorFlow;
   readonly generationJobs: BriefToDraftWorkspace["generationJobs"];
+  readonly hasEarlierDraft: boolean;
+  readonly organizationId: Uuid;
   readonly pending: boolean;
-  readonly refresh: () => Promise<void>;
+  readonly refresh: RefreshWorkspace;
 }) {
-  const latestJob = [...generationJobs].sort(
-    (left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt),
-  )[0];
-  const needsHelp = !latestJob || ["cancelled", "dead_letter", "failed"].includes(latestJob.state);
-  const finished = latestJob?.state === "succeeded";
+  const [confirmRetry, setConfirmRetry] = useState(false);
+  const [pollingRequested, setPollingRequested] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
+  const [runtimeErrorCode, setRuntimeErrorCode] = useState<string | null>(null);
+  const latestJob = generationJobs[0];
+  const active = latestJob?.state === "queued" || latestJob?.state === "running";
+  const pollingFinished = pollingRequested && active && pollCount >= GENERATION_POLL_LIMIT;
+  const failed =
+    latestJob !== undefined && ["cancelled", "dead_letter", "failed"].includes(latestJob.state);
+  const needsFreshRequest = failed || (latestJob?.state === "queued" && pollingFinished);
+
+  useEffect(() => {
+    if (!pollingRequested || !active || pollCount >= GENERATION_POLL_LIMIT) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setPollCount((value) => value + 1);
+      void refresh({ silent: true });
+    }, GENERATION_POLL_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [active, pollCount, pollingRequested, refresh]);
+
+  useEffect(() => {
+    if (!active) {
+      setPollingRequested(false);
+      setPollCount(0);
+    }
+  }, [active]);
+
+  const requestFreshGeneration = (retry: boolean) => {
+    setRuntimeErrorCode(null);
+    setPollCount(0);
+    setPollingRequested(true);
+    void execute(
+      retry ? "retry-generation" : "request-generation",
+      retry
+        ? "A new private draft request was sent. Studio is checking its progress."
+        : "The private draft request was sent. Studio is checking its progress.",
+      retry ? "A new draft request was not completed" : "The draft request was not completed",
+      async () => {
+        try {
+          const result = await flow.requestGeneration({
+            briefId: brief.id,
+            correlationId: newUuid(),
+            idempotencyKey: newIdempotencyKey(),
+            organizationId,
+            promptKey: "strongr.strongr_daily.v2",
+            promptVersion: 1,
+          });
+          setRuntimeErrorCode(result.errorCode);
+        } catch (error) {
+          if (error instanceof GenerationRuntimeDeferredError) {
+            setRuntimeErrorCode(error.errorCode);
+          }
+          throw error;
+        } finally {
+          setConfirmRetry(false);
+        }
+      },
+    );
+  };
+
+  if (!latestJob) {
+    return (
+      <section
+        className="workflow-current-action"
+        aria-label="Current step"
+        aria-labelledby="generation-status-heading"
+      >
+        <p className="eyebrow">Step 2 · Current step</p>
+        <h2 id="generation-status-heading">Generate the first private draft</h2>
+        <p>
+          This starts only when you choose the button below. The provider can create an unapproved
+          draft only; it cannot approve, publish, narrate, upload, or release anything.
+        </p>
+        <p>
+          Each generation is separately billable and protected by a hard maximum of US$0.10.
+          Refreshing or reopening Studio never starts a generation.
+        </p>
+        <button
+          aria-describedby={!canCreate || pending ? "generation-start-reason" : undefined}
+          className="primary-button"
+          data-primary-action
+          disabled={!canCreate || pending}
+          onClick={() => requestFreshGeneration(false)}
+          type="button"
+        >
+          Generate first draft
+        </button>
+        {!canCreate ? (
+          <p className="permission-note" id="generation-start-reason">
+            Your current role cannot request a draft. Ask an organization owner for content-creation
+            access.
+          </p>
+        ) : pending ? (
+          <p className="permission-note" id="generation-start-reason">
+            Studio is already completing this step.
+          </p>
+        ) : null}
+      </section>
+    );
+  }
+
+  if (needsFreshRequest) {
+    return (
+      <section
+        className="workflow-current-action workflow-current-action--blocked"
+        aria-label="Current step"
+        aria-labelledby="generation-status-heading"
+      >
+        <p className="eyebrow">Step 2 · Needs attention</p>
+        <h2 id="generation-status-heading">The draft was not completed</h2>
+        <p>{generationFailureGuidance(runtimeErrorCode)}</p>
+        {hasEarlierDraft ? (
+          <p>Your earlier immutable draft is still available and was not changed.</p>
+        ) : null}
+        <p>
+          Trying again creates a new provider request. It is separately billable and protected by
+          the same US$0.10 hard maximum. Nothing starts until you confirm and choose the button.
+        </p>
+        <label className="generation-retry-confirmation">
+          <input
+            checked={confirmRetry}
+            onChange={(event) => setConfirmRetry(event.currentTarget.checked)}
+            type="checkbox"
+          />
+          I understand this intentionally starts one new, separately billable draft request.
+        </label>
+        <button
+          aria-describedby={
+            !canCreate || !confirmRetry || pending ? "generation-retry-reason" : undefined
+          }
+          className="primary-button"
+          data-primary-action
+          disabled={!canCreate || !confirmRetry || pending}
+          onClick={() => requestFreshGeneration(true)}
+          type="button"
+        >
+          Try generation again
+        </button>
+        {!canCreate ? (
+          <p className="permission-note" id="generation-retry-reason">
+            Your current role cannot request another draft.
+          </p>
+        ) : !confirmRetry ? (
+          <p className="permission-note" id="generation-retry-reason">
+            Check the confirmation box to unlock a new provider request.
+          </p>
+        ) : pending ? (
+          <p className="permission-note" id="generation-retry-reason">
+            Studio is sending the new request now.
+          </p>
+        ) : null}
+        <details className="advanced-details">
+          <summary>Advanced generation details</summary>
+          <p>
+            Last job state: <code>{latestJob.state}</code>. Attempts: {latestJob.attemptCount}.
+          </p>
+        </details>
+      </section>
+    );
+  }
+
+  if (latestJob.state === "succeeded") {
+    return (
+      <section
+        className="workflow-current-action"
+        aria-label="Current step"
+        aria-labelledby="generation-status-heading"
+      >
+        <p className="eyebrow">Step 2 · Draft generated</p>
+        <h2 id="generation-status-heading">Load the saved private draft</h2>
+        <p>
+          Generation finished. Loading the saved draft does not contact the provider or create a
+          charge.
+        </p>
+        <button
+          className="primary-button"
+          data-primary-action
+          disabled={pending}
+          onClick={() => void refresh()}
+          type="button"
+        >
+          Load draft
+        </button>
+      </section>
+    );
+  }
+
   return (
     <section
-      className={`workflow-current-action${needsHelp ? " workflow-current-action--blocked" : ""}`}
+      className="workflow-current-action"
       aria-label="Current step"
       aria-labelledby="generation-status-heading"
     >
-      <p className="eyebrow">{needsHelp ? "Needs attention" : "Current step"}</p>
+      <p className="eyebrow">Step 2 · In progress</p>
       <h2 id="generation-status-heading">
-        {needsHelp
-          ? "The draft could not be prepared"
-          : finished
-            ? "The draft is almost ready"
-            : "Studio is preparing the draft"}
+        {latestJob.state === "running" ? "Studio is generating the draft" : "Draft request queued"}
       </h2>
       <p>
-        {needsHelp
-          ? "Your brief is saved, and nothing was approved or published. Check once more; if this message remains, ask the Studio operator for help."
-          : finished
-            ? "Generation finished. Check again to load the saved draft."
-            : "Your brief is saved. You can leave this screen and return later without starting another request."}
+        Your brief is saved. Studio is checking this existing request for a short time. These status
+        checks never start another request or create another provider charge.
       </p>
+      {hasEarlierDraft ? <p>Your earlier immutable draft remains unchanged.</p> : null}
+      {pollingFinished ? (
+        <p>
+          Automatic status checks paused. You may leave this screen and return later, or check the
+          same saved request now.
+        </p>
+      ) : !pollingRequested ? (
+        <p role="status">
+          This saved request is still in progress. Check its status when you are ready.
+        </p>
+      ) : (
+        <p role="status">
+          Checking saved status ({pollCount} of {GENERATION_POLL_LIMIT})…
+        </p>
+      )}
       <button
-        aria-describedby={pending ? "generation-refresh-reason" : undefined}
-        className="primary-button"
-        data-primary-action
+        className="secondary-button"
         disabled={pending}
         onClick={() => void refresh()}
         type="button"
       >
         Check draft status
       </button>
-      {pending ? (
-        <p className="permission-note" id="generation-refresh-reason">
-          Checking the saved draft status now…
+      <details className="advanced-details">
+        <summary>Advanced generation details</summary>
+        <p>
+          Job state: <code>{latestJob.state}</code>. Attempts: {latestJob.attemptCount}.
         </p>
-      ) : null}
-      {latestJob ? (
-        <details className="advanced-details">
-          <summary>Advanced generation details</summary>
-          <p>
-            Job state: <code>{latestJob.state}</code>. Attempts: {latestJob.attemptCount}.
-          </p>
-        </details>
-      ) : null}
+      </details>
     </section>
   );
 }
 
 function BriefComposer({
   canCreate,
+  canCancel,
   execute,
   flow,
+  onBriefCreated,
+  onCancel,
   organizationId,
   pending,
 }: {
   readonly canCreate: boolean;
+  readonly canCancel: boolean;
   readonly execute: ExecuteMutation;
   readonly flow: BriefToDraftOperatorFlow;
+  readonly onBriefCreated: (briefId: Uuid) => void;
+  readonly onCancel: () => void;
   readonly organizationId: Uuid;
   readonly pending: boolean;
 }) {
@@ -456,7 +838,6 @@ function BriefComposer({
   const [prohibitedWording, setProhibitedWording] = useState(
     initialBrief.prohibited_claims_or_wording.join("\n"),
   );
-  const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey);
   const reference = brief.scripture_reference;
   const updateReference = (patch: Partial<typeof brief.scripture_reference>) => {
     setBrief({
@@ -475,8 +856,8 @@ function BriefComposer({
         <span className="status-pill status-pill--neutral">Ready</span>
       </div>
       <p>
-        Describe the content once. Studio will save the brief and prepare a private draft for
-        review.
+        Describe the content once. Saving this brief does not contact the provider or create a
+        charge. You will choose whether to generate a private draft in the next step.
       </p>
       <form
         className="workflow-form"
@@ -489,19 +870,16 @@ function BriefComposer({
           };
           void execute(
             "create-brief",
-            "Brief saved. Studio started preparing the private draft.",
-            "The brief was not fully started",
+            "Brief saved. Nothing was generated, approved, or published.",
+            "The brief was not saved",
             async () => {
-              await flow.createBriefAndRequestGeneration({
+              const result = await flow.createBrief({
                 brief: payload,
                 correlationId: newUuid(),
-                idempotencyKey,
                 organizationId,
-                promptKey: "strongr.strongr_daily.fixture",
-                promptVersion: 1,
                 title: payload.working_title,
               });
-              setIdempotencyKey(newIdempotencyKey());
+              onBriefCreated(result.briefId);
             },
           );
         }}
@@ -608,12 +986,6 @@ function BriefComposer({
           onChange={(value) => setBrief({ ...brief, pastoral_purpose: value })}
           value={brief.pastoral_purpose}
         />
-        <details className="advanced-details">
-          <summary>Advanced request details</summary>
-          <p className="operation-detail">
-            Stable request key: <code>{idempotencyKey}</code>
-          </p>
-        </details>
         <button
           aria-describedby={!canCreate || pending ? "brief-access-reason" : undefined}
           className="primary-button"
@@ -621,7 +993,7 @@ function BriefComposer({
           disabled={!canCreate || pending}
           type="submit"
         >
-          Create brief and request generation
+          Save brief
         </button>
         {!canCreate ? (
           <p className="permission-note" id="brief-access-reason">
@@ -630,8 +1002,13 @@ function BriefComposer({
           </p>
         ) : pending ? (
           <p className="permission-note" id="brief-access-reason">
-            Saving the brief and starting the private draft now…
+            Saving the brief now…
           </p>
+        ) : null}
+        {canCancel ? (
+          <button className="text-button" disabled={pending} onClick={onCancel} type="button">
+            Cancel and return to saved reflections
+          </button>
         ) : null}
       </form>
     </section>
@@ -661,6 +1038,7 @@ function VersionWorkspace({
 }) {
   const reflection = reflectionFromVersion(selectedVersion);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
 
   return (
     <section className="workflow-section" aria-labelledby="version-heading">
@@ -722,55 +1100,120 @@ function VersionWorkspace({
                 <ImmutableContentPreview value={reflection} />
               </details>
               {selectedVersion.state === "draft" ? (
-                <div className="confirmation-panel">
-                  <label>
-                    <input
-                      checked={confirmSubmit}
-                      onChange={(event) => setConfirmSubmit(event.currentTarget.checked)}
-                      type="checkbox"
-                    />
-                    Submit version {selectedVersion.versionNumber} for review. The saved draft will
-                    not be changed.
-                  </label>
-                  <button
-                    aria-describedby={
-                      !canSubmit || !confirmSubmit || pending ? "submit-version-reason" : undefined
-                    }
-                    className="primary-button"
-                    data-primary-action
-                    disabled={!canSubmit || !confirmSubmit || pending}
-                    onClick={() => {
-                      void execute(
-                        "submit-version",
-                        `Version ${selectedVersion.versionNumber} submitted for review. The saved status was refreshed.`,
-                        "The exact version was not confirmed as submitted",
-                        () =>
-                          flow.submitDraft({
-                            contentVersionId: selectedVersion.id,
-                            correlationId: newUuid(),
-                            organizationId,
-                          }),
-                      ).finally(() => setConfirmSubmit(false));
-                    }}
-                    type="button"
-                  >
-                    Submit this version
-                  </button>
-                  {!canSubmit ? (
-                    <p className="permission-note" id="submit-version-reason">
-                      Your current role cannot submit content for review. Ask an organization owner
-                      for submission access.
+                <>
+                  <details className="generation-retry">
+                    <summary>Need a different draft?</summary>
+                    <p>
+                      Your current draft remains immutable. Generating another creates a separate
+                      draft and a new provider request; it never changes, approves, or publishes
+                      this version.
                     </p>
-                  ) : !confirmSubmit ? (
-                    <p className="permission-note" id="submit-version-reason">
-                      Read the draft and check the confirmation box to unlock submission.
+                    <p>
+                      Each generation is separately billable and protected by a hard maximum of
+                      US$0.10.
                     </p>
-                  ) : pending ? (
-                    <p className="permission-note" id="submit-version-reason">
-                      Submitting this exact version now…
-                    </p>
-                  ) : null}
-                </div>
+                    <label>
+                      <input
+                        checked={confirmRegenerate}
+                        onChange={(event) => setConfirmRegenerate(event.currentTarget.checked)}
+                        type="checkbox"
+                      />
+                      I intentionally want one new, separately billable draft request.
+                    </label>
+                    <button
+                      aria-describedby={
+                        !canCreate || !confirmRegenerate || pending
+                          ? "regenerate-version-reason"
+                          : undefined
+                      }
+                      className="secondary-button"
+                      disabled={!canCreate || !confirmRegenerate || pending}
+                      onClick={() => {
+                        void execute(
+                          "regenerate-version",
+                          "A new private draft request was sent. The current version remains unchanged.",
+                          "A new private draft was not completed",
+                          () =>
+                            flow.requestGeneration({
+                              briefId: selectedVersion.briefId,
+                              correlationId: newUuid(),
+                              idempotencyKey: newIdempotencyKey(),
+                              organizationId,
+                              promptKey: "strongr.strongr_daily.v2",
+                              promptVersion: 1,
+                            }),
+                        ).finally(() => setConfirmRegenerate(false));
+                      }}
+                      type="button"
+                    >
+                      Generate a different draft
+                    </button>
+                    {!canCreate ? (
+                      <p className="permission-note" id="regenerate-version-reason">
+                        Your current role cannot request another draft.
+                      </p>
+                    ) : !confirmRegenerate ? (
+                      <p className="permission-note" id="regenerate-version-reason">
+                        Check the confirmation box to unlock a new provider request.
+                      </p>
+                    ) : pending ? (
+                      <p className="permission-note" id="regenerate-version-reason">
+                        Studio is sending the new request now.
+                      </p>
+                    ) : null}
+                  </details>
+                  <div className="confirmation-panel">
+                    <label>
+                      <input
+                        checked={confirmSubmit}
+                        onChange={(event) => setConfirmSubmit(event.currentTarget.checked)}
+                        type="checkbox"
+                      />
+                      Submit version {selectedVersion.versionNumber} for review. The saved draft
+                      will not be changed.
+                    </label>
+                    <button
+                      aria-describedby={
+                        !canSubmit || !confirmSubmit || pending
+                          ? "submit-version-reason"
+                          : undefined
+                      }
+                      className="primary-button"
+                      data-primary-action
+                      disabled={!canSubmit || !confirmSubmit || pending}
+                      onClick={() => {
+                        void execute(
+                          "submit-version",
+                          `Version ${selectedVersion.versionNumber} submitted for review. The saved status was refreshed.`,
+                          "The exact version was not confirmed as submitted",
+                          () =>
+                            flow.submitDraft({
+                              contentVersionId: selectedVersion.id,
+                              correlationId: newUuid(),
+                              organizationId,
+                            }),
+                        ).finally(() => setConfirmSubmit(false));
+                      }}
+                      type="button"
+                    >
+                      Submit this version
+                    </button>
+                    {!canSubmit ? (
+                      <p className="permission-note" id="submit-version-reason">
+                        Your current role cannot submit content for review. Ask an organization
+                        owner for submission access.
+                      </p>
+                    ) : !confirmSubmit ? (
+                      <p className="permission-note" id="submit-version-reason">
+                        Read the draft and check the confirmation box to unlock submission.
+                      </p>
+                    ) : pending ? (
+                      <p className="permission-note" id="submit-version-reason">
+                        Submitting this exact version now…
+                      </p>
+                    ) : null}
+                  </div>
+                </>
               ) : null}
             </article>
           ) : (
@@ -816,6 +1259,8 @@ function ImmutableContentPreview({ value }: { readonly value: ImmutableContent }
   }
   return (
     <div className="content-preview">
+      <h4>Audience</h4>
+      <p>{value.audience}</p>
       <h4>Summary</h4>
       <p>{value.short_summary}</p>
       <h4>Pastoral purpose</h4>
@@ -826,6 +1271,7 @@ function ImmutableContentPreview({ value }: { readonly value: ImmutableContent }
       <p>
         {value.scripture_reference.reference} ({value.scripture_reference.translation})
       </p>
+      <p>Source citation: {value.scripture_reference.source_citation}</p>
       {value.scripture_text ? <p>{value.scripture_text}</p> : null}
       <h4>Welcome</h4>
       <p>{value.warm_welcome}</p>
@@ -849,8 +1295,19 @@ function ImmutableContentPreview({ value }: { readonly value: ImmutableContent }
       <p>{value.personal_takeaway_prompt}</p>
       <h4>App description</h4>
       <p>{value.app_description}</p>
+      <h4>Prohibited claims or wording</h4>
+      {value.prohibited_claims_or_wording.length > 0 ? (
+        <ul>
+          {value.prohibited_claims_or_wording.map((entry) => (
+            <li key={entry}>{entry}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>None specified.</p>
+      )}
       <h4>Production metadata</h4>
       <ul>
+        <li>Schema: {value.schema_id}</li>
         <li>Artwork prompt: {value.artwork_generation_prompt}</li>
         <li>Social caption: {value.social_caption}</li>
         <li>Keywords: {value.keywords.join(", ")}</li>

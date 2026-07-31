@@ -1,5 +1,6 @@
 import {
   createGenerationOutputHash,
+  isGenerationOutputBoundToBrief,
   type GenerationAdapter,
   type GenerationAdapterIdentity,
   GenerationProviderError,
@@ -59,6 +60,11 @@ export interface GenerationCompletion {
 }
 
 export interface GenerationWorkerStore {
+  claimGenerationEventByJob(
+    generationJobId: Uuid,
+    workerId: string,
+    leaseSeconds: number,
+  ): Promise<GenerationEventClaim | null>;
   claimGenerationEvents(
     workerId: string,
     batchSize: number,
@@ -126,6 +132,11 @@ export interface DurableWorkerOptions {
   readonly retryAfterSeconds?: number;
 }
 
+export interface DurableSingleJobOptions {
+  readonly leaseSeconds?: number;
+  readonly retryAfterSeconds?: number;
+}
+
 export interface DurableWorkerBatchSummary {
   readonly claimed: number;
   readonly succeeded: number;
@@ -179,7 +190,8 @@ function validGenerationResult(
       result.promptChecksum === promptChecksum &&
       result.responseSchemaId === expectedSchemaId &&
       result.output.schema_id === expectedSchemaId &&
-      result.outputHash === createGenerationOutputHash(output)
+      result.outputHash === createGenerationOutputHash(output) &&
+      isGenerationOutputBoundToBrief(brief, output)
     );
   } catch {
     return false;
@@ -230,8 +242,48 @@ export class DurableGenerationWorker {
       outcomes.push(await this.#processClaim(claim, retryAfterSeconds));
     }
 
+    return this.#finishRun(claims.length, outcomes, "batch_completed");
+  }
+
+  async runJobOnce(
+    generationJobId: Uuid,
+    options: DurableSingleJobOptions = {},
+  ): Promise<DurableWorkerBatchSummary> {
+    if (!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(generationJobId)) {
+      throw new Error("generation job id is invalid");
+    }
+    const leaseSeconds = requireIntegerInRange(
+      options.leaseSeconds ?? 60,
+      1,
+      3_600,
+      "lease duration",
+    );
+    const retryAfterSeconds = requireIntegerInRange(
+      options.retryAfterSeconds ?? 0,
+      0,
+      86_400,
+      "retry delay",
+    );
+
+    const claim = await this.#store.claimGenerationEventByJob(
+      generationJobId,
+      this.#workerId,
+      leaseSeconds,
+    );
+    this.#record("job_claimed", "pass", claim ?? undefined);
+    const outcomes: EventOutcome[] = claim
+      ? [await this.#processClaim(claim, retryAfterSeconds)]
+      : [];
+    return this.#finishRun(claim ? 1 : 0, outcomes, "job_completed");
+  }
+
+  async #finishRun(
+    claimed: number,
+    outcomes: readonly EventOutcome[],
+    evidenceAction: "batch_completed" | "job_completed",
+  ): Promise<DurableWorkerBatchSummary> {
     const summary: DurableWorkerBatchSummary = Object.freeze({
-      claimed: claims.length,
+      claimed,
       succeeded: outcomes.filter((outcome) => outcome === "succeeded").length,
       replayed: outcomes.filter((outcome) => outcome === "replayed").length,
       retried: outcomes.filter((outcome) => outcome === "retried").length,
@@ -248,7 +300,7 @@ export class DurableGenerationWorker {
       retried: summary.retried,
       succeeded: summary.succeeded,
     });
-    this.#record("batch_completed", heartbeatStatus === "idle" ? "pass" : "deferred");
+    this.#record(evidenceAction, heartbeatStatus === "idle" ? "pass" : "deferred");
     return summary;
   }
 

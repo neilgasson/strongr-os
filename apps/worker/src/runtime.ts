@@ -6,6 +6,7 @@ import {
 
 import {
   DurableGenerationWorker,
+  type DurableSingleJobOptions,
   type DurableWorkerBatchSummary,
   type DurableWorkerOptions,
   type WorkerEvidenceSink,
@@ -16,6 +17,10 @@ import { SupabaseGenerationWorkerStore } from "./supabase-worker-store.ts";
 
 export interface DurableWorkerRuntime {
   readonly worker: DurableGenerationWorker;
+  runJobOnce(
+    generationJobId: string,
+    options?: DurableSingleJobOptions,
+  ): Promise<DurableWorkerBatchSummary>;
   runOnce(options?: DurableWorkerOptions): Promise<DurableWorkerBatchSummary>;
 }
 
@@ -26,7 +31,6 @@ function defaultAdapter(environment: WorkerEnvironment): GenerationAdapter {
     }
     return createOpenAiStrongrDailyV2Adapter({
       apiKey: environment.openAiApiKey,
-      model: environment.openAiModel,
     });
   }
   return deterministicGenerationAdapter;
@@ -53,6 +57,9 @@ export function createDurableWorkerRuntime(
 
   return Object.freeze({
     worker,
+    runJobOnce(generationJobId: string, runOptions: DurableSingleJobOptions = {}) {
+      return worker.runJobOnce(generationJobId, runOptions);
+    },
     runOnce(runOptions: DurableWorkerOptions = {}) {
       return worker.runOnce(runOptions);
     },

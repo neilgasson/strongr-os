@@ -21,14 +21,13 @@ test("Worker enables OpenAI only with explicit server-only configuration", () =>
   const environment = loadWorkerEnvironment({
     STRONGR_OS_GENERATION_PROVIDER: "openai",
     STRONGR_OS_OPENAI_API_KEY: "sk_phase3_provider_fixture_1234567890",
-    STRONGR_OS_OPENAI_MODEL: "gpt-4o-mini",
     STRONGR_OS_SUPABASE_URL: "https://example.supabase.co",
     STRONGR_OS_SUPABASE_SECRET_KEY: "sb_secret_worker_fixture_123456",
     STRONGR_OS_WORKER_ID: "m1-worker-1",
   });
 
   assert.equal(environment.generationProvider, "openai");
-  assert.equal(environment.openAiModel, "gpt-4o-mini");
+  assert.equal(environment.openAiModel, "gpt-5.6-terra");
   assert.doesNotMatch(
     JSON.stringify({
       generationProvider: environment.generationProvider,
@@ -55,7 +54,6 @@ test("Worker rejects privileged values under public names", () => {
         PUBLIC_OPENAI_API_KEY: "must-not-ship",
         STRONGR_OS_GENERATION_PROVIDER: "openai",
         STRONGR_OS_OPENAI_API_KEY: "sk_phase3_provider_fixture_1234567890",
-        STRONGR_OS_OPENAI_MODEL: "gpt-4o-mini",
         STRONGR_OS_SUPABASE_URL: "https://example.supabase.co",
         STRONGR_OS_SUPABASE_SECRET_KEY: "sb_secret_worker_fixture_123456",
         STRONGR_OS_WORKER_ID: "m1-worker-1",
@@ -64,7 +62,7 @@ test("Worker rejects privileged values under public names", () => {
   );
 });
 
-test("Worker does not select OpenAI without a model and server-only key", () => {
+test("Worker does not select OpenAI without a server-only key", () => {
   assert.throws(
     () =>
       loadWorkerEnvironment({
@@ -74,6 +72,21 @@ test("Worker does not select OpenAI without a model and server-only key", () => 
         STRONGR_OS_WORKER_ID: "m1-worker-1",
       }),
     /STRONGR_OS_OPENAI_API_KEY/,
+  );
+});
+
+test("Worker rejects attempts to override the fixed OpenAI model", () => {
+  assert.throws(
+    () =>
+      loadWorkerEnvironment({
+        STRONGR_OS_GENERATION_PROVIDER: "openai",
+        STRONGR_OS_OPENAI_API_KEY: "sk_phase4b_provider_fixture_1234567890",
+        STRONGR_OS_OPENAI_MODEL: "different-model",
+        STRONGR_OS_SUPABASE_URL: "https://example.supabase.co",
+        STRONGR_OS_SUPABASE_SECRET_KEY: "sb_secret_worker_fixture_123456",
+        STRONGR_OS_WORKER_ID: "m1-worker-1",
+      }),
+    /model is fixed/,
   );
 });
 

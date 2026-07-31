@@ -17,10 +17,16 @@ export {
   createGenerationOutputHash,
   createGenerationPromptChecksum,
   GenerationProviderError,
+  isGenerationOutputBoundToBrief,
 } from "./generation-adapter.ts";
 export type {
   OpenAiFetch,
   OpenAiResponse,
   OpenAiStrongrDailyV2AdapterOptions,
+  OpenAiStrongrDailyV2CostEstimate,
 } from "./openai-strongr-daily-v2-adapter.ts";
-export { createOpenAiStrongrDailyV2Adapter } from "./openai-strongr-daily-v2-adapter.ts";
+export {
+  createOpenAiStrongrDailyV2Adapter,
+  estimateOpenAiStrongrDailyV2Generation,
+  openAiStrongrDailyV2ProviderConfig,
+} from "./openai-strongr-daily-v2-adapter.ts";

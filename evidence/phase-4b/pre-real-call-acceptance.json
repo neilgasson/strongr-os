@@ -1,0 +1,60 @@
+{
+  "schema_id": "strongr.phase_4b.pre_real_call_acceptance.v1",
+  "phase": "4B",
+  "status": "pre_real_call",
+  "baseline_commit": "5da546096e2cce316866f1fc096a2ad050b89130",
+  "provider": {
+    "name": "openai",
+    "model": "gpt-5.6-terra",
+    "prompt_key": "strongr.strongr_daily.v2",
+    "prompt_version": 1,
+    "server_credential_only": true,
+    "real_provider_calls": 0,
+    "billing_changed_by_phase_4b": false,
+    "credits_purchased_by_phase_4b": false,
+    "automatic_refill_enabled_by_phase_4b": false,
+    "pre_call_estimate_microunits": null,
+    "actual_input_tokens": null,
+    "actual_output_tokens": null,
+    "actual_cost_microunits": null,
+    "maximum_per_job_cost_microunits": 100000
+  },
+  "runtime_boundary": {
+    "environment": "development_only",
+    "jwt_verification_required": true,
+    "origin_policy": "exact_owner_preview_only",
+    "method": "POST",
+    "content_type": "application/json",
+    "body_fields": ["generation_job_id"],
+    "automatic_provider_retry": false,
+    "deployment_performed": false
+  },
+  "database_boundary": {
+    "migration": "20260731120000_phase4b_exact_generation_worker.sql",
+    "exact_claim_command": "m1_claim_generation_event_by_job(uuid,text,integer)",
+    "usage_completion_command": "m1_complete_generation_attempt_with_usage(uuid,text,uuid,uuid,text,text,jsonb,text,integer,integer,integer,bigint)",
+    "legacy_completion_retained": true,
+    "service_role_direct_generation_dml": false,
+    "service_role_approval_authority": false,
+    "rls_changed": false,
+    "aal2_changed": false,
+    "tenant_isolation_changed": false
+  },
+  "content_outcomes": {
+    "drafts_created": 0,
+    "human_reviews_recorded": 0,
+    "approvals_recorded": 0,
+    "packages_created": 0,
+    "audio_generated": 0,
+    "content_uploaded": 0,
+    "content_published": 0,
+    "production_resources_touched": false
+  },
+  "acceptance": {
+    "local_checks_complete": false,
+    "security_review_complete": false,
+    "owner_pre_call_approval_required": true,
+    "real_call_authorized": false,
+    "notes": "No prompt, content payload, credential, authorization header, URL credential, or personal data is stored in this record."
+  }
+}

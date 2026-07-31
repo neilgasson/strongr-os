@@ -28,6 +28,7 @@ export type {
 } from "./media-worker.ts";
 export type {
   DeliveryFailureState,
+  DurableSingleJobOptions,
   DurableWorkerBatchSummary,
   DurableWorkerOptions,
   GenerationAttemptDisposition,

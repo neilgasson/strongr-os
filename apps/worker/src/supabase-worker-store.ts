@@ -169,6 +169,22 @@ export class SupabaseGenerationWorkerStore implements GenerationWorkerStore {
     this.#rpc = rpc;
   }
 
+  async claimGenerationEventByJob(
+    generationJobId: Uuid,
+    workerId: string,
+    leaseSeconds: number,
+  ): Promise<GenerationEventClaim | null> {
+    const rows = await this.#rpc.rpc<unknown>(workerCommands.claimGenerationEventByJob, {
+      p_generation_job_id: generationJobId,
+      p_lease_seconds: leaseSeconds,
+      p_worker_id: workerId,
+    });
+    if (!Array.isArray(rows) || rows.length > 1) {
+      throw new Error("Invalid exact generation claim RPC result");
+    }
+    return rows.length === 0 ? null : parseClaim(rows[0]);
+  }
+
   async claimGenerationEvents(
     workerId: string,
     batchSize: number,
@@ -207,7 +223,7 @@ export class SupabaseGenerationWorkerStore implements GenerationWorkerStore {
     result: GenerationResult,
     latencyMs: number,
   ): Promise<GenerationCompletion> {
-    const value = await this.#rpc.rpc<unknown>(workerCommands.completeGenerationAttempt, {
+    const commonArguments = {
       p_attempt_id: attemptId,
       p_event_id: claim.eventId,
       p_latency_ms: latencyMs,
@@ -217,7 +233,15 @@ export class SupabaseGenerationWorkerStore implements GenerationWorkerStore {
       p_provider_response_id: result.providerResponseId,
       p_response_schema_id: result.responseSchemaId,
       p_worker_id: workerId,
-    });
+    };
+    const value = result.usage
+      ? await this.#rpc.rpc<unknown>(workerCommands.completeGenerationAttemptWithUsage, {
+          ...commonArguments,
+          p_cost_microunits: result.usage.estimatedCostMicrounits,
+          p_input_tokens: result.usage.inputTokens,
+          p_output_tokens: result.usage.outputTokens,
+        })
+      : await this.#rpc.rpc<unknown>(workerCommands.completeGenerationAttempt, commonArguments);
     const completion = requireSingleRow(value, "complete generation attempt");
     if (requireString(completion, "completion_state") !== "succeeded") {
       throw new Error("Invalid complete generation attempt RPC result");

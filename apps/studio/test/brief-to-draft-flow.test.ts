@@ -16,8 +16,13 @@ import {
   createGenerationRequestFixture,
   fixtureIds,
 } from "../../../packages/testing/src/index.ts";
-import type { StudioCommandGateway } from "../src/index.ts";
-import { BriefToDraftOperatorFlow, GenerationRequestDeferredError } from "../src/index.ts";
+import type { StudioCommandGateway, StudioGenerationGateway } from "../src/index.ts";
+import {
+  BriefToDraftOperatorFlow,
+  GenerationRequestDeferredError,
+  GenerationRuntimeDeferredError,
+  StudioApiError,
+} from "../src/index.ts";
 
 const contentItemId = "00000000-0000-4000-8000-000000000010";
 const briefId = "00000000-0000-4000-8000-000000000011";
@@ -40,6 +45,23 @@ const strongrDailyV2BriefFixture: StrongrDailyAudioReflectionV2Brief = {
   tone: "pastoral",
   working_title: "Be Still",
 };
+
+function createGeneration(calls: { generationJobId: string }[] = []): StudioGenerationGateway {
+  return {
+    startGeneration(input) {
+      calls.push(input);
+      return Promise.resolve({
+        contentVersionId: versionId,
+        errorCode: null,
+        estimatedCostMicrounits: 2_500,
+        generationJobId: input.generationJobId,
+        inputTokens: 1_000,
+        outputTokens: 2_000,
+        state: "succeeded",
+      });
+    },
+  };
+}
 
 function createReads(): TenantReadGateway {
   return {
@@ -102,6 +124,7 @@ test("operator flow validates then creates a brief and requests one durable gene
   };
   const flow = new BriefToDraftOperatorFlow({
     commands,
+    generation: createGeneration(),
     reads: createReads(),
   });
 
@@ -138,7 +161,11 @@ test("operator flow accepts the governed Strongr Daily v2 brief contract", async
       return Promise.resolve(result as BrowserCommandResult<Name>);
     },
   };
-  const flow = new BriefToDraftOperatorFlow({ commands, reads: createReads() });
+  const flow = new BriefToDraftOperatorFlow({
+    commands,
+    generation: createGeneration(),
+    reads: createReads(),
+  });
 
   await flow.createBriefAndRequestGeneration({
     brief: strongrDailyV2BriefFixture,
@@ -151,6 +178,169 @@ test("operator flow accepts the governed Strongr Daily v2 brief contract", async
   });
 
   assert.deepEqual(calls, ["m1_create_audio_brief", "m1_request_generation"]);
+});
+
+test("saving a brief does not request or invoke billable generation", async () => {
+  const commands: BrowserCommandName[] = [];
+  let runtimeCalls = 0;
+  const flow = new BriefToDraftOperatorFlow({
+    commands: {
+      invoke<Name extends BrowserCommandName>(
+        command: Name,
+        _arguments: BrowserCommandArguments[Name],
+      ): Promise<BrowserCommandResult<Name>> {
+        commands.push(command);
+        return Promise.resolve({ briefId, contentItemId } as BrowserCommandResult<Name>);
+      },
+    },
+    generation: {
+      startGeneration() {
+        runtimeCalls += 1;
+        return Promise.reject(new Error("generation must remain explicit"));
+      },
+    },
+    reads: createReads(),
+  });
+
+  assert.deepEqual(
+    await flow.createBrief({
+      brief: strongrDailyV2BriefFixture,
+      correlationId: fixtureIds.correlationId,
+      organizationId: fixtureIds.organizationAlphaId,
+      title: strongrDailyV2BriefFixture.working_title,
+    }),
+    { briefId, contentItemId },
+  );
+  assert.deepEqual(commands, ["m1_create_audio_brief"]);
+  assert.equal(runtimeCalls, 0);
+});
+
+test("an explicit generation request creates one governed job before invoking the private runtime", async () => {
+  const events: unknown[] = [];
+  const runtimeCalls: { generationJobId: string }[] = [];
+  const flow = new BriefToDraftOperatorFlow({
+    commands: {
+      invoke<Name extends BrowserCommandName>(
+        command: Name,
+        arguments_: BrowserCommandArguments[Name],
+      ): Promise<BrowserCommandResult<Name>> {
+        events.push({ arguments_, command });
+        return Promise.resolve(fixtureIds.generationJobId as BrowserCommandResult<Name>);
+      },
+    },
+    generation: {
+      startGeneration(input) {
+        events.push({ input, runtime: true });
+        return createGeneration(runtimeCalls).startGeneration(input);
+      },
+    },
+    reads: createReads(),
+  });
+
+  const result = await flow.requestGeneration({
+    briefId,
+    correlationId: fixtureIds.correlationId,
+    idempotencyKey: "phase-4b-owner-click-request",
+    organizationId: fixtureIds.organizationAlphaId,
+    promptKey: "strongr.strongr_daily.v2",
+    promptVersion: 1,
+  });
+
+  assert.equal(result.state, "succeeded");
+  assert.deepEqual(events, [
+    {
+      arguments_: {
+        briefId,
+        correlationId: fixtureIds.correlationId,
+        idempotencyKey: "phase-4b-owner-click-request",
+        organizationId: fixtureIds.organizationAlphaId,
+        promptKey: "strongr.strongr_daily.v2",
+        promptVersion: 1,
+      },
+      command: "m1_request_generation",
+    },
+    {
+      input: {
+        generationJobId: fixtureIds.generationJobId,
+      },
+      runtime: true,
+    },
+  ]);
+  assert.deepEqual(runtimeCalls, [
+    {
+      generationJobId: fixtureIds.generationJobId,
+    },
+  ]);
+});
+
+test("runtime failures preserve only an allowlisted safe code and redact provider details", async () => {
+  const providerSecret = "sk-never-appear-in-owner-errors";
+  const flow = new BriefToDraftOperatorFlow({
+    commands: {
+      invoke<Name extends BrowserCommandName>(): Promise<BrowserCommandResult<Name>> {
+        return Promise.resolve(fixtureIds.generationJobId as BrowserCommandResult<Name>);
+      },
+    },
+    generation: {
+      startGeneration() {
+        const error = new StudioApiError(503, "generation.provider_timeout");
+        error.cause = new Error(providerSecret);
+        return Promise.reject(error);
+      },
+    },
+    reads: createReads(),
+  });
+
+  await assert.rejects(
+    () =>
+      flow.requestGeneration({
+        briefId,
+        correlationId: fixtureIds.correlationId,
+        idempotencyKey: "phase-4b-owner-click-timeout",
+        organizationId: fixtureIds.organizationAlphaId,
+        promptKey: "strongr.strongr_daily.v2",
+        promptVersion: 1,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof GenerationRuntimeDeferredError);
+      assert.equal(error.errorCode, "generation.provider_timeout");
+      assert.doesNotMatch(error.message, /sk-|provider details|never-appear/);
+      return true;
+    },
+  );
+});
+
+test("unknown runtime error codes are not surfaced", async () => {
+  const flow = new BriefToDraftOperatorFlow({
+    commands: {
+      invoke<Name extends BrowserCommandName>(): Promise<BrowserCommandResult<Name>> {
+        return Promise.resolve(fixtureIds.generationJobId as BrowserCommandResult<Name>);
+      },
+    },
+    generation: {
+      startGeneration() {
+        return Promise.reject(new StudioApiError(503, "attacker_controlled_code"));
+      },
+    },
+    reads: createReads(),
+  });
+
+  await assert.rejects(
+    () =>
+      flow.requestGeneration({
+        briefId,
+        correlationId: fixtureIds.correlationId,
+        idempotencyKey: "phase-4b-owner-click-unknown",
+        organizationId: fixtureIds.organizationAlphaId,
+        promptKey: "strongr.strongr_daily.v2",
+        promptVersion: 1,
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof GenerationRuntimeDeferredError);
+      assert.equal(error.errorCode, null);
+      return true;
+    },
+  );
 });
 
 test("a post-brief generation failure exposes durable identities for explicit recovery", async () => {

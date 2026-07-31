@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createSyntheticPcmWav } from "../../../packages/media/src/index.ts";
-import { createStudioSupabaseGateway, StudioApiError } from "../src/index.ts";
 import type { StudioEnvironment } from "../src/index.ts";
+import { createStudioSupabaseGateway, StudioApiError } from "../src/index.ts";
 
 const organizationId = "00000000-0000-4000-8000-000000000001";
 const contentItemId = "00000000-0000-4000-8000-000000000002";
@@ -65,6 +65,120 @@ test("authenticated commands use the publishable key, user bearer token, and exa
     p_payload: { schema_id: "strongr.audio_reflection_brief.v1" },
     p_title: "Synthetic brief",
   });
+});
+
+test("generation runtime sends only governed identifiers with the existing user session", async () => {
+  const requests: { readonly input: string; readonly init?: RequestInit }[] = [];
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch(input, init) {
+      requests.push({ input: String(input), ...(init ? { init } : {}) });
+      return Promise.resolve(
+        Response.json({
+          content_version_id: versionId,
+          error_code: null,
+          estimated_cost_microunits: 2_500,
+          generation_job_id: jobId,
+          input_tokens: 1_000,
+          output_tokens: 2_000,
+          state: "succeeded",
+        }),
+      );
+    },
+  });
+
+  assert.deepEqual(await gateway.startGeneration({ generationJobId: jobId }), {
+    contentVersionId: versionId,
+    errorCode: null,
+    estimatedCostMicrounits: 2_500,
+    generationJobId: jobId,
+    inputTokens: 1_000,
+    outputTokens: 2_000,
+    state: "succeeded",
+  });
+  assert.equal(
+    requests[0]?.input,
+    "https://example.supabase.co/functions/v1/strongr-daily-generate",
+  );
+  assert.equal(requests[0]?.init?.method, "POST");
+  assert.deepEqual(JSON.parse(String(requests[0]?.init?.body)), {
+    generation_job_id: jobId,
+  });
+  const serialized = JSON.stringify(requests[0]);
+  assert.doesNotMatch(serialized, /prompt|model|brief|service.role|openai|api.key/i);
+  const headers = requests[0]?.init?.headers as Readonly<Record<string, string>>;
+  assert.equal(headers.apikey, environment.supabasePublishableKey);
+  assert.equal(headers.authorization, "Bearer authenticated-user-jwt");
+});
+
+test("generation runtime rejects malformed or unallowlisted response fields", async () => {
+  const responses = [
+    Response.json({
+      content_version_id: versionId,
+      error_code: null,
+      estimated_cost_microunits: 1,
+      generation_job_id: correlationId,
+      input_tokens: 1,
+      output_tokens: 1,
+      state: "succeeded",
+    }),
+    Response.json({
+      content_version_id: null,
+      error_code: "unsafe.user.supplied.code",
+      estimated_cost_microunits: null,
+      generation_job_id: jobId,
+      input_tokens: null,
+      output_tokens: null,
+      state: "failed",
+    }),
+  ];
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch() {
+      const response = responses.shift();
+      assert.ok(response);
+      return Promise.resolve(response);
+    },
+  });
+
+  await assert.rejects(
+    () => gateway.startGeneration({ generationJobId: jobId }),
+    /Invalid generation runtime response/,
+  );
+  await assert.rejects(
+    () => gateway.startGeneration({ generationJobId: jobId }),
+    /Invalid Studio API field: error_code/,
+  );
+});
+
+test("generation runtime accepts only a safe non-success code without echoing response details", async () => {
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch() {
+      return Promise.resolve(
+        Response.json(
+          {
+            error_code: "generation.provider_authentication_failed",
+            message: "secret provider detail must not escape",
+          },
+          { status: 503 },
+        ),
+      );
+    },
+  });
+
+  await assert.rejects(
+    () => gateway.startGeneration({ generationJobId: jobId }),
+    (error: unknown) => {
+      assert.ok(error instanceof StudioApiError);
+      assert.equal(error.code, "generation.provider_authentication_failed");
+      assert.doesNotMatch(error.message, /secret provider detail/);
+      return true;
+    },
+  );
 });
 
 test("media requests remain an exact AAL2 browser RPC without direct Storage access", async () => {

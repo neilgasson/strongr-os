@@ -16,7 +16,12 @@ import type {
   Uuid,
 } from "../../../packages/contracts/src/index.ts";
 
-import type { StudioFoundation } from "./foundation.ts";
+import {
+  isStudioGenerationSafeErrorCode,
+  type StartGenerationResult,
+  type StudioFoundation,
+  type StudioGenerationSafeErrorCode,
+} from "./foundation.ts";
 
 export interface BriefToDraftWorkspace {
   readonly briefs: readonly TenantBriefSummary[];
@@ -28,6 +33,22 @@ export interface CreateBriefAndRequestInput {
   readonly organizationId: Uuid;
   readonly title: string;
   readonly brief: GovernedBrief;
+  readonly promptKey: string;
+  readonly promptVersion: number;
+  readonly idempotencyKey: string;
+  readonly correlationId: Uuid;
+}
+
+export interface CreateBriefInput {
+  readonly organizationId: Uuid;
+  readonly title: string;
+  readonly brief: GovernedBrief;
+  readonly correlationId: Uuid;
+}
+
+export interface RequestGenerationInput {
+  readonly organizationId: Uuid;
+  readonly briefId: Uuid;
   readonly promptKey: string;
   readonly promptVersion: number;
   readonly idempotencyKey: string;
@@ -50,6 +71,25 @@ export class GenerationRequestDeferredError extends Error {
     this.briefId = brief.briefId;
     this.contentItemId = brief.contentItemId;
   }
+}
+
+export class GenerationRuntimeDeferredError extends Error {
+  readonly errorCode: StudioGenerationSafeErrorCode | null;
+  readonly generationJobId: Uuid;
+
+  constructor(generationJobId: Uuid, errorCode: StudioGenerationSafeErrorCode | null = null) {
+    super("Generation was requested but the private runtime did not confirm completion");
+    this.name = "GenerationRuntimeDeferredError";
+    this.errorCode = errorCode;
+    this.generationJobId = generationJobId;
+  }
+}
+
+function safeRuntimeErrorCode(error: unknown): StudioGenerationSafeErrorCode | null {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return null;
+  }
+  return isStudioGenerationSafeErrorCode(error.code) ? error.code : null;
 }
 
 function requireUuid(value: string, name: string): Uuid {
@@ -118,35 +158,64 @@ export class BriefToDraftOperatorFlow {
   async createBriefAndRequestGeneration(
     input: CreateBriefAndRequestInput,
   ): Promise<CreateBriefAndRequestResult> {
+    requireIdempotencyKey(input.idempotencyKey);
+    requirePromptKey(input.promptKey);
+    requirePromptVersion(input.promptVersion);
+    const brief = await this.createBrief(input);
+
+    try {
+      const generation = await this.requestGeneration({
+        briefId: brief.briefId,
+        correlationId: input.correlationId,
+        idempotencyKey: input.idempotencyKey,
+        organizationId: input.organizationId,
+        promptKey: input.promptKey,
+        promptVersion: input.promptVersion,
+      });
+      return Object.freeze({ ...brief, generationJobId: generation.generationJobId });
+    } catch (error) {
+      if (error instanceof GenerationRuntimeDeferredError) {
+        throw error;
+      }
+      throw new GenerationRequestDeferredError(brief);
+    }
+  }
+
+  async createBrief(input: CreateBriefInput): Promise<CreateAudioBriefResult> {
     const organizationId = requireUuid(input.organizationId, "organization id");
     const correlationId = requireUuid(input.correlationId, "correlation id");
     const briefPayload = parseGovernedBrief(input.brief);
     const title = requireTitle(input.title);
-    const idempotencyKey = requireIdempotencyKey(input.idempotencyKey);
-    const promptKey = requirePromptKey(input.promptKey);
-    const promptVersion = requirePromptVersion(input.promptVersion);
-    const brief = await this.#foundation.commands.invoke("m1_create_audio_brief", {
+    return this.#foundation.commands.invoke("m1_create_audio_brief", {
       correlationId,
       organizationId,
       payload: briefPayload,
       title,
     });
+  }
 
-    let generationJobId: Uuid;
-    try {
-      generationJobId = await this.#foundation.commands.invoke("m1_request_generation", {
-        briefId: brief.briefId,
-        correlationId,
-        idempotencyKey,
-        organizationId,
-        promptKey,
-        promptVersion,
-      });
-    } catch {
-      throw new GenerationRequestDeferredError(brief);
+  async requestGeneration(input: RequestGenerationInput): Promise<StartGenerationResult> {
+    const organizationId = requireUuid(input.organizationId, "organization id");
+    const briefId = requireUuid(input.briefId, "brief id");
+    const correlationId = requireUuid(input.correlationId, "correlation id");
+    const generationJobId = await this.#foundation.commands.invoke("m1_request_generation", {
+      briefId,
+      correlationId,
+      idempotencyKey: requireIdempotencyKey(input.idempotencyKey),
+      organizationId,
+      promptKey: requirePromptKey(input.promptKey),
+      promptVersion: requirePromptVersion(input.promptVersion),
+    });
+    if (!this.#foundation.generation) {
+      throw new GenerationRuntimeDeferredError(generationJobId);
     }
-
-    return Object.freeze({ ...brief, generationJobId });
+    try {
+      return await this.#foundation.generation.startGeneration({
+        generationJobId,
+      });
+    } catch (error) {
+      throw new GenerationRuntimeDeferredError(generationJobId, safeRuntimeErrorCode(error));
+    }
   }
 
   async createManualDraft(input: {
