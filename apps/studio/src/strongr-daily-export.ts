@@ -1,4 +1,3 @@
-import { createGenerationOutputHash } from "../../../packages/ai/src/index.ts";
 import {
   parseStrongrDailyAudioReflectionV2,
   type StrongrDailyAudioReflectionV2,
@@ -39,10 +38,57 @@ function requireString(value: unknown, name: string): string {
   return value;
 }
 
-function approvedExport(input: {
+const utf8Encoder = new TextEncoder();
+
+function compareJsonbKeys(left: string, right: string): number {
+  const leftBytes = utf8Encoder.encode(left);
+  const rightBytes = utf8Encoder.encode(right);
+  const lengthDifference = leftBytes.length - rightBytes.length;
+  if (lengthDifference !== 0) return lengthDifference;
+  for (let index = 0; index < leftBytes.length; index += 1) {
+    const byteDifference = (leftBytes[index] ?? 0) - (rightBytes[index] ?? 0);
+    if (byteDifference !== 0) return byteDifference;
+  }
+  return 0;
+}
+
+function postgresJsonbText(value: unknown): string {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error("PostgreSQL JSON does not support non-finite numbers");
+    }
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => postgresJsonbText(item)).join(", ")}]`;
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
+      compareJsonbKeys(left, right),
+    );
+    return `{${entries
+      .map(([key, item]) => `${JSON.stringify(key)}: ${postgresJsonbText(item)}`)
+      .join(", ")}}`;
+  }
+  throw new Error("PostgreSQL JSON supports JSON values only");
+}
+
+async function createBrowserContentHash(content: StrongrDailyAudioReflectionV2): Promise<string> {
+  const { content_hash: _contentHash, ...hashableContent } = content;
+  const digest = await globalThis.crypto.subtle.digest(
+    "SHA-256",
+    utf8Encoder.encode(postgresJsonbText(hashableContent)),
+  );
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function approvedExport(input: {
   readonly productionPackage: TenantProductionPackageSummary;
   readonly exportedAt: string;
-}): StrongrDailyApprovedExport {
+}): Promise<StrongrDailyApprovedExport> {
   const manifest = input.productionPackage.manifest;
   if (manifest.schema_id !== "strongr.production_package.v1") {
     throw new Error("production package schema is unsupported");
@@ -50,7 +96,7 @@ function approvedExport(input: {
   const content = parseStrongrDailyAudioReflectionV2(
     requireObject(manifest.content, "package content"),
   );
-  if (createGenerationOutputHash(content) !== content.content_hash) {
+  if ((await createBrowserContentHash(content)) !== content.content_hash) {
     throw new Error("approved content hash does not match payload");
   }
   const contentPayloadHash = requireString(manifest.content_payload_hash, "content payload hash");
@@ -90,10 +136,11 @@ function markdown(exported: StrongrDailyApprovedExport): string {
   );
 }
 
-export function createStrongrDailyApprovedExport(input: {
+export async function createStrongrDailyApprovedExport(input: {
   readonly productionPackage: TenantProductionPackageSummary;
   readonly exportedAt: string;
-}): StrongrDailyExportFiles {
-  const value = approvedExport(input);
+}): Promise<StrongrDailyExportFiles> {
+  const value = await approvedExport(input);
   return Object.freeze({ json: `${JSON.stringify(value, null, 2)}\n`, markdown: markdown(value) });
 }
+  
