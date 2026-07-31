@@ -16,7 +16,7 @@ jobs:
       - name: Check out exact reviewed source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: d0a13db1202556b83d5571a1fb7f589a84df7192
+          ref: e65a46e248cb8f01a8597d34324321ca1040e7e9
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -38,9 +38,9 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm studio:preview:build
           mkdir -p artifacts/sites-preview
-          tar -C dist -czf artifacts/sites-preview/strongr-studio-guided-d0a13db.tar.gz .
+          tar -C dist -czf artifacts/sites-preview/strongr-studio-guided-e65a46e.tar.gz .
           printf '{"github_commit":"%s","sites_project_id":"%s"}\n' \
-            "d0a13db1202556b83d5571a1fb7f589a84df7192" \
+            "e65a46e248cb8f01a8597d34324321ca1040e7e9" \
             "appgprj_6a6838cd73c88191aa6e1d1a806068ae" \
             > artifacts/sites-preview/provenance.json
 
@@ -54,12 +54,12 @@ jobs:
           git -c "http.extraHeader=Authorization: Bearer $SITES_SOURCE_TOKEN" \
             push --force \
             "https://git.chatgpt-team.site/8327b475-64cc-43e2-8b21-59df8b988a1e/appgprj_6a6838cd73c88191aa6e1d1a806068ae.git" \
-            "d0a13db1202556b83d5571a1fb7f589a84df7192:refs/heads/main"
+            "e65a46e248cb8f01a8597d34324321ca1040e7e9:refs/heads/main"
 
       - name: Upload exact preview artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: strongr-studio-guided-d0a13db
+          name: strongr-studio-guided-e65a46e
           path: artifacts/sites-preview
           if-no-files-found: error
           retention-days: 1
