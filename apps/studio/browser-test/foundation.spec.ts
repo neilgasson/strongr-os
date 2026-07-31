@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 
+import { createStrongrDailyV2FixtureOutput } from "../../../packages/ai/src/deterministic-adapter.ts";
 import { createSyntheticPcmWav } from "../../../packages/media/src/index.ts";
+import { strongrDailyAudioReflectionV2BriefFixture } from "../../../packages/testing/src/index.ts";
 
 const repositoryRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const distRoot = resolve(repositoryRoot, "apps/studio/dist");
@@ -61,6 +63,9 @@ const stagedReleaseId = "00000000-0000-4000-8000-000000000806";
 const stagedRevocationId = "00000000-0000-4000-8000-000000000807";
 const mediaBytes = createSyntheticPcmWav();
 const mediaSha256 = createHash("sha256").update(mediaBytes).digest("hex");
+const strongrDailyOutput = createStrongrDailyV2FixtureOutput(
+  strongrDailyAudioReflectionV2BriefFixture,
+);
 const nowSeconds = Math.floor(Date.now() / 1000);
 
 interface MockState {
@@ -356,7 +361,20 @@ function governedRows(
               approval_snapshot_id: approvalSnapshotId,
               created_at: "2026-07-27T00:15:00.000Z",
               id: productionPackageId,
-              manifest: { fixture: true },
+              manifest: {
+                approval_snapshot_id: approvalSnapshotId,
+                check_result_ids: [checkResultId],
+                check_run_id: checkRunId,
+                content: strongrDailyOutput,
+                content_payload_hash: hash("b"),
+                content_schema_id: strongrDailyOutput.schema_id,
+                evidence_bundle_hash: hash("1"),
+                review_decision_ids: [scriptureReviewId, theologyReviewId, editorialReviewId],
+                review_policy_id: reviewPolicyId,
+                rights_snapshot_id: rightsSnapshotId,
+                schema_id: "strongr.production_package.v1",
+                scripture_evidence_id: scriptureEvidenceId,
+              },
               manifest_hash: hash("2"),
               manifest_schema_id: "strongr.production_package.v1",
               organization_id: organizationA,
@@ -1161,7 +1179,36 @@ test("AAL2 authority targets canonical evidence, packages without publishing, an
   await expect(
     page.getByRole("heading", { name: "Download the completed pilot package" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Download JSON and Markdown" })).toBeVisible();
+  const [jsonDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("link", { name: "Download JSON (1 of 2)" }).click(),
+  ]);
+  expect(jsonDownload.suggestedFilename()).toBe(
+    `strongr-daily-approved-${productionPackageId}.json`,
+  );
+  const jsonPath = await jsonDownload.path();
+  expect(jsonPath).not.toBeNull();
+  const json = JSON.parse(await readFile(jsonPath as string, "utf8")) as {
+    readonly publication_status: string;
+  };
+  expect(json.publication_status).toBe("manual_upload_required");
+
+  const [markdownDownload] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("link", { name: "Download Markdown (2 of 2)" }).click(),
+  ]);
+  expect(markdownDownload.suggestedFilename()).toBe(
+    `strongr-daily-approved-${productionPackageId}.md`,
+  );
+  const markdownPath = await markdownDownload.path();
+  expect(markdownPath).not.toBeNull();
+  await expect
+    .poll(async () => readFile(markdownPath as string, "utf8"))
+    .toContain("Manual upload required. This export does not publish content.");
+  await expect(
+    page.getByText("Both approved Strongr Daily files were downloaded. Nothing was published."),
+  ).toBeVisible();
+  expect(state.rpcCalls.some(({ command }) => /publish|release/i.test(command))).toBe(false);
 
   await page.getByText("Advanced: revoke an approval").click();
   await page.getByRole("checkbox", { name: /I confirm this append-only revocation/ }).check();
@@ -1397,3 +1444,4 @@ test("authenticated M3.3 remains usable without horizontal overflow", async ({ p
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
+  
