@@ -1444,4 +1444,3 @@ test("authenticated M3.3 remains usable without horizontal overflow", async ({ p
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
 });
-  
