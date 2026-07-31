@@ -101,25 +101,6 @@ function shortHash(value: string): string {
   return `${value.slice(0, 12)}…${value.slice(-8)}`;
 }
 
-function downloadTextFile(name: string, content: string, type: string) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
-  const link = document.createElement("a");
-  link.download = name;
-  link.href = url;
-  link.click();
-  globalThis.setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-function downloadStrongrDailyPackage(productionPackage: TenantProductionPackageSummary) {
-  const files = createStrongrDailyApprovedExport({
-    exportedAt: new Date().toISOString(),
-    productionPackage,
-  });
-  const name = `strongr-daily-approved-${productionPackage.id}`;
-  downloadTextFile(`${name}.json`, files.json, "application/json");
-  downloadTextFile(`${name}.md`, files.markdown, "text/markdown");
-}
-
 function lines(value: string, maximum: number): string[] {
   return value
     .split(/\r?\n/)
@@ -2117,6 +2098,132 @@ function CanonicalEvidenceSummary({
   );
 }
 
+type PackageDownloadState =
+  | Readonly<{ status: "preparing" }>
+  | Readonly<{ status: "error" }>
+  | Readonly<{
+      jsonName: string;
+      jsonUrl: string;
+      markdownName: string;
+      markdownUrl: string;
+      stage: "json" | "markdown" | "complete";
+      status: "ready";
+    }>;
+
+function PackageDownloadActions({
+  productionPackage,
+}: {
+  readonly productionPackage: TenantProductionPackageSummary;
+}) {
+  const { announce, reportWorkflowFailure } = useStudioSession();
+  const [exportedAt, setExportedAt] = useState(() => new Date().toISOString());
+  const [state, setState] = useState<PackageDownloadState>({ status: "preparing" });
+
+  useEffect(() => {
+    let active = true;
+    const urls: string[] = [];
+    setState({ status: "preparing" });
+    void createStrongrDailyApprovedExport({
+      exportedAt,
+      productionPackage,
+    })
+      .then((files) => {
+        if (!active) return;
+        const name = `strongr-daily-approved-${productionPackage.id}`;
+        const jsonUrl = URL.createObjectURL(new Blob([files.json], { type: "application/json" }));
+        const markdownUrl = URL.createObjectURL(
+          new Blob([files.markdown], { type: "text/markdown" }),
+        );
+        urls.push(jsonUrl, markdownUrl);
+        setState({
+          jsonName: `${name}.json`,
+          jsonUrl,
+          markdownName: `${name}.md`,
+          markdownUrl,
+          stage: "json",
+          status: "ready",
+        });
+      })
+      .catch((error) => {
+        if (!active) return;
+        setState({ status: "error" });
+        reportWorkflowFailure(error, "The approved Strongr Daily package was not prepared");
+      });
+    return () => {
+      active = false;
+      for (const url of urls) URL.revokeObjectURL(url);
+    };
+  }, [exportedAt, productionPackage, reportWorkflowFailure]);
+
+  if (state.status === "preparing") {
+    return <p role="status">Preparing the two private files securely...</p>;
+  }
+  if (state.status === "error") {
+    return (
+      <div className="workflow-recovery" role="alert">
+        <p>No file was downloaded. The saved package remains unchanged.</p>
+        <button
+          className="primary-button"
+          data-primary-action
+          onClick={() => setExportedAt(new Date().toISOString())}
+          type="button"
+        >
+          Try preparing the files again
+        </button>
+      </div>
+    );
+  }
+  if (state.stage === "json") {
+    return (
+      <>
+        <a
+          className="primary-button button-link"
+          data-primary-action
+          download={state.jsonName}
+          href={state.jsonUrl}
+          onClick={() => {
+            globalThis.setTimeout(() => setState({ ...state, stage: "markdown" }), 0);
+          }}
+        >
+          Download JSON (1 of 2)
+        </a>
+        <p className="permission-note">
+          After this file downloads, Studio will show the Markdown file.
+        </p>
+      </>
+    );
+  }
+  if (state.stage === "markdown") {
+    return (
+      <>
+        <a
+          className="primary-button button-link"
+          data-primary-action
+          download={state.markdownName}
+          href={state.markdownUrl}
+          onClick={() => {
+            globalThis.setTimeout(() => {
+              setState({ ...state, stage: "complete" });
+              announce("Both approved Strongr Daily files were downloaded. Nothing was published.");
+            }, 0);
+          }}
+        >
+          Download Markdown (2 of 2)
+        </a>
+        <p className="permission-note">
+          This is the final private file. Nothing will be published.
+        </p>
+      </>
+    );
+  }
+  return (
+    <div className="workflow-confirmation" role="status">
+      <strong>Both private files are downloaded.</strong>
+      <p>Nothing was published or uploaded.</p>
+    </div>
+  );
+}
+
 function AuthorityActions({
   aal2,
   approvals,
@@ -2154,7 +2261,6 @@ function AuthorityActions({
   readonly scriptureEvidence: ReviewToPackageWorkspace["scriptureEvidence"];
   readonly version: TenantContentVersionSummary;
 }) {
-  const { announce, reportWorkflowFailure } = useStudioSession();
   const [policyId, setPolicyId] = useState("");
   const [checkRunId, setCheckRunId] = useState("");
   const [scriptureEvidenceId, setScriptureEvidenceId] = useState("");
@@ -2401,26 +2507,7 @@ function AuthorityActions({
             ) : null}
           </details>
           {mode === "download" && existingPackage ? (
-            <button
-              className="primary-button"
-              data-primary-action
-              onClick={() => {
-                try {
-                  downloadStrongrDailyPackage(existingPackage);
-                  announce(
-                    "Approved Strongr Daily JSON and Markdown package downloaded. No publishing occurred.",
-                  );
-                } catch (error) {
-                  reportWorkflowFailure(
-                    error,
-                    "The approved Strongr Daily package was not downloaded",
-                  );
-                }
-              }}
-              type="button"
-            >
-              Download JSON and Markdown
-            </button>
+            <PackageDownloadActions productionPackage={existingPackage} />
           ) : null}
           {mode === "package" ? (
             <>
@@ -2714,3 +2801,4 @@ function submit(handler: () => void | Promise<void>) {
     void handler();
   };
 }
+  
