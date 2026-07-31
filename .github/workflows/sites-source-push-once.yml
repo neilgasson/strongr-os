@@ -11,17 +11,55 @@ permissions:
 jobs:
   push-source:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Check out exact merged source
+      - name: Check out exact reviewed source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: c00f55e765bd0b651132f9c8752a60537f4b4c4b
+          ref: a071ea53d8f0bc74ea14c373648ee3c53325528c
           fetch-depth: 0
-      - name: Push exact source to Sites
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pinned pnpm
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+
+      - name: Build the exact owner-only preview artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm studio:preview:build
+          mkdir -p artifacts/sites-preview
+          tar -C dist -czf artifacts/sites-preview/strongr-studio-guided-a071ea5.tar.gz .
+          printf '{"github_commit":"%s","sites_project_id":"%s"}\n' \
+            "a071ea53d8f0bc74ea14c373648ee3c53325528c" \
+            "appgprj_6a6838cd73c88191aa6e1d1a806068ae" \
+            > artifacts/sites-preview/provenance.json
+
+      - name: Push the exact source to Sites
         shell: bash
         env:
           SITES_SOURCE_TOKEN: ${{ secrets.SITES_PREVIEW_REPAIR_TOKEN }}
         run: |
           set -euo pipefail
           test -n "$SITES_SOURCE_TOKEN"
-          git -c "http.extraHeader=Authorization: Bearer $SITES_SOURCE_TOKEN" push --force "https://git.chatgpt-team.site/8327b475-64cc-43e2-8b21-59df8b988a1e/appgprj_6a6838cd73c88191aa6e1d1a806068ae.git" "c00f55e765bd0b651132f9c8752a60537f4b4c4b:refs/heads/main"
+          git -c "http.extraHeader=Authorization: Bearer $SITES_SOURCE_TOKEN" \
+            push --force \
+            "https://git.chatgpt-team.site/8327b475-64cc-43e2-8b21-59df8b988a1e/appgprj_6a6838cd73c88191aa6e1d1a806068ae.git" \
+            "a071ea53d8f0bc74ea14c373648ee3c53325528c:refs/heads/main"
+
+      - name: Upload exact preview artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: strongr-studio-guided-a071ea5
+          path: artifacts/sites-preview
+          if-no-files-found: error
+          retention-days: 1
