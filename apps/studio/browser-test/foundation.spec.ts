@@ -1,9 +1,9 @@
-import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import AxeBuilder from "@axe-core/playwright";
+import { expect, type Page, test } from "@playwright/test";
 
 import { createSyntheticPcmWav } from "../../../packages/media/src/index.ts";
 
@@ -67,6 +67,7 @@ interface MockState {
   aal: "aal1" | "aal2";
   approvalRevoked: boolean;
   expired: boolean;
+  factorNameConflict: boolean;
   factorPresent: boolean;
   mediaReady: boolean;
   mediaReviewed: boolean;
@@ -457,6 +458,7 @@ async function installMockSupabase(page: Page): Promise<MockState> {
     aal: "aal1",
     approvalRevoked: false,
     expired: false,
+    factorNameConflict: false,
     factorPresent: true,
     mediaReady: false,
     mediaReviewed: false,
@@ -498,6 +500,16 @@ async function installMockSupabase(page: Page): Promise<MockState> {
       return;
     }
     if (url.pathname === "/auth/v1/factors" && request.method() === "POST") {
+      if (state.factorNameConflict) {
+        await route.fulfill({
+          json: {
+            error_code: "mfa_factor_name_conflict",
+            message: "Synthetic upstream detail that must not be shown",
+          },
+          status: 422,
+        });
+        return;
+      }
       await route.fulfill({
         json: {
           friendly_name: "Acceptance authenticator",
@@ -813,10 +825,12 @@ test("verified TOTP can step the current session from AAL1 to AAL2", async ({ pa
   await page.getByRole("link", { name: "Security" }).click();
   await expect(page.getByText("AAL1", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Acceptance authenticator" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Begin TOTP enrollment" })).toHaveCount(0);
   await page.getByLabel("Six-digit authenticator code").fill("123456");
   await page.getByRole("button", { name: "Step up session" }).click();
   await expect(page.getByText("AAL2", { exact: true })).toBeVisible();
   await expect(page.getByText(/session assurance was refreshed/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Begin TOTP enrollment" })).toHaveCount(0);
 });
 
 test("TOTP enrollment and confirmed unenrollment use supported Auth operations", async ({
@@ -827,6 +841,7 @@ test("TOTP enrollment and confirmed unenrollment use supported Auth operations",
   await signIn(page);
   await page.getByRole("link", { name: "Security" }).click();
   await expect(page.getByText("No TOTP authenticators are enrolled.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Begin TOTP enrollment" })).toHaveCount(1);
 
   await page.getByRole("button", { name: "Begin TOTP enrollment" }).click();
   await expect(page.getByRole("heading", { name: "Scan and verify" })).toBeVisible();
@@ -841,6 +856,23 @@ test("TOTP enrollment and confirmed unenrollment use supported Auth operations",
   await expect(
     page.getByText(/Authenticator removed and session assurance refreshed/i),
   ).toBeVisible();
+});
+
+test("an existing authenticator name is explained without exposing the raw Auth error", async ({
+  page,
+}) => {
+  const state = await installMockSupabase(page);
+  state.factorPresent = false;
+  state.factorNameConflict = true;
+  await signIn(page);
+  await page.getByRole("link", { name: "Security" }).click();
+  await page.getByRole("button", { name: "Begin TOTP enrollment" }).click();
+  await expect(
+    page.getByText(
+      "An authenticator with that name is already enrolled. Use the existing authenticator below to step up this session.",
+    ),
+  ).toBeVisible();
+  await expect(page.getByText(/mfa_factor_name_conflict/)).toHaveCount(0);
 });
 
 test("sign-out clears the browser session without exposing a governed route", async ({ page }) => {
@@ -864,6 +896,17 @@ test("a brief request keeps one stable idempotency key across its two durable co
     page.getByRole("heading", { name: "Brief through immutable package." }),
   ).toBeVisible();
 
+  const briefForm = page.getByRole("region", { name: "Create a Strongr Daily brief" });
+  await briefForm.getByLabel("Working title").fill("Browser acceptance brief");
+  await briefForm.getByLabel("Audience").fill("Browser acceptance audience");
+  await briefForm.getByLabel("Theme").fill("Browser acceptance theme");
+  await briefForm.getByLabel("Scripture reference").fill("Reference 1:1");
+  await briefForm.getByLabel("Translation").fill("TEST");
+  await briefForm.getByLabel("Source citation").fill("Browser acceptance source");
+  await briefForm.getByLabel("Source brief identifier").fill("browser-acceptance-brief");
+  await briefForm
+    .getByLabel("Pastoral purpose")
+    .fill("Exercise the durable brief request without creating production content.");
   const requestButton = page.getByRole("button", {
     name: "Create brief and request generation",
   });
@@ -884,6 +927,48 @@ test("a brief request keeps one stable idempotency key across its two durable co
     }),
   );
   expect(createCalls[0]?.body.p_correlation_id).toBe(generationCalls[0]?.body.p_correlation_id);
+});
+
+test("governed review starts neutral and names one clear next action", async ({ page }) => {
+  const state = await installMockSupabase(page);
+  await signIn(page);
+  await page.getByRole("link", { name: "Security" }).click();
+  await page.getByLabel("Six-digit authenticator code").fill("123456");
+  await page.getByRole("button", { name: "Step up session" }).click();
+
+  await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
+  await page.getByRole("link", { name: "Governed content" }).click();
+  await expect(page.getByRole("heading", { name: "Create the non-public package" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Go to this step" })).toHaveAttribute(
+    "href",
+    "#production-package",
+  );
+
+  const scriptureCard = page
+    .getByRole("article")
+    .filter({ has: page.getByRole("heading", { name: "Verify the Scripture reference" }) });
+  await expect(scriptureCard.getByLabel("Source citation")).toHaveValue("");
+  await expect(page.getByLabel("Rights source summary")).toHaveValue("");
+  await expect(page.getByLabel("Human decision")).toHaveCount(3);
+  await expect(page.getByLabel("Human decision").nth(0)).toHaveValue("");
+  await expect(page.getByLabel("Human decision").nth(1)).toHaveValue("");
+  await expect(page.getByLabel("Human decision").nth(2)).toHaveValue("");
+  await expect(page.getByLabel("Human evidence note").nth(0)).toHaveValue("");
+  await expect(page.getByLabel("Human evidence note").nth(1)).toHaveValue("");
+  await expect(page.getByLabel("Human evidence note").nth(2)).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Record verified evidence" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Record cleared rights" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Record scripture decision" })).toBeDisabled();
+  expect(
+    state.rpcCalls.filter(({ command }) =>
+      [
+        "m1_record_scripture_evidence",
+        "m1_record_rights_snapshot",
+        "m1_record_review",
+        "m1_approve_version",
+      ].includes(command),
+    ),
+  ).toEqual([]);
 });
 
 test("AAL2 authority targets canonical evidence, packages without publishing, and revokes append-only", async ({
