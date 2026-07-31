@@ -767,6 +767,25 @@ label {
   font-size: 0.75rem;
 }
 
+.workflow-guide {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  padding: var(--space-5);
+  border: 2px solid var(--color-brand);
+  border-radius: var(--radius-medium);
+  background: var(--color-brand-soft);
+}
+
+.workflow-guide > * {
+  margin: 0;
+}
+
+.workflow-guide h3 {
+  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+}
+
 .automated-evidence {
   display: grid;
   grid-template-columns: minmax(16rem, 0.7fr) minmax(0, 1.3fr);

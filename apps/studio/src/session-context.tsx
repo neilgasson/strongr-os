@@ -82,6 +82,9 @@ function safeAuthFailure(error: unknown, fallback: string): string {
     typeof record?.code === "string" && /^[a-zA-Z0-9_.-]{1,80}$/.test(record.code)
       ? record.code
       : null;
+  if (code === "mfa_factor_name_conflict") {
+    return "An authenticator with that name is already enrolled. Use the existing authenticator below to step up this session.";
+  }
   return code ? `${fallback} (${code}).` : `${fallback}.`;
 }
 
