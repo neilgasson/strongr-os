@@ -1,0 +1,27 @@
+name: Sites source push once
+
+on:
+  push:
+    branches:
+      - agent/sites-source-push-once
+
+permissions:
+  contents: read
+
+jobs:
+  push-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact merged source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: c00f55e765bd0b651132f9c8752a60537f4b4c4b
+          fetch-depth: 0
+      - name: Push exact source to Sites
+        shell: bash
+        env:
+          SITES_SOURCE_TOKEN: ${{ secrets.SITES_PREVIEW_REPAIR_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$SITES_SOURCE_TOKEN"
+          git -c "http.extraHeader=Authorization: Bearer $SITES_SOURCE_TOKEN" push --force "https://git.chatgpt-team.site/8327b475-64cc-43e2-8b21-59df8b988a1e/appgprj_6a6838cd73c88191aa6e1d1a806068ae.git" "c00f55e765bd0b651132f9c8752a60537f4b4c4b:refs/heads/main"
