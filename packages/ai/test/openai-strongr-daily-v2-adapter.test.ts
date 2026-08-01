@@ -51,6 +51,7 @@ function successResponse(overrides: Readonly<Record<string, unknown>> = {}): Ope
     status: 200,
     json: async () => ({
       id: "resp_provider_fixture_1",
+      model: openAiStrongrDailyV2ProviderConfig.model,
       output_text: JSON.stringify(providerOutput()),
       usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 },
       ...overrides,
@@ -295,6 +296,20 @@ test("OpenAI adapter rejects an output rebound to a different governed brief", a
     () => adapter.generate(requestFixture()),
     "generation.provider_brief_mismatch",
   );
+});
+
+test("OpenAI adapter rejects a missing or substituted returned model before accepting output", async () => {
+  for (const model of [undefined, "gpt-5.6-other"] as const) {
+    const adapter = createOpenAiStrongrDailyV2Adapter({
+      apiKey: providerKeyFixture,
+      fetch: async () => successResponse({ model }),
+    });
+
+    await expectSafeCode(
+      () => adapter.generate(requestFixture()),
+      "generation.provider_invalid_response",
+    );
+  }
 });
 
 test("OpenAI adapter rejects unsupported brief and prompt contracts before fetch", async () => {

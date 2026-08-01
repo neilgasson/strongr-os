@@ -46,6 +46,12 @@ export interface OpenAiStrongrDailyV2AdapterOptions {
     sourceManifestChecksum: string,
   ) => boolean;
   readonly fetch?: OpenAiFetch;
+  /**
+   * The normal runtime keeps using the original governed manifest. A narrowly
+   * scoped, separately reviewed runtime may supply another exact checksum;
+   * the caller must still provide its own fail-closed profile authorizer.
+   */
+  readonly sourceManifestChecksum?: string;
   readonly timeoutMs?: number;
 }
 
@@ -242,6 +248,13 @@ function requireTimeout(value: number): number {
   return value;
 }
 
+function requireSourceManifestChecksum(value: string): string {
+  if (!/^[a-f0-9]{64}$/.test(value)) {
+    throw new Error("content profile source manifest checksum is invalid");
+  }
+  return value;
+}
+
 function createInstructions(): string {
   return [
     "Create a first-draft Strongr Daily audio reflection. It remains a draft only.",
@@ -319,6 +332,9 @@ export function createOpenAiStrongrDailyV2Adapter(
   );
   const fetch: OpenAiFetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
   const authorizeContentProfile = options.authorizeContentProfile ?? (() => false);
+  const sourceManifestChecksum = requireSourceManifestChecksum(
+    options.sourceManifestChecksum ?? strongrDailyContentProfileSourceManifestV1.canonical_checksum,
+  );
 
   return Object.freeze({
     identity: Object.freeze({ model, provider }),
@@ -339,8 +355,7 @@ export function createOpenAiStrongrDailyV2Adapter(
       if (
         !contentProfile ||
         !briefContentProfile ||
-        request.contentProfileSourceManifestChecksum !==
-          strongrDailyContentProfileSourceManifestV1.canonical_checksum ||
+        request.contentProfileSourceManifestChecksum !== sourceManifestChecksum ||
         !contentProfileSelectionsMatch(contentProfile, briefContentProfile) ||
         !authorizeContentProfile(contentProfile, request.contentProfileSourceManifestChecksum)
       ) {
@@ -397,6 +412,9 @@ export function createOpenAiStrongrDailyV2Adapter(
         throw new GenerationProviderError("generation.provider_brief_mismatch");
       }
       const usage = requireUsage(body.usage);
+      if (body.model !== model) {
+        throw new GenerationProviderError("generation.provider_invalid_response");
+      }
       return Object.freeze({
         contentProfile,
         contentProfileSourceManifestChecksum: request.contentProfileSourceManifestChecksum,
