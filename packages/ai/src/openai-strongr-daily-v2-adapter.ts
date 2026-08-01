@@ -1,5 +1,6 @@
 import {
   parseStrongrDailyAudioReflectionV2,
+  parseStrongrDailyAudioReflectionV2Brief,
   type StrongrDailyAudioReflectionV2Brief,
   strongrDailyAudioReflectionV2SchemaId,
 } from "../../content-schemas/src/index.ts";
@@ -325,15 +326,16 @@ export function createOpenAiStrongrDailyV2Adapter(
       if (request.brief.schema_id !== "strongr.strongr_daily_audio_reflection_brief.v2") {
         throw new GenerationProviderError("generation.provider_unsupported_brief");
       }
-      const contentProfile = request.contentProfile;
-      let briefContentProfile: ContentProfileSelection | null = null;
+      let brief: StrongrDailyAudioReflectionV2Brief;
       try {
-        briefContentProfile = request.brief.content_profile
-          ? parseContentProfileSelection(request.brief.content_profile)
-          : null;
+        brief = parseStrongrDailyAudioReflectionV2Brief(request.brief);
       } catch {
-        briefContentProfile = null;
+        throw new GenerationProviderError("generation.provider_unsupported_brief");
       }
+      const contentProfile = request.contentProfile;
+      const briefContentProfile: ContentProfileSelection | null = brief.content_profile
+        ? parseContentProfileSelection(brief.content_profile)
+        : null;
       if (
         !contentProfile ||
         !briefContentProfile ||
@@ -350,7 +352,7 @@ export function createOpenAiStrongrDailyV2Adapter(
       ) {
         throw new GenerationProviderError("generation.provider_unsupported_prompt");
       }
-      const requestBody = createRequestBody(request.brief);
+      const requestBody = createRequestBody(brief);
       enforcePreCallCostLimit(requestBody);
       const abortController = new AbortController();
       const timeout = setTimeout(() => abortController.abort(), timeoutMs);
@@ -391,7 +393,7 @@ export function createOpenAiStrongrDailyV2Adapter(
       } catch {
         throw new GenerationProviderError("generation.provider_invalid_response");
       }
-      if (!isGenerationOutputBoundToBrief(request.brief, output)) {
+      if (!isGenerationOutputBoundToBrief(brief, output)) {
         throw new GenerationProviderError("generation.provider_brief_mismatch");
       }
       const usage = requireUsage(body.usage);
