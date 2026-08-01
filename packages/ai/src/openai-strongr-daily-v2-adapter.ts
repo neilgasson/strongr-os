@@ -52,6 +52,12 @@ export interface OpenAiStrongrDailyV2AdapterOptions {
    * the caller must still provide its own fail-closed profile authorizer.
    */
   readonly sourceManifestChecksum?: string;
+  /**
+   * Only the normal V2 prompt or the separately authorized Phase 4B.5
+   * quarantine prompt may be selected. Arbitrary caller-supplied prompts are
+   * rejected before any provider request.
+   */
+  readonly promptKey?: string;
   readonly timeoutMs?: number;
 }
 
@@ -81,6 +87,21 @@ export const openAiStrongrDailyV2ProviderConfig = Object.freeze({
   reasoningEffort: "low" as const,
   timeoutMs: 60_000,
 });
+
+export const openAiStrongrDailyPhase4b5OneCallProviderConfig = Object.freeze({
+  ...openAiStrongrDailyV2ProviderConfig,
+  promptKey: "strongr.phase4b5.guided_audio_reflection.v1",
+});
+
+function requireSupportedPromptKey(value: string): string {
+  if (
+    value !== openAiStrongrDailyV2ProviderConfig.promptKey &&
+    value !== openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey
+  ) {
+    throw new GenerationProviderError("generation.provider_unsupported_prompt");
+  }
+  return value;
+}
 
 const responseSchema = Object.freeze({
   additionalProperties: false,
@@ -335,6 +356,9 @@ export function createOpenAiStrongrDailyV2Adapter(
   const sourceManifestChecksum = requireSourceManifestChecksum(
     options.sourceManifestChecksum ?? strongrDailyContentProfileSourceManifestV1.canonical_checksum,
   );
+  const promptKey = requireSupportedPromptKey(
+    options.promptKey ?? openAiStrongrDailyV2ProviderConfig.promptKey,
+  );
 
   return Object.freeze({
     identity: Object.freeze({ model, provider }),
@@ -362,7 +386,7 @@ export function createOpenAiStrongrDailyV2Adapter(
         throw new GenerationProviderError("generation.content_profile_not_active");
       }
       if (
-        request.promptKey !== openAiStrongrDailyV2ProviderConfig.promptKey ||
+        request.promptKey !== promptKey ||
         request.promptVersion !== openAiStrongrDailyV2ProviderConfig.promptVersion
       ) {
         throw new GenerationProviderError("generation.provider_unsupported_prompt");

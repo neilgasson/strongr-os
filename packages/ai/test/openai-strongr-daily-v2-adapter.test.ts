@@ -15,6 +15,7 @@ import {
   type OpenAiResponse,
   type OpenAiStrongrDailyV2AdapterOptions,
   openAiStrongrDailyV2ProviderConfig,
+  openAiStrongrDailyPhase4b5OneCallProviderConfig,
 } from "../src/index.ts";
 
 const providerKeyFixture = "sk_provider_fixture_12345678901234567890";
@@ -331,6 +332,28 @@ test("OpenAI adapter rejects unsupported brief and prompt contracts before fetch
     "generation.provider_unsupported_prompt",
   );
   assert.equal(calls, 0);
+});
+
+test("OpenAI adapter permits only the separately authorized Phase 4B.5 prompt identity", async () => {
+  let calls = 0;
+  const adapter = createOpenAiStrongrDailyV2Adapter({
+    apiKey: providerKeyFixture,
+    fetch: async () => {
+      calls += 1;
+      return successResponse();
+    },
+    promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
+  });
+
+  await adapter.generate({
+    ...requestFixture(),
+    promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
+  });
+  await expectSafeCode(
+    () => adapter.generate(requestFixture()),
+    "generation.provider_unsupported_prompt",
+  );
+  assert.equal(calls, 1);
 });
 
 test("OpenAI adapter fails closed before fetch when no exact profile is active", async () => {

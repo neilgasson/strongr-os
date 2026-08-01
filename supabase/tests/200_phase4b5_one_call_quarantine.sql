@@ -31,6 +31,8 @@ select ok(
       and profile_version = 1
       and profile_checksum = '3fa64f05911042bd2e2f7e58d14700581ca5025adc587425fd25afb2880210d9'
       and source_manifest_checksum = 'b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e'
+      and prompt_key = 'strongr.phase4b5.guided_audio_reflection.v1'
+      and prompt_version = 1
       and lifecycle_state = 'owner_approved_inactive'
   ),
   'the exact approved profile is registered but remains inactive'

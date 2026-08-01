@@ -29,5 +29,6 @@ export type {
 export {
   createOpenAiStrongrDailyV2Adapter,
   estimateOpenAiStrongrDailyV2Generation,
+  openAiStrongrDailyPhase4b5OneCallProviderConfig,
   openAiStrongrDailyV2ProviderConfig,
 } from "./openai-strongr-daily-v2-adapter.ts";

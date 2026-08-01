@@ -27,7 +27,7 @@ insert into app_private.strongr_daily_content_profiles (
   'b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e',
   'strongr.strongr_daily_audio_reflection_brief.v2',
   'strongr.strongr_daily_audio_reflection.v2',
-  'strongr.strongr_daily.v2',
+  'strongr.phase4b5.guided_audio_reflection.v1',
   1,
   'owner_approved_inactive'
 )
@@ -48,7 +48,7 @@ create table app_private.strongr_daily_phase4b5_one_call_attempts (
   rights_record_checksum text not null check (rights_record_checksum ~ '^[a-f0-9]{64}$'),
   provider text not null check (provider = 'openai'),
   model text not null check (model = 'gpt-5.6-terra'),
-  prompt_key text not null check (prompt_key = 'strongr.strongr_daily.v2'),
+  prompt_key text not null check (prompt_key = 'strongr.phase4b5.guided_audio_reflection.v1'),
   prompt_version integer not null check (prompt_version = 1),
   timeout_ms integer not null check (timeout_ms = 60000),
   max_output_tokens integer not null check (max_output_tokens = 5000),
@@ -185,7 +185,7 @@ begin
     and p.source_manifest_checksum = 'b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e'
     and p.brief_schema_id = 'strongr.strongr_daily_audio_reflection_brief.v2'
     and p.response_schema_id = 'strongr.strongr_daily_audio_reflection.v2'
-    and p.prompt_key = 'strongr.strongr_daily.v2'
+    and p.prompt_key = 'strongr.phase4b5.guided_audio_reflection.v1'
     and p.prompt_version = 1
     and p.lifecycle_state = 'owner_approved_inactive';
   if not found then
@@ -269,7 +269,7 @@ begin
     'effe9ead79efc9661fa2bdebcdcef86543708a7a9e76bacc245a0607cf35ca68',
     'openai',
     'gpt-5.6-terra',
-    'strongr.strongr_daily.v2',
+    'strongr.phase4b5.guided_audio_reflection.v1',
     1,
     60000,
     5000,

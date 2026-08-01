@@ -2,7 +2,7 @@ import {
   createOpenAiStrongrDailyV2Adapter,
   estimateOpenAiStrongrDailyV2Generation,
   GenerationProviderError,
-  openAiStrongrDailyV2ProviderConfig,
+  openAiStrongrDailyPhase4b5OneCallProviderConfig,
 } from "../../../packages/ai/src/index.ts";
 import { parseStrongrDailyAudioReflectionV2Brief } from "../../../packages/content-schemas/src/index.ts";
 import {
@@ -260,6 +260,7 @@ export function createStrongrDailyPhase4b5OnceHandler(options: HandlerOptions) {
           selection.canonical_checksum === guidedAudioReflectionV1Proposal.canonical_checksum &&
           manifest === guidedAudioReflectionV1ProposalSourceManifestV2.canonical_checksum,
         fetch: (input, init) => fetch(input, init),
+        promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
         sourceManifestChecksum: guidedAudioReflectionV1ProposalSourceManifestV2.canonical_checksum,
       });
       const result = await adapter.generate({
@@ -270,8 +271,8 @@ export function createStrongrDailyPhase4b5OnceHandler(options: HandlerOptions) {
         correlationId: authorizationId as `${string}-${string}-${string}-${string}-${string}`,
         generationJobId: authorizationId as `${string}-${string}-${string}-${string}-${string}`,
         organizationId: body.organizationId as `${string}-${string}-${string}-${string}-${string}`,
-        promptKey: openAiStrongrDailyV2ProviderConfig.promptKey,
-        promptVersion: openAiStrongrDailyV2ProviderConfig.promptVersion,
+        promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
+        promptVersion: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptVersion,
       });
       const completed = await fetch(
         `${config.supabaseUrl}/rest/v1/rpc/m1_complete_phase4b5_one_call`,
