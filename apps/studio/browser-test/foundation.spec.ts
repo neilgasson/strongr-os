@@ -42,6 +42,7 @@ const factorId = "00000000-0000-4000-8000-000000000030";
 const contentItemId = "00000000-0000-4000-8000-000000000101";
 const briefId = "00000000-0000-4000-8000-000000000201";
 const contentVersionId = "00000000-0000-4000-8000-000000000301";
+const generationJobId = "00000000-0000-4000-8000-000000000701";
 const checkDefinitionId = "00000000-0000-4000-8000-000000000401";
 const checkRunId = "00000000-0000-4000-8000-000000000402";
 const checkResultId = "00000000-0000-4000-8000-000000000403";
@@ -64,7 +65,9 @@ const stagedRevocationId = "00000000-0000-4000-8000-000000000807";
 const mediaBytes = createSyntheticPcmWav();
 const mediaSha256 = createHash("sha256").update(mediaBytes).digest("hex");
 const strongrDailyOutput = createStrongrDailyV2FixtureOutput(
-  strongrDailyAudioReflectionV2BriefFixture,
+  (({ content_profile: _contentProfile, ...legacyBrief }) => legacyBrief)(
+    strongrDailyAudioReflectionV2BriefFixture,
+  ),
 );
 const nowSeconds = Math.floor(Date.now() / 1000);
 
@@ -82,6 +85,18 @@ interface MockState {
   expired: boolean;
   factorNameConflict: boolean;
   factorPresent: boolean;
+  generationJobState:
+    | "cancelled"
+    | "dead_letter"
+    | "failed"
+    | "queued"
+    | "running"
+    | "succeeded"
+    | null;
+  readonly generationRuntimeCalls: Array<
+    Readonly<{ body: Readonly<Record<string, unknown>>; headers: Readonly<Record<string, string>> }>
+  >;
+  generationRuntimeOutcome: "failed" | "succeeded";
   mediaReady: boolean;
   mediaReviewed: boolean;
   packageCreated: boolean;
@@ -155,12 +170,26 @@ function briefRows(organizationId: string | null, state: MockState) {
         : 0
     : 0;
   return Array.from({ length: count }, (_, index) => ({
-    content_item_id: `00000000-0000-4000-8000-${String(100 + index).padStart(12, "0")}`,
+    content_profile_checksum: null,
+    content_profile_content_type: null,
+    content_profile_id: null,
+    content_profile_source_manifest_checksum: null,
+    content_profile_version: null,
+    content_item_id:
+      organizationId === organizationA && index === 0
+        ? contentItemId
+        : `00000000-0000-4000-8000-${String(110 + index).padStart(12, "0")}`,
     created_at: `2026-07-27T00:0${index}:00.000Z`,
-    id: `00000000-0000-4000-8000-${String(200 + index).padStart(12, "0")}`,
+    id:
+      organizationId === organizationA && index === 0
+        ? briefId
+        : `00000000-0000-4000-8000-${String(210 + index).padStart(12, "0")}`,
     organization_id: organizationId,
     payload_hash: "a".repeat(64),
-    schema_id: "strongr.audio_reflection_brief.v1",
+    schema_id:
+      organizationId === organizationA
+        ? "strongr.strongr_daily_audio_reflection_brief.v2"
+        : "strongr.audio_reflection_brief.v1",
   }));
 }
 
@@ -183,35 +212,66 @@ function governedRows(
   const hash = (character: string) => character.repeat(64);
   switch (pathname) {
     case "/rest/v1/generation_jobs":
-      return [];
+      return state.generationJobState
+        ? [
+            {
+              attempt_count: state.generationJobState === "queued" ? 0 : 1,
+              brief_id: briefId,
+              content_profile_checksum: null,
+              content_profile_content_type: null,
+              content_profile_id: null,
+              content_profile_source_manifest_checksum: null,
+              content_profile_version: null,
+              created_at: createdAt,
+              finished_at: ["queued", "running"].includes(state.generationJobState)
+                ? null
+                : createdAt,
+              id: generationJobId,
+              organization_id: organizationA,
+              output_hash: state.generationJobState === "succeeded" ? hash("b") : null,
+              state: state.generationJobState,
+            },
+          ]
+        : [];
     case "/rest/v1/content_versions":
       return state.contentVersionPresent
         ? [
             {
               brief_id: briefId,
+              content_profile_checksum: null,
+              content_profile_content_type: null,
+              content_profile_id: null,
+              content_profile_source_manifest_checksum: null,
+              content_profile_version: null,
               content_item_id: contentItemId,
               created_at: createdAt,
               id: contentVersionId,
               organization_id: organizationA,
-              payload: {
-                closing: "A synthetic closing for browser acceptance.",
-                opening: "A synthetic opening for browser acceptance.",
-                reflection: "A synthetic reflection that is never production content.",
-                reflection_questions: ["What did this deterministic fixture demonstrate?"],
-                schema_id: "strongr.audio_reflection.v1",
-                scripture_references: [
-                  {
-                    reference: "Synthetic Reference 1:1",
-                    source_citation: "Synthetic fixture; not a Scripture quotation",
-                    translation: "TEST",
-                  },
-                ],
-                title: "Synthetic Governed Reflection",
-              },
+              payload:
+                state.generationJobState === "succeeded"
+                  ? strongrDailyOutput
+                  : {
+                      closing: "A synthetic closing for browser acceptance.",
+                      opening: "A synthetic opening for browser acceptance.",
+                      reflection: "A synthetic reflection that is never production content.",
+                      reflection_questions: ["What did this deterministic fixture demonstrate?"],
+                      schema_id: "strongr.audio_reflection.v1",
+                      scripture_references: [
+                        {
+                          reference: "Synthetic Reference 1:1",
+                          source_citation: "Synthetic fixture; not a Scripture quotation",
+                          translation: "TEST",
+                        },
+                      ],
+                      title: "Synthetic Governed Reflection",
+                    },
               payload_hash: hash("b"),
-              schema_id: "strongr.audio_reflection.v1",
+              schema_id:
+                state.generationJobState === "succeeded"
+                  ? "strongr.strongr_daily_audio_reflection.v2"
+                  : "strongr.audio_reflection.v1",
               source: "ai_assisted",
-              source_job_id: null,
+              source_job_id: state.generationJobState === "succeeded" ? generationJobId : null,
               state: state.versionState,
               submitted_at: state.versionState === "submitted" ? createdAt : null,
               version_number: 1,
@@ -359,6 +419,11 @@ function governedRows(
         ? [
             {
               approval_snapshot_id: approvalSnapshotId,
+              content_profile_checksum: null,
+              content_profile_content_type: null,
+              content_profile_id: null,
+              content_profile_source_manifest_checksum: null,
+              content_profile_version: null,
               created_at: "2026-07-27T00:15:00.000Z",
               id: productionPackageId,
               manifest: {
@@ -522,6 +587,9 @@ async function installMockSupabase(page: Page): Promise<MockState> {
     expired: false,
     factorNameConflict: false,
     factorPresent: true,
+    generationJobState: null,
+    generationRuntimeCalls: [],
+    generationRuntimeOutcome: "succeeded",
     mediaReady: false,
     mediaReviewed: false,
     packageCreated: false,
@@ -678,6 +746,32 @@ async function installMockSupabase(page: Page): Promise<MockState> {
       await route.fulfill({ json: Boolean(body.p_permission_key), status: 200 });
       return;
     }
+    if (url.pathname === "/functions/v1/strongr-daily-generate" && request.method() === "POST") {
+      const body = request.postDataJSON() as Readonly<Record<string, unknown>>;
+      state.generationRuntimeCalls.push({ body, headers: await request.allHeaders() });
+      state.generationJobState = state.generationRuntimeOutcome;
+      if (state.generationRuntimeOutcome === "succeeded") {
+        state.contentVersionPresent = true;
+        state.versionState = "draft";
+      }
+      await route.fulfill({
+        json: {
+          content_version_id:
+            state.generationRuntimeOutcome === "succeeded" ? contentVersionId : null,
+          error_code:
+            state.generationRuntimeOutcome === "failed"
+              ? "generation.provider_invalid_response"
+              : null,
+          estimated_cost_microunits: 2_500,
+          generation_job_id: generationJobId,
+          input_tokens: 1_000,
+          output_tokens: 2_000,
+          state: state.generationRuntimeOutcome,
+        },
+        status: 200,
+      });
+      return;
+    }
     if (url.pathname.startsWith("/rest/v1/rpc/") && request.method() === "POST") {
       const command = url.pathname.slice("/rest/v1/rpc/".length);
       const body = request.postDataJSON() as Readonly<Record<string, unknown>>;
@@ -694,6 +788,9 @@ async function installMockSupabase(page: Page): Promise<MockState> {
         state.versionState = "submitted";
         await route.fulfill({ json: null, status: 200 });
         return;
+      }
+      if (command === "m1_request_generation") {
+        state.generationJobState = "queued";
       }
       if (command === "m1_create_review_policy") {
         state.reviewPolicyActive = true;
@@ -745,7 +842,7 @@ async function installMockSupabase(page: Page): Promise<MockState> {
       }
       const syntheticResult =
         command === "m1_request_generation"
-          ? "00000000-0000-4000-8000-000000000701"
+          ? generationJobId
           : command === "m1_approve_version"
             ? approvalSnapshotId
             : "00000000-0000-4000-8000-000000000702";
@@ -972,7 +1069,7 @@ test("sign-out clears the browser session without exposing a governed route", as
   await expect(page).toHaveURL(/\/sign-in$/);
 });
 
-test("a brief request keeps one stable idempotency key across its two durable commands", async ({
+test("Phase 4B.1 shows exact profiles for review while save and generation stay locked", async ({
   page,
 }) => {
   const state = await installMockSupabase(page);
@@ -986,38 +1083,131 @@ test("a brief request keeps one stable idempotency key across its two durable co
   ).toBeVisible();
 
   const briefForm = page.getByRole("region", { name: "Create a Strongr Daily brief" });
-  await briefForm.getByLabel("Working title").fill("Browser acceptance brief");
-  await briefForm.getByLabel("Audience").fill("Browser acceptance audience");
-  await briefForm.getByLabel("Theme").fill("Browser acceptance theme");
-  await briefForm.getByLabel("Scripture reference").fill("Reference 1:1");
-  await briefForm.getByLabel("Translation").fill("TEST");
-  await briefForm.getByLabel("Source citation").fill("Browser acceptance source");
-  await briefForm.getByLabel("Source brief identifier").fill("browser-acceptance-brief");
-  await briefForm
-    .getByLabel("Pastoral purpose")
-    .fill("Exercise the durable brief request without creating production content.");
-  const requestButton = page.getByRole("button", {
-    name: "Create brief and request generation",
-  });
-  await requestButton.click();
+  const profile = briefForm.getByLabel("Content format and version");
+  const save = briefForm.getByRole("button", { name: "Save brief" });
+  await expect(save).toBeDisabled();
+  await expect(briefForm.getByText(/choose a content format before continuing/i)).toBeVisible();
+  await expect(briefForm.getByLabel("Working title")).toHaveCount(0);
+
+  await profile.selectOption("bible_study@1");
   await expect(
-    page.getByText(/Brief saved. Studio started preparing the private draft/i).first(),
+    briefForm.getByText(/will not reuse the audio-reflection form or guess this format/i),
+  ).toBeVisible();
+  await expect(briefForm.getByLabel("Working title")).toHaveCount(0);
+
+  await profile.selectOption("strongr_daily_audio_reflection_v2@2");
+  await expect(briefForm.getByLabel("Working title")).toBeVisible();
+  await expect(briefForm.getByText("Source material required", { exact: true })).toBeVisible();
+  await expect(
+    briefForm.getByText(/Phase 4B\.1 is review-only.*cannot save a new brief/is),
+  ).toBeVisible();
+  await expect(save).toBeDisabled();
+  await expect(
+    briefForm.getByText(/every profile inactive until a later, explicit owner approval/i),
   ).toBeVisible();
 
-  const createCalls = state.rpcCalls.filter(({ command }) => command === "m1_create_audio_brief");
-  const generationCalls = state.rpcCalls.filter(
-    ({ command }) => command === "m1_request_generation",
+  expect(state.rpcCalls.filter(({ command }) => command === "m1_create_audio_brief")).toHaveLength(
+    0,
   );
-  expect(createCalls).toHaveLength(1);
-  expect(generationCalls).toHaveLength(1);
-  expect(generationCalls[0]?.body).toEqual(
-    expect.objectContaining({
-      p_brief_id: briefId,
-      p_idempotency_key: expect.stringMatching(/^strongr-daily-v2-/),
-      p_organization_id: organizationA,
-    }),
+  expect(state.rpcCalls.filter(({ command }) => command === "m1_request_generation")).toHaveLength(
+    0,
   );
-  expect(createCalls[0]?.body.p_correlation_id).toBe(generationCalls[0]?.body.p_correlation_id);
+  expect(state.generationRuntimeCalls).toHaveLength(0);
+});
+
+test("a generated v2 draft stays readable while legacy regeneration is locked", async ({
+  page,
+}) => {
+  const state = await installMockSupabase(page);
+  state.generationJobState = "succeeded";
+  state.versionState = "draft";
+  await signIn(page);
+  await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
+  await page.getByRole("link", { name: "Governed content" }).click();
+
+  await page.getByText("Read full draft").click();
+  const preview = page.locator(".content-preview");
+  await expect(preview).toContainText(strongrDailyOutput.audience);
+  await expect(preview).toContainText(strongrDailyOutput.scripture_reference.source_citation);
+  await expect(preview).toContainText(strongrDailyOutput.prohibited_claims_or_wording[0] ?? "");
+  await expect(preview).toContainText(strongrDailyOutput.schema_id);
+  await expect(preview).toContainText(strongrDailyOutput.narration_text);
+  await expect(preview).toContainText(strongrDailyOutput.app_description);
+  await expect(preview).toContainText(strongrDailyOutput.artwork_generation_prompt);
+
+  await page.getByText("Need a different draft?").click();
+  const regenerate = page.getByRole("button", { name: "Generate a different draft" });
+  await expect(regenerate).toBeDisabled();
+  await expect(page.getByText(/separately billable.*US\$0\.10/is)).toBeVisible();
+  await expect(
+    page.getByText(/saved work has no governed content profile.*readable and exportable/is),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel("I intentionally want one new, separately billable draft request."),
+  ).toBeDisabled();
+
+  await page.getByRole("button", { name: "Refresh saved work" }).click();
+  expect(state.rpcCalls.filter(({ command }) => command === "m1_request_generation")).toHaveLength(
+    0,
+  );
+  expect(state.generationRuntimeCalls).toHaveLength(0);
+
+  expect(state.rpcCalls.filter(({ command }) => command === "m1_request_generation")).toHaveLength(
+    0,
+  );
+  expect(state.generationRuntimeCalls).toHaveLength(0);
+});
+
+test("a failed regeneration never hides the earlier immutable draft", async ({ page }) => {
+  const state = await installMockSupabase(page);
+  state.generationJobState = "failed";
+  state.versionState = "draft";
+  await signIn(page);
+  await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
+  await page.getByRole("link", { name: "Governed content" }).click();
+
+  const savedDraft = page.getByRole("region", { name: "Read the saved draft" });
+  await expect(savedDraft.getByRole("article")).toBeVisible();
+  await expect(savedDraft.getByText("Need a different draft?")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The draft was not completed" })).toHaveCount(0);
+  expect(state.generationRuntimeCalls).toHaveLength(0);
+});
+
+test("failed legacy generation has plain recovery but cannot retry without an active profile", async ({
+  page,
+}) => {
+  const state = await installMockSupabase(page);
+  state.contentVersionPresent = false;
+  state.generationJobState = "failed";
+  state.generationRuntimeOutcome = "succeeded";
+  await signIn(page);
+  await page.getByRole("combobox", { name: "Active organization" }).selectOption(organizationA);
+  await page.getByRole("link", { name: "Governed content" }).click();
+
+  await expect(page.getByRole("heading", { name: "The draft was not completed" })).toBeVisible();
+  await expect(page.getByText(/brief and any earlier draft are unchanged/i)).toBeVisible();
+  await expect(page.getByText(/generation\.provider_/)).toHaveCount(0);
+  const retry = page.getByRole("button", { name: "Try generation again" });
+  await expect(retry).toBeDisabled();
+
+  await page.getByRole("button", { name: "Refresh saved work" }).click();
+  expect(state.rpcCalls.filter(({ command }) => command === "m1_request_generation")).toHaveLength(
+    0,
+  );
+  expect(state.generationRuntimeCalls).toHaveLength(0);
+
+  await expect(
+    page.getByText(/saved work has no governed content profile.*generation is locked/is),
+  ).toBeVisible();
+  await expect(
+    page.getByLabel(
+      "I understand this intentionally starts one new, separately billable draft request.",
+    ),
+  ).toBeDisabled();
+  expect(state.rpcCalls.filter(({ command }) => command === "m1_request_generation")).toHaveLength(
+    0,
+  );
+  expect(state.generationRuntimeCalls).toHaveLength(0);
 });
 
 test("guided review shows ordered progress, one action, and safe failed-check recovery", async ({

@@ -801,6 +801,19 @@ where (
     });
     const briefFlowAal1 = createBriefToDraftOperatorFlow({
       commands: gatewayOneAal1,
+      generation: {
+        async startGeneration({ generationJobId }) {
+          return {
+            contentVersionId: null,
+            errorCode: null,
+            estimatedCostMicrounits: null,
+            generationJobId,
+            inputTokens: null,
+            outputTokens: null,
+            state: "queued",
+          };
+        },
+      },
       reads: gatewayOneAal1,
     });
     const reviewFlowAal1 = createReviewToPackageOperatorFlow({

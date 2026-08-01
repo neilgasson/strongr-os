@@ -1,5 +1,7 @@
 import {
+  contentProfileSelectionsMatch,
   createGenerationOutputHash,
+  isGenerationOutputBoundToBrief,
   type GenerationAdapter,
   type GenerationAdapterIdentity,
   GenerationProviderError,
@@ -13,6 +15,7 @@ import {
   parseStrongrDailyAudioReflectionV2Brief,
   type StrongrDailyAudioReflectionV2Brief,
 } from "../../../packages/content-schemas/src/index.ts";
+import type { ContentProfileSelection } from "../../../packages/content-profiles/src/index.ts";
 import type { JsonValue, Uuid } from "../../../packages/contracts/src/index.ts";
 
 export interface GenerationEventClaim {
@@ -45,6 +48,8 @@ export interface GenerationAttemptLease {
   readonly promptVersion: number;
   readonly promptChecksum: string;
   readonly brief: unknown;
+  readonly contentProfile: ContentProfileSelection | null;
+  readonly contentProfileSourceManifestChecksum: string | null;
   readonly attemptId: Uuid | null;
   readonly attemptNumber: number;
   readonly maxAttempts: number;
@@ -59,6 +64,11 @@ export interface GenerationCompletion {
 }
 
 export interface GenerationWorkerStore {
+  claimGenerationEventByJob(
+    generationJobId: Uuid,
+    workerId: string,
+    leaseSeconds: number,
+  ): Promise<GenerationEventClaim | null>;
   claimGenerationEvents(
     workerId: string,
     batchSize: number,
@@ -126,6 +136,11 @@ export interface DurableWorkerOptions {
   readonly retryAfterSeconds?: number;
 }
 
+export interface DurableSingleJobOptions {
+  readonly leaseSeconds?: number;
+  readonly retryAfterSeconds?: number;
+}
+
 export interface DurableWorkerBatchSummary {
   readonly claimed: number;
   readonly succeeded: number;
@@ -163,6 +178,8 @@ function validGenerationResult(
   identity: GenerationAdapterIdentity,
   promptChecksum: string,
   brief: AudioReflectionBrief | StrongrDailyAudioReflectionV2Brief,
+  contentProfile: ContentProfileSelection | null,
+  contentProfileSourceManifestChecksum: string | null,
 ): boolean {
   try {
     const expectedSchemaId =
@@ -173,13 +190,21 @@ function validGenerationResult(
       expectedSchemaId === "strongr.strongr_daily_audio_reflection.v2"
         ? parseStrongrDailyAudioReflectionV2(result.output)
         : parseAudioReflection(result.output);
+    const briefProfile =
+      brief.schema_id === "strongr.strongr_daily_audio_reflection_brief.v2"
+        ? (brief.content_profile ?? null)
+        : null;
     return (
       result.provider === identity.provider &&
       result.model === identity.model &&
+      contentProfileSelectionsMatch(result.contentProfile, contentProfile) &&
+      result.contentProfileSourceManifestChecksum === contentProfileSourceManifestChecksum &&
+      contentProfileSelectionsMatch(briefProfile, contentProfile) &&
       result.promptChecksum === promptChecksum &&
       result.responseSchemaId === expectedSchemaId &&
       result.output.schema_id === expectedSchemaId &&
-      result.outputHash === createGenerationOutputHash(output)
+      result.outputHash === createGenerationOutputHash(output) &&
+      isGenerationOutputBoundToBrief(brief, output)
     );
   } catch {
     return false;
@@ -230,8 +255,48 @@ export class DurableGenerationWorker {
       outcomes.push(await this.#processClaim(claim, retryAfterSeconds));
     }
 
+    return this.#finishRun(claims.length, outcomes, "batch_completed");
+  }
+
+  async runJobOnce(
+    generationJobId: Uuid,
+    options: DurableSingleJobOptions = {},
+  ): Promise<DurableWorkerBatchSummary> {
+    if (!/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(generationJobId)) {
+      throw new Error("generation job id is invalid");
+    }
+    const leaseSeconds = requireIntegerInRange(
+      options.leaseSeconds ?? 60,
+      1,
+      3_600,
+      "lease duration",
+    );
+    const retryAfterSeconds = requireIntegerInRange(
+      options.retryAfterSeconds ?? 0,
+      0,
+      86_400,
+      "retry delay",
+    );
+
+    const claim = await this.#store.claimGenerationEventByJob(
+      generationJobId,
+      this.#workerId,
+      leaseSeconds,
+    );
+    this.#record("job_claimed", "pass", claim ?? undefined);
+    const outcomes: EventOutcome[] = claim
+      ? [await this.#processClaim(claim, retryAfterSeconds)]
+      : [];
+    return this.#finishRun(claim ? 1 : 0, outcomes, "job_completed");
+  }
+
+  async #finishRun(
+    claimed: number,
+    outcomes: readonly EventOutcome[],
+    evidenceAction: "batch_completed" | "job_completed",
+  ): Promise<DurableWorkerBatchSummary> {
     const summary: DurableWorkerBatchSummary = Object.freeze({
-      claimed: claims.length,
+      claimed,
       succeeded: outcomes.filter((outcome) => outcome === "succeeded").length,
       replayed: outcomes.filter((outcome) => outcome === "replayed").length,
       retried: outcomes.filter((outcome) => outcome === "retried").length,
@@ -248,7 +313,7 @@ export class DurableGenerationWorker {
       retried: summary.retried,
       succeeded: summary.succeeded,
     });
-    this.#record("batch_completed", heartbeatStatus === "idle" ? "pass" : "deferred");
+    this.#record(evidenceAction, heartbeatStatus === "idle" ? "pass" : "deferred");
     return summary;
   }
 
@@ -313,6 +378,8 @@ export class DurableGenerationWorker {
 
     const request = {
       brief,
+      contentProfile: attempt.contentProfile,
+      contentProfileSourceManifestChecksum: attempt.contentProfileSourceManifestChecksum,
       correlationId: attempt.correlationId,
       generationJobId: attempt.generationJobId,
       organizationId: attempt.organizationId,
@@ -334,7 +401,16 @@ export class DurableGenerationWorker {
     }
     const latencyMs = Math.max(0, Math.round(this.#clock() - startedAt));
 
-    if (!validGenerationResult(result, this.#adapter.identity, attempt.promptChecksum, brief)) {
+    if (
+      !validGenerationResult(
+        result,
+        this.#adapter.identity,
+        attempt.promptChecksum,
+        brief,
+        attempt.contentProfile,
+        attempt.contentProfileSourceManifestChecksum,
+      )
+    ) {
       return this.#failCurrentAttempt(
         claim,
         attempt,

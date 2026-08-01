@@ -56,6 +56,7 @@ export function createStrongrDailyV2FixtureOutput(brief: StrongrDailyAudioReflec
     artwork_generation_prompt: `Warm, quiet dawn light for a Christian audio reflection about ${brief.theme}; no text or people.`,
     audience: brief.audience,
     closing: "Thank You for meeting us here. Carry this truth with you today.",
+    ...(brief.content_profile ? { content_profile: brief.content_profile } : {}),
     content_type: "audio_reflection" as const,
     estimated_duration_seconds: brief.desired_duration_seconds,
     final_title: brief.working_title,
@@ -106,6 +107,8 @@ export const deterministicGenerationAdapter: GenerationAdapter = Object.freeze({
 
     return Promise.resolve({
       ...deterministicAdapterIdentity,
+      contentProfile: request.contentProfile,
+      contentProfileSourceManifestChecksum: request.contentProfileSourceManifestChecksum,
       output,
       outputHash,
       promptChecksum,

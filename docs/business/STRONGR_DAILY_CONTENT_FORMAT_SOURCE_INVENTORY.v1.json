@@ -1,0 +1,205 @@
+{
+  "schema_id": "strongr.strongr_daily_content_format_source_inventory.v1",
+  "manifest_version": 1,
+  "status": "inventory_complete_profiles_unapproved",
+  "recorded_on": "2026-07-31",
+  "scope": "Strongr Daily content-format sources available in neilgasson/strongr-os",
+  "activation_authorized": false,
+  "real_provider_generation_authorized": false,
+  "source_classes": {
+    "repository_authoritative": "A checked-in source that governs an implemented contract, approved plan, accepted checkpoint, or security boundary.",
+    "owner_asserted_unresolved": "A format named by the owner whose prior approved source material is not yet preserved in the repository.",
+    "synthetic_non_authoritative": "A deterministic or synthetic fixture that may test contracts but must not define creative standards."
+  },
+  "repository_sources": [
+    {
+      "id": "locked-economic-target-plan",
+      "class": "repository_authoritative",
+      "path": "docs/business/STRONGR_DAILY_ECONOMIC_TARGET_PLAN_LOCKED.md",
+      "line_ranges": ["77-92", "94-111", "175-189"],
+      "authority": "Names launch-reserve deliverables and preserves the v2 content contract; it does not define per-format creative structure."
+    },
+    {
+      "id": "audio-reflection-contracts",
+      "class": "repository_authoritative",
+      "path": "packages/content-schemas/src/audio-reflection.ts",
+      "line_ranges": ["20-65", "69-133"],
+      "authority": "Defines the legacy v1 audio-reflection brief/output and Strongr Daily v2 audio-reflection brief/output fields and limits."
+    },
+    {
+      "id": "governed-audio-reflection-database-scope",
+      "class": "repository_authoritative",
+      "path": "supabase/migrations/202607241330_m1_governed_audio_reflection.sql",
+      "line_ranges": ["1-15", "26-35", "103-120", "1334-1343"],
+      "authority": "Limits the implemented content item to audio_reflection and defines governance checks."
+    },
+    {
+      "id": "v2-audio-reflection-schema-allowlist",
+      "class": "repository_authoritative",
+      "path": "supabase/migrations/20260728090000_strongr_daily_audio_reflection_v2.sql",
+      "line_ranges": ["1-18", "21-54"],
+      "authority": "Adds only the Strongr Daily v2 audio-reflection schema pair; it does not add another content type."
+    },
+    {
+      "id": "engineering-content-governance",
+      "class": "repository_authoritative",
+      "path": "docs/standards/Strongr_OS_Engineering_Standards_v1.0.md",
+      "line_ranges": ["180-218", "250-261", "263-290"],
+      "authority": "Requires immutable versioned schemas and prompts, separate human review, and strict treatment of private journal and prayer data."
+    },
+    {
+      "id": "quiet-trust-phase-4a-checkpoint",
+      "class": "repository_authoritative",
+      "path": "evidence/phase-4a/acceptance-record.json",
+      "line_ranges": ["13-44", "46-61"],
+      "authority": "Proves the approved pilot identity, hashes, governance, and downloads. It does not contain the approved prose and is not a creative example by itself."
+    },
+    {
+      "id": "approved-package-export-projection",
+      "class": "repository_authoritative",
+      "path": "apps/studio/src/strongr-daily-export.ts",
+      "line_ranges": ["11-22", "88-145"],
+      "authority": "Defines the v2 approved export projection and manual-upload status."
+    },
+    {
+      "id": "scripture-rights-pre-call-boundary",
+      "class": "repository_authoritative",
+      "path": "docs/runbooks/phase-4b-live-provider.md",
+      "line_ranges": ["45-66"],
+      "authority": "Forbids unauthorized full NIV text and preserves the no-publication draft boundary."
+    },
+    {
+      "id": "current-generic-provider-candidate",
+      "class": "repository_authoritative",
+      "path": "packages/ai/src/openai-strongr-daily-v2-adapter.ts",
+      "line_ranges": ["52-126", "222-230"],
+      "authority": "Records the unactivated Phase 4B implementation candidate. It is not an approved multi-format profile and must not be used for a paid call until profile selection is governed."
+    }
+  ],
+  "synthetic_sources_excluded_from_creative_authority": [
+    {
+      "path": "packages/testing/src/audio-reflection-fixtures.ts",
+      "line_ranges": ["14-53"],
+      "reason": "Explicit synthetic and test-only content."
+    },
+    {
+      "path": "packages/ai/src/deterministic-adapter.ts",
+      "line_ranges": ["53-80"],
+      "reason": "Deterministic contract fixture, not approved Strongr Daily voice or structure."
+    },
+    {
+      "path": "apps/studio/test/brief-to-draft-flow.test.ts",
+      "line_ranges": ["30-47"],
+      "reason": "Test brief, not an approved source example."
+    }
+  ],
+  "profile_inventory": [
+    {
+      "profile_key": "legacy_audio_reflection_v1",
+      "repository_term": "audio reflection",
+      "source_status": "source_backed_contract_reference_only",
+      "source_ids": ["audio-reflection-contracts", "governed-audio-reflection-database-scope"],
+      "activation_status": "inactive"
+    },
+    {
+      "profile_key": "strongr_daily_audio_reflection_v2",
+      "repository_term": "Strongr Daily audio reflection",
+      "source_status": "source_backed_field_contract_creative_rules_unresolved",
+      "source_ids": [
+        "audio-reflection-contracts",
+        "v2-audio-reflection-schema-allowlist",
+        "quiet-trust-phase-4a-checkpoint",
+        "approved-package-export-projection",
+        "scripture-rights-pre-call-boundary",
+        "current-generic-provider-candidate"
+      ],
+      "activation_status": "inactive_pending_owner_profile_approval"
+    },
+    {
+      "profile_key": "guided_audio_reflection",
+      "repository_term": "guided audio reflections",
+      "source_status": "taxonomy_only_rules_unresolved",
+      "source_ids": ["locked-economic-target-plan"],
+      "activation_status": "inactive"
+    },
+    {
+      "profile_key": "devotional_experience",
+      "repository_term": "devotional experiences",
+      "source_status": "taxonomy_only_rules_unresolved",
+      "source_ids": ["locked-economic-target-plan"],
+      "activation_status": "inactive"
+    },
+    {
+      "profile_key": "scripture_reading_series",
+      "repository_term": "Scripture-reading series",
+      "source_status": "taxonomy_only_rules_unresolved",
+      "source_ids": ["locked-economic-target-plan"],
+      "activation_status": "inactive"
+    },
+    {
+      "profile_key": "prayer_and_personal_takeaway_prompts",
+      "repository_term": "prayers and personal-takeaway prompts",
+      "source_status": "supporting_deliverable_only_rules_unresolved",
+      "source_ids": ["locked-economic-target-plan", "engineering-content-governance"],
+      "activation_status": "inactive"
+    },
+    {
+      "profile_key": "short_form_reflection",
+      "repository_term": null,
+      "owner_term": "short-form reflection",
+      "source_status": "owner_asserted_prior_sources_missing",
+      "source_ids": [],
+      "activation_status": "inactive"
+    },
+    {
+      "profile_key": "long_form_reflection",
+      "repository_term": null,
+      "owner_term": "long-form reflection",
+      "source_status": "owner_asserted_prior_sources_missing",
+      "source_ids": [],
+      "activation_status": "inactive"
+    },
+    {
+      "profile_key": "bible_study",
+      "repository_term": null,
+      "owner_term": "Bible study",
+      "source_status": "owner_asserted_prior_sources_missing",
+      "source_ids": [],
+      "activation_status": "inactive"
+    },
+    {
+      "profile_key": "guided_prayer",
+      "repository_term": null,
+      "owner_term": "guided prayer",
+      "source_status": "owner_asserted_prior_sources_missing_and_sensitive_data_boundary_unresolved",
+      "source_ids": ["engineering-content-governance"],
+      "activation_status": "inactive"
+    },
+    {
+      "profile_key": "journal_and_personal_takeaway",
+      "repository_term": null,
+      "owner_term": "journal and personal-takeaway prompts",
+      "source_status": "owner_asserted_prior_sources_missing_and_sensitive_data_boundary_unresolved",
+      "source_ids": ["engineering-content-governance"],
+      "activation_status": "inactive"
+    },
+    {
+      "profile_key": "series_description",
+      "repository_term": null,
+      "owner_term": "series descriptions",
+      "source_status": "owner_asserted_prior_sources_missing",
+      "source_ids": [],
+      "activation_status": "inactive"
+    }
+  ],
+  "known_repository_gaps": [
+    "No approved creative example text is tracked; the Quiet Trust body and export are absent.",
+    "No short-form or long-form distinction is documented.",
+    "No devotional, Bible-study, guided-prayer, journal, or Scripture-reading-series structure is documented.",
+    "No series continuity, ordering, release cadence, or series-description contract is documented.",
+    "No ElevenLabs-ready pacing, pauses, pronunciation, or formatting guidance is documented.",
+    "No per-format title, description, artwork, social, keyword, or app-metadata style is documented.",
+    "Before Phase 4B.1, no content profile ID/version was selected by the brief, job, or provider request; the new foundation must preserve this provenance without treating it as creative approval."
+  ],
+  "next_gate": "Locate and ingest the owner's prior approved source material, draft source-cited profiles, and obtain explicit owner approval before any profile is activated or any paid provider generation occurs."
+}

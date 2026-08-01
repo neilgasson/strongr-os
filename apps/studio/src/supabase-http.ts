@@ -6,6 +6,7 @@ import type {
   CheckDefinitionSummary,
   CheckOutcome,
   CheckRunStatus,
+  ContentProfileBinding,
   ContentVersionSource,
   ContentVersionState,
   GenerationJobState,
@@ -42,7 +43,13 @@ import type {
 } from "../../../packages/contracts/src/index.ts";
 
 import type { StudioEnvironment } from "./environment.ts";
-import type { StudioCommandGateway } from "./foundation.ts";
+import type {
+  StartGenerationInput,
+  StartGenerationResult,
+  StudioCommandGateway,
+  StudioGenerationGateway,
+} from "./foundation.ts";
+import { isStudioGenerationSafeErrorCode } from "./foundation.ts";
 
 export type StudioFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -99,6 +106,31 @@ function requireInteger(record: UnknownRecord, key: string): number {
   return value as number;
 }
 
+function requireOptionalNonNegativeInteger(record: UnknownRecord, key: string): number | null {
+  const value = record[key];
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new Error(`Invalid Studio API field: ${key}`);
+  }
+  return value as number;
+}
+
+function requireOptionalGenerationErrorCode(
+  record: UnknownRecord,
+  key: string,
+): StartGenerationResult["errorCode"] {
+  const value = record[key];
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (!isStudioGenerationSafeErrorCode(value)) {
+    throw new Error(`Invalid Studio API field: ${key}`);
+  }
+  return value;
+}
+
 function requireBoolean(record: UnknownRecord, key: string): boolean {
   const value = record[key];
   if (typeof value !== "boolean") {
@@ -126,6 +158,13 @@ function requireNullableUuid(record: UnknownRecord, key: string): Uuid | null {
   return value;
 }
 
+function requireOptionalUuid(record: UnknownRecord, key: string): Uuid | null {
+  if (record[key] === undefined) {
+    return null;
+  }
+  return requireNullableUuid(record, key);
+}
+
 function requireHash(record: UnknownRecord, key: string): string {
   const value = requireString(record, key);
   if (!/^[a-f0-9]{64}$/.test(value)) {
@@ -143,6 +182,39 @@ function requireNullableHash(record: UnknownRecord, key: string): string | null 
     throw new Error(`Invalid Studio API field: ${key}`);
   }
   return value;
+}
+
+function requireContentProfileBinding(record: UnknownRecord): ContentProfileBinding | null {
+  const values = [
+    record.content_profile_id,
+    record.content_profile_version,
+    record.content_profile_checksum,
+    record.content_profile_content_type,
+    record.content_profile_source_manifest_checksum,
+  ];
+  if (values.every((value) => value === null)) return null;
+  if (values.some((value) => value === null || value === undefined)) {
+    throw new Error("Invalid Studio API content profile provenance");
+  }
+  const profileId = requireString(record, "content_profile_id");
+  const profileVersion = requireInteger(record, "content_profile_version");
+  const canonicalChecksum = requireHash(record, "content_profile_checksum");
+  const contentType = requireString(record, "content_profile_content_type");
+  const sourceManifestChecksum = requireHash(record, "content_profile_source_manifest_checksum");
+  if (
+    profileVersion < 1 ||
+    !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(profileId) ||
+    !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(contentType)
+  ) {
+    throw new Error("Invalid Studio API content profile provenance");
+  }
+  return Object.freeze({
+    canonicalChecksum,
+    contentType,
+    profileId,
+    profileVersion,
+    sourceManifestChecksum,
+  });
 }
 
 function requireJsonValue(value: unknown, key: string): JsonValue {
@@ -414,6 +486,26 @@ async function readJson(response: Response): Promise<unknown> {
   return JSON.parse(text) as unknown;
 }
 
+async function readGenerationJson(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!response.ok) {
+    let code = "api_error";
+    try {
+      const error = requireRecord(JSON.parse(text), "generation error");
+      if (isStudioGenerationSafeErrorCode(error.error_code)) {
+        code = error.error_code;
+      }
+    } catch {
+      code = "api_error";
+    }
+    throw new StudioApiError(response.status, code);
+  }
+  if (text.length === 0) {
+    return null;
+  }
+  return JSON.parse(text) as unknown;
+}
+
 function parseMediaArtifact(value: unknown, organizationId: Uuid): TenantMediaArtifactSummary {
   const row = requireTenantRow(value, "media artifact", organizationId);
   if (
@@ -496,7 +588,7 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
   return [...new Uint8Array(digest)].map((value) => value.toString(16).padStart(2, "0")).join("");
 }
 
-export class StudioSupabaseGateway implements StudioCommandGateway {
+export class StudioSupabaseGateway implements StudioCommandGateway, StudioGenerationGateway {
   readonly #accessToken: string;
   readonly #environment: StudioEnvironment;
   readonly #fetch: StudioFetch;
@@ -523,10 +615,49 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
     return parseCommandResult(command, await readJson(response));
   }
 
+  async startGeneration(input: StartGenerationInput): Promise<StartGenerationResult> {
+    const generationJobId = requireUuid(
+      { generation_job_id: input.generationJobId },
+      "generation_job_id",
+    );
+    const response = await this.#fetch(
+      `${this.#environment.supabaseUrl}/functions/v1/strongr-daily-generate`,
+      {
+        body: JSON.stringify({
+          generation_job_id: generationJobId,
+        }),
+        headers: this.#headers(true),
+        method: "POST",
+      },
+    );
+    const row = requireRecord(await readGenerationJson(response), "generation runtime");
+    const returnedJobId = requireUuid(row, "generation_job_id");
+    if (returnedJobId !== generationJobId) {
+      throw new Error("Invalid generation runtime response");
+    }
+    const allowedStates: readonly GenerationJobState[] = [
+      "queued",
+      "running",
+      "succeeded",
+      "failed",
+      "dead_letter",
+      "cancelled",
+    ];
+    return Object.freeze({
+      contentVersionId: requireOptionalUuid(row, "content_version_id"),
+      errorCode: requireOptionalGenerationErrorCode(row, "error_code"),
+      estimatedCostMicrounits: requireOptionalNonNegativeInteger(row, "estimated_cost_microunits"),
+      generationJobId: returnedJobId,
+      inputTokens: requireOptionalNonNegativeInteger(row, "input_tokens"),
+      outputTokens: requireOptionalNonNegativeInteger(row, "output_tokens"),
+      state: requireOneOf(row, "state", allowedStates),
+    });
+  }
+
   async listBriefs(organizationId: Uuid, limit = 50): Promise<readonly TenantBriefSummary[]> {
     const rows = await this.#readRows(
       "content_briefs",
-      "id,organization_id,content_item_id,schema_id,payload_hash,created_at",
+      "id,organization_id,content_item_id,schema_id,payload_hash,content_profile_id,content_profile_version,content_profile_checksum,content_profile_content_type,content_profile_source_manifest_checksum,created_at",
       organizationId,
       limit,
     );
@@ -546,6 +677,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
         }
         return Object.freeze({
           contentItemId: requireUuid(row, "content_item_id"),
+          contentProfile: requireContentProfileBinding(row),
           createdAt: requireString(row, "created_at"),
           id: requireUuid(row, "id"),
           organizationId,
@@ -666,7 +798,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
   ): Promise<readonly TenantGenerationJobSummary[]> {
     const rows = await this.#readRows(
       "generation_jobs",
-      "id,organization_id,brief_id,state,attempt_count,output_hash,created_at,finished_at",
+      "id,organization_id,brief_id,state,attempt_count,output_hash,content_profile_id,content_profile_version,content_profile_checksum,content_profile_content_type,content_profile_source_manifest_checksum,created_at,finished_at",
       organizationId,
       limit,
     );
@@ -691,6 +823,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
         return Object.freeze({
           attemptCount: requireInteger(row, "attempt_count"),
           briefId: requireUuid(row, "brief_id"),
+          contentProfile: requireContentProfileBinding(row),
           createdAt: requireString(row, "created_at"),
           finishedAt: requireNullableString(row, "finished_at"),
           id: requireUuid(row, "id"),
@@ -717,6 +850,11 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
         "schema_id",
         "payload",
         "payload_hash",
+        "content_profile_id",
+        "content_profile_version",
+        "content_profile_checksum",
+        "content_profile_content_type",
+        "content_profile_source_manifest_checksum",
         "source",
         "source_job_id",
         "state",
@@ -747,6 +885,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
         return Object.freeze({
           briefId: requireUuid(row, "brief_id"),
           contentItemId: requireUuid(row, "content_item_id"),
+          contentProfile: requireContentProfileBinding(row),
           createdAt: requireString(row, "created_at"),
           id: requireUuid(row, "id"),
           organizationId,
@@ -970,6 +1109,11 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
         "manifest_schema_id",
         "manifest",
         "manifest_hash",
+        "content_profile_id",
+        "content_profile_version",
+        "content_profile_checksum",
+        "content_profile_content_type",
+        "content_profile_source_manifest_checksum",
         "created_at",
       ].join(","),
       organizationId,
@@ -984,6 +1128,7 @@ export class StudioSupabaseGateway implements StudioCommandGateway {
         return Object.freeze({
           approvalSnapshotId: requireUuid(row, "approval_snapshot_id"),
           createdAt: requireString(row, "created_at"),
+          contentProfile: requireContentProfileBinding(row),
           id: requireUuid(row, "id"),
           manifest: requireJsonObject(row.manifest, "manifest"),
           manifestHash: requireHash(row, "manifest_hash"),

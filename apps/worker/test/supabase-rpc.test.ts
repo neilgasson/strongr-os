@@ -108,6 +108,8 @@ test("worker completion sends validated output and returns the durable draft ide
   };
   const generation = await deterministicGenerationAdapter.generate({
     brief: audioReflectionBriefFixture,
+    contentProfile: null,
+    contentProfileSourceManifestChecksum: null,
     correlationId: fixtureIds.correlationId,
     generationJobId: fixtureIds.generationJobId,
     organizationId: fixtureIds.organizationAlphaId,
@@ -130,4 +132,111 @@ test("worker completion sends validated output and returns the durable draft ide
   assert.deepEqual(capturedBody?.p_output, generation.output);
   assert.equal(capturedBody?.p_output_hash, generation.outputHash);
   assert.equal(capturedBody?.p_response_schema_id, "strongr.audio_reflection.v1");
+});
+
+test("exact-job claim uses the targeted service-role RPC and returns at most one event", async () => {
+  let capturedInput = "";
+  let capturedBody: Readonly<Record<string, unknown>> | undefined;
+  const client = new SupabaseRpcClient(secretEnvironment, (input, init) => {
+    capturedInput = String(input);
+    capturedBody = JSON.parse(String(init?.body)) as Readonly<Record<string, unknown>>;
+    return Promise.resolve(
+      Response.json([
+        {
+          aggregate_id: fixtureIds.generationJobId,
+          aggregate_type: "generation_job",
+          attempt_number: 1,
+          causation_id: null,
+          correlation_id: fixtureIds.correlationId,
+          event_id: "00000000-0000-4000-8000-000000000005",
+          event_type: "content.generation_requested.v1",
+          event_version: 1,
+          lease_expires_at: "2026-07-26T17:00:00Z",
+          lease_token: "00000000-0000-4000-8000-000000000008",
+          organization_id: fixtureIds.organizationAlphaId,
+          payload: { job_id: fixtureIds.generationJobId },
+        },
+      ]),
+    );
+  });
+  const store = new SupabaseGenerationWorkerStore(client);
+
+  const claimed = await store.claimGenerationEventByJob(
+    fixtureIds.generationJobId,
+    secretEnvironment.workerId,
+    60,
+  );
+
+  assert.equal(
+    capturedInput,
+    "https://example.supabase.co/rest/v1/rpc/m1_claim_generation_event_by_job",
+  );
+  assert.deepEqual(capturedBody, {
+    p_generation_job_id: fixtureIds.generationJobId,
+    p_lease_seconds: 60,
+    p_worker_id: secretEnvironment.workerId,
+  });
+  assert.equal(claimed?.generationJobId, fixtureIds.generationJobId);
+});
+
+test("provider usage is persisted through the usage-aware completion RPC", async () => {
+  const contentVersionId = "00000000-0000-4000-8000-000000000009";
+  let capturedInput = "";
+  let capturedBody: Readonly<Record<string, unknown>> | undefined;
+  const client = new SupabaseRpcClient(secretEnvironment, (input, init) => {
+    capturedInput = String(input);
+    capturedBody = JSON.parse(String(init?.body)) as Readonly<Record<string, unknown>>;
+    return Promise.resolve(
+      Response.json([{ completion_state: "succeeded", content_version_id: contentVersionId }]),
+    );
+  });
+  const store = new SupabaseGenerationWorkerStore(client);
+  const claim: GenerationEventClaim = {
+    aggregateType: "generation_job",
+    attemptNumber: 1,
+    causationId: null,
+    correlationId: fixtureIds.correlationId,
+    eventId: "00000000-0000-4000-8000-000000000005",
+    eventType: "content.generation_requested.v1",
+    eventVersion: 1,
+    generationJobId: fixtureIds.generationJobId,
+    leaseExpiresAt: "2026-07-26T17:00:00Z",
+    leaseToken: "00000000-0000-4000-8000-000000000008",
+    organizationId: fixtureIds.organizationAlphaId,
+    payload: { job_id: fixtureIds.generationJobId },
+  };
+  const generated = await deterministicGenerationAdapter.generate({
+    brief: audioReflectionBriefFixture,
+    contentProfile: null,
+    contentProfileSourceManifestChecksum: null,
+    correlationId: fixtureIds.correlationId,
+    generationJobId: fixtureIds.generationJobId,
+    organizationId: fixtureIds.organizationAlphaId,
+    promptKey: "strongr.audio_reflection.fixture",
+    promptVersion: 1,
+  });
+
+  await store.completeGenerationAttempt(
+    claim,
+    secretEnvironment.workerId,
+    "00000000-0000-4000-8000-000000000006",
+    {
+      ...generated,
+      usage: {
+        estimatedCostMicrounits: 325,
+        inputTokens: 10,
+        outputTokens: 20,
+        totalTokens: 30,
+      },
+    },
+    37,
+  );
+
+  assert.equal(
+    capturedInput,
+    "https://example.supabase.co/rest/v1/rpc/m1_complete_generation_attempt_with_usage",
+  );
+  assert.equal(capturedBody?.p_input_tokens, 10);
+  assert.equal(capturedBody?.p_output_tokens, 20);
+  assert.equal(capturedBody?.p_cost_microunits, 325);
 });

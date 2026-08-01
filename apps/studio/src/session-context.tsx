@@ -138,7 +138,7 @@ export function StudioSessionProvider({
       accessToken: session.access_token,
       environment: environment.value,
     });
-    return createStudioFoundation(gateway, gateway, gateway);
+    return createStudioFoundation(gateway, gateway, gateway, gateway);
   }, [environment, session]);
 
   const clearSignedInState = useCallback(() => {

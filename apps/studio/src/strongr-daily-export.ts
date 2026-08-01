@@ -1,4 +1,8 @@
 import {
+  type ContentProfileSelection,
+  parseContentProfileSelection,
+} from "../../../packages/content-profiles/src/schema.ts";
+import {
   parseStrongrDailyAudioReflectionV2,
   type StrongrDailyAudioReflectionV2,
 } from "../../../packages/content-schemas/src/index.ts";
@@ -19,6 +23,8 @@ export interface StrongrDailyApprovedExport {
   readonly approval_evidence: JsonObject;
   readonly exported_at: string;
   readonly content: StrongrDailyAudioReflectionV2;
+  readonly content_profile?: ContentProfileSelection;
+  readonly content_profile_source_manifest_checksum?: string;
 }
 
 export interface StrongrDailyExportFiles {
@@ -36,6 +42,18 @@ function requireObject(value: unknown, name: string): JsonObject {
 function requireString(value: unknown, name: string): string {
   if (typeof value !== "string" || value.length === 0) throw new Error(`${name} is invalid`);
   return value;
+}
+
+function contentProfileSelectionsEqual(
+  left: ContentProfileSelection | undefined,
+  right: ContentProfileSelection,
+): boolean {
+  return (
+    left?.profile_id === right.profile_id &&
+    left.profile_version === right.profile_version &&
+    left.canonical_checksum === right.canonical_checksum &&
+    left.content_type === right.content_type
+  );
 }
 
 const utf8Encoder = new TextEncoder();
@@ -101,6 +119,38 @@ async function approvedExport(input: {
   }
   const contentPayloadHash = requireString(manifest.content_payload_hash, "content payload hash");
   const evidenceBundleHash = requireString(manifest.evidence_bundle_hash, "evidence bundle hash");
+  let contentProfile: ContentProfileSelection | null = null;
+  let contentProfileSourceManifestChecksum: string | null = null;
+  if (input.productionPackage.contentProfile !== null) {
+    contentProfile = parseContentProfileSelection(manifest.content_profile);
+    const expected = input.productionPackage.contentProfile;
+    if (
+      contentProfile.profile_id !== expected.profileId ||
+      contentProfile.profile_version !== expected.profileVersion ||
+      contentProfile.canonical_checksum !== expected.canonicalChecksum ||
+      contentProfile.content_type !== expected.contentType
+    ) {
+      throw new Error("production package content profile does not match manifest");
+    }
+    if (!contentProfileSelectionsEqual(content.content_profile, contentProfile)) {
+      throw new Error("approved content profile does not match package provenance");
+    }
+    contentProfileSourceManifestChecksum = requireString(
+      manifest.content_profile_source_manifest_checksum,
+      "content profile source manifest checksum",
+    );
+    if (contentProfileSourceManifestChecksum !== expected.sourceManifestChecksum) {
+      throw new Error("production package source manifest checksum does not match provenance");
+    }
+  } else if (
+    (manifest.content_profile !== undefined && manifest.content_profile !== null) ||
+    (manifest.content_profile_source_manifest_checksum !== undefined &&
+      manifest.content_profile_source_manifest_checksum !== null)
+  ) {
+    throw new Error("legacy production package has unexpected content profile provenance");
+  } else if (content.content_profile !== undefined) {
+    throw new Error("legacy approved content has unexpected content profile provenance");
+  }
   return Object.freeze({
     approval_evidence: Object.freeze({
       check_result_ids: manifest.check_result_ids ?? null,
@@ -114,6 +164,10 @@ async function approvedExport(input: {
     approval_snapshot_id: input.productionPackage.approvalSnapshotId,
     approved_content_hash: content.content_hash,
     content,
+    ...(contentProfile ? { content_profile: contentProfile } : {}),
+    ...(contentProfileSourceManifestChecksum
+      ? { content_profile_source_manifest_checksum: contentProfileSourceManifestChecksum }
+      : {}),
     content_payload_hash: contentPayloadHash,
     exported_at: input.exportedAt,
     package_id: input.productionPackage.id,
@@ -125,10 +179,13 @@ async function approvedExport(input: {
 
 function markdown(exported: StrongrDailyApprovedExport): string {
   const c = exported.content;
+  const profileLine = exported.content_profile
+    ? `- Content profile: ${exported.content_profile.profile_id} v${exported.content_profile.profile_version} (${exported.content_profile.canonical_checksum})\n- Content profile source manifest: ${exported.content_profile_source_manifest_checksum}\n`
+    : "";
   return (
     `# ${c.final_title}\n\n` +
     `**Manual upload required. This export does not publish content.**\n\n` +
-    `- Package: ${exported.package_id}\n- Approved payload hash: ${exported.content_payload_hash}\n- Content hash: ${exported.approved_content_hash}\n- Source brief: ${exported.source_brief_identifier}\n- Exported: ${exported.exported_at}\n\n` +
+    `- Package: ${exported.package_id}\n${profileLine}- Approved payload hash: ${exported.content_payload_hash}\n- Content hash: ${exported.approved_content_hash}\n- Source brief: ${exported.source_brief_identifier}\n- Exported: ${exported.exported_at}\n\n` +
     `## Scripture\n\n${c.scripture_reference.reference} (${c.scripture_reference.translation})\n\n` +
     `${c.scripture_text ? `> ${c.scripture_text}\n\n` : ""}` +
     `## App description\n\n${c.app_description}\n\n## Narration\n\n${c.narration_text}\n\n## Prayer\n\n${c.prayer}\n\n## Takeaway\n\n${c.personal_takeaway_prompt}\n\n` +

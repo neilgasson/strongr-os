@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createSyntheticPcmWav } from "../../../packages/media/src/index.ts";
-import { createStudioSupabaseGateway, StudioApiError } from "../src/index.ts";
 import type { StudioEnvironment } from "../src/index.ts";
+import { createStudioSupabaseGateway, StudioApiError } from "../src/index.ts";
 
 const organizationId = "00000000-0000-4000-8000-000000000001";
 const contentItemId = "00000000-0000-4000-8000-000000000002";
@@ -65,6 +65,120 @@ test("authenticated commands use the publishable key, user bearer token, and exa
     p_payload: { schema_id: "strongr.audio_reflection_brief.v1" },
     p_title: "Synthetic brief",
   });
+});
+
+test("generation runtime sends only governed identifiers with the existing user session", async () => {
+  const requests: { readonly input: string; readonly init?: RequestInit }[] = [];
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch(input, init) {
+      requests.push({ input: String(input), ...(init ? { init } : {}) });
+      return Promise.resolve(
+        Response.json({
+          content_version_id: versionId,
+          error_code: null,
+          estimated_cost_microunits: 2_500,
+          generation_job_id: jobId,
+          input_tokens: 1_000,
+          output_tokens: 2_000,
+          state: "succeeded",
+        }),
+      );
+    },
+  });
+
+  assert.deepEqual(await gateway.startGeneration({ generationJobId: jobId }), {
+    contentVersionId: versionId,
+    errorCode: null,
+    estimatedCostMicrounits: 2_500,
+    generationJobId: jobId,
+    inputTokens: 1_000,
+    outputTokens: 2_000,
+    state: "succeeded",
+  });
+  assert.equal(
+    requests[0]?.input,
+    "https://example.supabase.co/functions/v1/strongr-daily-generate",
+  );
+  assert.equal(requests[0]?.init?.method, "POST");
+  assert.deepEqual(JSON.parse(String(requests[0]?.init?.body)), {
+    generation_job_id: jobId,
+  });
+  const serialized = JSON.stringify(requests[0]);
+  assert.doesNotMatch(serialized, /prompt|model|brief|service.role|openai|api.key/i);
+  const headers = requests[0]?.init?.headers as Readonly<Record<string, string>>;
+  assert.equal(headers.apikey, environment.supabasePublishableKey);
+  assert.equal(headers.authorization, "Bearer authenticated-user-jwt");
+});
+
+test("generation runtime rejects malformed or unallowlisted response fields", async () => {
+  const responses = [
+    Response.json({
+      content_version_id: versionId,
+      error_code: null,
+      estimated_cost_microunits: 1,
+      generation_job_id: correlationId,
+      input_tokens: 1,
+      output_tokens: 1,
+      state: "succeeded",
+    }),
+    Response.json({
+      content_version_id: null,
+      error_code: "unsafe.user.supplied.code",
+      estimated_cost_microunits: null,
+      generation_job_id: jobId,
+      input_tokens: null,
+      output_tokens: null,
+      state: "failed",
+    }),
+  ];
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch() {
+      const response = responses.shift();
+      assert.ok(response);
+      return Promise.resolve(response);
+    },
+  });
+
+  await assert.rejects(
+    () => gateway.startGeneration({ generationJobId: jobId }),
+    /Invalid generation runtime response/,
+  );
+  await assert.rejects(
+    () => gateway.startGeneration({ generationJobId: jobId }),
+    /Invalid Studio API field: error_code/,
+  );
+});
+
+test("generation runtime accepts only a safe non-success code without echoing response details", async () => {
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch() {
+      return Promise.resolve(
+        Response.json(
+          {
+            error_code: "generation.provider_authentication_failed",
+            message: "secret provider detail must not escape",
+          },
+          { status: 503 },
+        ),
+      );
+    },
+  });
+
+  await assert.rejects(
+    () => gateway.startGeneration({ generationJobId: jobId }),
+    (error: unknown) => {
+      assert.ok(error instanceof StudioApiError);
+      assert.equal(error.code, "generation.provider_authentication_failed");
+      assert.doesNotMatch(error.message, /secret provider detail/);
+      return true;
+    },
+  );
 });
 
 test("media requests remain an exact AAL2 browser RPC without direct Storage access", async () => {
@@ -356,6 +470,11 @@ test("tenant reads are explicitly filtered, bounded, ordered, and contract parse
           Response.json([
             {
               content_item_id: contentItemId,
+              content_profile_checksum: null,
+              content_profile_content_type: null,
+              content_profile_id: null,
+              content_profile_source_manifest_checksum: null,
+              content_profile_version: null,
               created_at: "2026-07-26T20:00:00Z",
               id: briefId,
               organization_id: organizationId,
@@ -371,6 +490,11 @@ test("tenant reads are explicitly filtered, bounded, ordered, and contract parse
             {
               attempt_count: 1,
               brief_id: briefId,
+              content_profile_checksum: null,
+              content_profile_content_type: null,
+              content_profile_id: null,
+              content_profile_source_manifest_checksum: null,
+              content_profile_version: null,
               created_at: "2026-07-26T20:01:00Z",
               finished_at: "2026-07-26T20:02:00Z",
               id: jobId,
@@ -386,6 +510,11 @@ test("tenant reads are explicitly filtered, bounded, ordered, and contract parse
           {
             brief_id: briefId,
             content_item_id: contentItemId,
+            content_profile_checksum: null,
+            content_profile_content_type: null,
+            content_profile_id: null,
+            content_profile_source_manifest_checksum: null,
+            content_profile_version: null,
             created_at: "2026-07-26T20:02:00Z",
             id: versionId,
             organization_id: organizationId,
@@ -431,6 +560,11 @@ test("tenant brief reads accept the governed Strongr Daily v2 brief schema", asy
         Response.json([
           {
             content_item_id: contentItemId,
+            content_profile_checksum: null,
+            content_profile_content_type: null,
+            content_profile_id: null,
+            content_profile_source_manifest_checksum: null,
+            content_profile_version: null,
             created_at: "2026-07-30T15:00:00Z",
             id: briefId,
             organization_id: organizationId,
@@ -445,6 +579,73 @@ test("tenant brief reads accept the governed Strongr Daily v2 brief schema", asy
   const briefs = await gateway.listBriefs(organizationId);
 
   assert.equal(briefs[0]?.schemaId, "strongr.strongr_daily_audio_reflection_brief.v2");
+});
+
+test("tenant reads fail closed on partial content-profile provenance", async () => {
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch() {
+      return Promise.resolve(
+        Response.json([
+          {
+            content_item_id: contentItemId,
+            content_profile_checksum: null,
+            content_profile_content_type: "audio_reflection",
+            content_profile_id: "strongr_daily_audio_reflection_v2",
+            content_profile_source_manifest_checksum: hash,
+            content_profile_version: 2,
+            created_at: "2026-07-30T15:00:00Z",
+            id: briefId,
+            organization_id: organizationId,
+            payload_hash: hash,
+            schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
+          },
+        ]),
+      );
+    },
+  });
+
+  await assert.rejects(
+    () => gateway.listBriefs(organizationId),
+    /Invalid Studio API content profile provenance/,
+  );
+});
+
+test("tenant reads preserve exact profile and source-manifest provenance", async () => {
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch() {
+      return Promise.resolve(
+        Response.json([
+          {
+            content_item_id: contentItemId,
+            content_profile_checksum: hash,
+            content_profile_content_type: "audio_reflection",
+            content_profile_id: "strongr_daily_audio_reflection_v2",
+            content_profile_source_manifest_checksum: "b".repeat(64),
+            content_profile_version: 2,
+            created_at: "2026-07-30T15:00:00Z",
+            id: briefId,
+            organization_id: organizationId,
+            payload_hash: hash,
+            schema_id: "strongr.strongr_daily_audio_reflection_brief.v2",
+          },
+        ]),
+      );
+    },
+  });
+
+  const briefs = await gateway.listBriefs(organizationId);
+
+  assert.deepEqual(briefs[0]?.contentProfile, {
+    canonicalChecksum: hash,
+    contentType: "audio_reflection",
+    profileId: "strongr_daily_audio_reflection_v2",
+    profileVersion: 2,
+    sourceManifestChecksum: "b".repeat(64),
+  });
 });
 
 test("M1.3 evidence reads remain tenant-filtered and parse immutable hashes", async () => {
@@ -508,6 +709,11 @@ test("M1.3 evidence reads remain tenant-filtered and parse immutable hashes", as
         Response.json([
           {
             approval_snapshot_id: approvalId,
+            content_profile_checksum: null,
+            content_profile_content_type: null,
+            content_profile_id: null,
+            content_profile_source_manifest_checksum: null,
+            content_profile_version: null,
             created_at: "2026-07-26T20:02:00Z",
             id: packageId,
             manifest: {

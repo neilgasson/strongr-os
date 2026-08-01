@@ -1,8 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createGenerationRequestFixture } from "../../testing/src/index.ts";
-import { deterministicGenerationAdapter } from "../src/index.ts";
+import {
+  contentProfileSelectionFixture,
+  createGenerationRequestFixture,
+} from "../../testing/src/index.ts";
+import { contentProfileSelectionsMatch, deterministicGenerationAdapter } from "../src/index.ts";
+
+test("content-profile identity comparison is independent of JSON object key order", () => {
+  assert.equal(
+    contentProfileSelectionsMatch(
+      {
+        profile_version: contentProfileSelectionFixture.profile_version,
+        content_type: contentProfileSelectionFixture.content_type,
+        canonical_checksum: contentProfileSelectionFixture.canonical_checksum,
+        profile_id: contentProfileSelectionFixture.profile_id,
+      },
+      contentProfileSelectionFixture,
+    ),
+    true,
+  );
+});
 
 test("deterministic generation returns identical provenance for an exact replay", async () => {
   const request = createGenerationRequestFixture();

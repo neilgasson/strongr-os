@@ -1,3 +1,5 @@
+import { openAiStrongrDailyV2ProviderConfig } from "../../../packages/ai/src/index.ts";
+
 export type GenerationProvider = "deterministic" | "openai";
 export type PrivilegedKeyKind = "secret" | "legacy_service_role";
 
@@ -48,13 +50,6 @@ function requireWorkerId(value: string): string {
   return value;
 }
 
-function requireOpenAiModel(value: string): string {
-  if (!/^[A-Za-z0-9._-]{1,128}$/.test(value)) {
-    throw new Error("Worker OpenAI model is invalid");
-  }
-  return value;
-}
-
 function resolveGenerationProvider(
   source: WorkerEnvironmentSource,
 ): Pick<WorkerEnvironment, "generationProvider" | "openAiApiKey" | "openAiModel"> {
@@ -66,11 +61,18 @@ function resolveGenerationProvider(
     throw new Error("Worker generation provider is invalid");
   }
   const apiKey = requireValue(source, "STRONGR_OS_OPENAI_API_KEY");
-  const model = requireOpenAiModel(requireValue(source, "STRONGR_OS_OPENAI_MODEL"));
+  const configuredModel = source.STRONGR_OS_OPENAI_MODEL?.trim();
+  if (configuredModel && configuredModel !== openAiStrongrDailyV2ProviderConfig.model) {
+    throw new Error("Worker OpenAI model is fixed for this provider");
+  }
   if (apiKey.length < 20) {
     throw new Error("Worker OpenAI API key is invalid");
   }
-  return { generationProvider: provider, openAiApiKey: apiKey, openAiModel: model };
+  return {
+    generationProvider: provider,
+    openAiApiKey: apiKey,
+    openAiModel: openAiStrongrDailyV2ProviderConfig.model,
+  };
 }
 
 function resolvePrivilegedKey(

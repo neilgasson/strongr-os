@@ -1,0 +1,127 @@
+{
+  "schema_id": "strongr.phase_4b_1.content_profile_library_acceptance.v1",
+  "phase": "4B.1",
+  "status": "implementation_complete_profiles_inactive",
+  "baseline_commit": "5da546096e2cce316866f1fc096a2ad050b89130",
+  "branch": "agent/strongr-daily-phase4b-provider",
+  "draft_pull_request": 50,
+  "source_inventory": {
+    "path": "docs/business/STRONGR_DAILY_CONTENT_FORMAT_SOURCE_INVENTORY.v1.json",
+    "status": "inventory_complete_profiles_unapproved",
+    "repository_history_reviewed": true,
+    "approved_creative_examples_available_in_repository": false,
+    "quiet_trust_body_available_in_repository": false,
+    "synthetic_fixtures_excluded_from_creative_authority": true
+  },
+  "source_manifest": {
+    "path": "docs/business/STRONGR_DAILY_CONTENT_PROFILE_SOURCE_MANIFEST.v1.json",
+    "version": 1,
+    "canonical_checksum": "8ba29991786e6d5172ccebe8ebccbd58365c58939d98ee387fdbc0fa31f50b06",
+    "source_count": 9,
+    "provider_authorized_source_count": 0
+  },
+  "library": {
+    "design_path": "docs/architecture/STRONGR_DAILY_CONTENT_PROFILE_LIBRARY_V1.md",
+    "package_path": "packages/content-profiles",
+    "registry_version": 1,
+    "registry_checksum": "56afcc943ad35e38823b6a9294e1911244dd660cd2030585cffd1eb7f771f679",
+    "profile_count": 12,
+    "active_profile_count": 0,
+    "owner_approved_profile_count": 0,
+    "approved_source_example_count": 0,
+    "profile_selection_inference_forbidden": true,
+    "missing_creative_rules_remain_unresolved": true
+  },
+  "database_foundation": {
+    "migration": "supabase/migrations/20260731183403_phase4b1_content_profile_registry.sql",
+    "private_registry_created": true,
+    "registry_rows_seeded": 0,
+    "registry_rls_enabled": true,
+    "direct_registry_privileges_for_public_anon_authenticated_or_service_role": false,
+    "lifecycle_tables_extended": [
+      "content_briefs",
+      "generation_jobs",
+      "content_versions",
+      "production_packages"
+    ],
+    "exact_provenance_fields_per_table": 5,
+    "legacy_null_provenance_preserved": true,
+    "provenance_immutable": true,
+    "registry_delete_forbidden": true,
+    "registry_identity_and_contract_mutation_forbidden": true,
+    "registry_lifecycle_forward_only": true
+  },
+  "runtime_binding": {
+    "implemented": true,
+    "tested": true,
+    "studio_requires_explicit_profile_selection": true,
+    "studio_profile_activation_available": false,
+    "provider_profile_inference_available": false,
+    "job_request_requires_exact_active_profile": true,
+    "worker_lease_returns_profile_and_source_manifest_provenance": true,
+    "worker_rejects_mismatched_provenance": true,
+    "provider_adapter_rejects_inactive_or_mismatched_profile_before_fetch": true,
+    "package_and_export_preserve_exact_provenance": true,
+    "legacy_nested_profile_spoof_rejected": true
+  },
+  "validation": {
+    "node_tests": "158/158 passed",
+    "focused_profile_export_provider_tests": "57/57 passed",
+    "studio_browser_tests": "44/44 passed across desktop and narrow layouts",
+    "studio_preview_package_tests": "7/7 passed",
+    "postgresql_version": "17",
+    "clean_migration_replay": "16/16 migrations applied",
+    "pgtap_120_idempotency": "8/8 passed",
+    "pgtap_180_provider_boundary": "48/48 passed",
+    "pgtap_190_registry_provenance": "40/40 passed",
+    "typescript": "passed",
+    "schema_check": "passed",
+    "boundary_check": "passed",
+    "biome_lint_and_format": "passed",
+    "studio_production_build": "passed",
+    "browser_bundle_node_crypto_residue": false
+  },
+  "provider_outcomes": {
+    "real_provider_calls": 0,
+    "provider_cost_microunits": 0,
+    "drafts_created": 0,
+    "reviews_recorded": 0,
+    "approvals_recorded": 0,
+    "packages_created": 0,
+    "media_created": 0,
+    "content_uploaded": 0,
+    "content_published": 0
+  },
+  "security_and_governance": {
+    "mfa_or_aal2_weakened": false,
+    "approval_authority_weakened": false,
+    "tenant_isolation_weakened": false,
+    "audit_boundary_weakened": false,
+    "service_role_boundary_weakened": false,
+    "rls_weakened": false,
+    "grants_broadened": false,
+    "current_strongr_daily_changed": false,
+    "production_changed": false,
+    "public_access_enabled": false
+  },
+  "unresolved_owner_approvals": [
+    "Prior approved documents, handoffs, examples, scripts, series plans, and style guidance for owner-asserted formats are not preserved in the repository.",
+    "The approved Quiet Trust prose and the exact dimensions for which it is authoritative are not preserved in the repository.",
+    "The relationship between audio reflection, guided audio reflection, short-form reflection, and long-form reflection is unresolved.",
+    "The standalone or embedded status of prayer and personal-takeaway prompts is unresolved.",
+    "The public-editorial versus private-user-data boundary for prayer and journal experiences requires exact owner approval.",
+    "Supported Bible-study and Scripture-reading-series variants are unresolved.",
+    "Narration, ElevenLabs, pronunciation, pause, and music-direction conventions are unresolved.",
+    "Series continuity, description, ordering, and release-schedule rules are unresolved.",
+    "Rights and provider-use status for every future approved example and Scripture source are unresolved."
+  ],
+  "activation_gate": {
+    "profile_sources_ingested": false,
+    "rights_and_provenance_complete": false,
+    "profile_rules_complete": false,
+    "owner_exact_profile_approval_recorded": false,
+    "profile_activation_authorized": false,
+    "paid_provider_generation_authorized": false
+  },
+  "notes": "Contains no prompt payload, credential, authorization header, URL credential, personal journal, private prayer, or personal data."
+}

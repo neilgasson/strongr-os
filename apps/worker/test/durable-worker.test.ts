@@ -2,15 +2,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  createGenerationOutputHash,
   createGenerationPromptChecksum,
   deterministicGenerationAdapter,
   type GenerationAdapter,
 } from "../../../packages/ai/src/index.ts";
 import {
   audioReflectionBriefFixture,
+  contentProfileSelectionFixture,
   fixtureIds,
   strongrDailyAudioReflectionV2BriefFixture,
 } from "../../../packages/testing/src/index.ts";
+import { strongrDailyContentProfileSourceManifestV1 } from "../../../packages/content-profiles/src/strongr-daily-v1.ts";
 import {
   DurableGenerationWorker,
   type GenerationAttemptLease,
@@ -43,6 +46,8 @@ const readyAttempt: GenerationAttemptLease = Object.freeze({
   attemptId,
   attemptNumber: 1,
   brief: audioReflectionBriefFixture,
+  contentProfile: null,
+  contentProfileSourceManifestChecksum: null,
   correlationId: fixtureIds.correlationId,
   disposition: "ready",
   generationJobId: fixtureIds.generationJobId,
@@ -70,6 +75,10 @@ function createStore(overrides: Partial<GenerationWorkerStore> = {}): {
     claimGenerationEvents() {
       calls.push("claim");
       return Promise.resolve([claim]);
+    },
+    claimGenerationEventByJob() {
+      calls.push("claim-job");
+      return Promise.resolve(claim);
     },
     completeGenerationAttempt() {
       calls.push("complete");
@@ -138,6 +147,57 @@ test("durable worker completes and acknowledges a governed generation attempt", 
   assert.doesNotMatch(serialized, /leaseToken|output|brief|apikey|secret/i);
 });
 
+test("exact-job execution claims and processes only the requested generation job", async () => {
+  const { calls, store } = createStore();
+  const worker = new DurableGenerationWorker({
+    adapter: deterministicGenerationAdapter,
+    store,
+    workerId: "m1-worker-exact-job",
+  });
+
+  const summary = await worker.runJobOnce(fixtureIds.generationJobId);
+
+  assert.equal(summary.claimed, 1);
+  assert.equal(summary.succeeded, 1);
+  assert.deepEqual(calls, ["claim-job", "begin", "complete", "acknowledge", "heartbeat"]);
+  assert.ok(!calls.includes("claim"));
+});
+
+test("exact-job execution does not invoke the provider when the job is not claimable", async () => {
+  let generationCalls = 0;
+  const { calls, store } = createStore({
+    claimGenerationEventByJob() {
+      calls.push("claim-job");
+      return Promise.resolve(null);
+    },
+  });
+  const worker = new DurableGenerationWorker({
+    adapter: {
+      generate() {
+        generationCalls += 1;
+        return Promise.reject(new Error("must not run"));
+      },
+      identity: deterministicGenerationAdapter.identity,
+    },
+    store,
+    workerId: "m1-worker-exact-job-empty",
+  });
+
+  const summary = await worker.runJobOnce(fixtureIds.generationJobId);
+
+  assert.equal(generationCalls, 0);
+  assert.deepEqual(summary, {
+    cancelled: 0,
+    claimed: 0,
+    deadLettered: 0,
+    deferred: 0,
+    replayed: 0,
+    retried: 0,
+    succeeded: 0,
+  });
+  assert.deepEqual(calls, ["claim-job", "heartbeat"]);
+});
+
 test("completed generation replay acknowledges without invoking the adapter", async () => {
   let generationCalls = 0;
   const adapter: GenerationAdapter = {
@@ -145,6 +205,8 @@ test("completed generation replay acknowledges without invoking the adapter", as
       generationCalls += 1;
       return deterministicGenerationAdapter.generate({
         brief: audioReflectionBriefFixture,
+        contentProfile: null,
+        contentProfileSourceManifestChecksum: null,
         correlationId: fixtureIds.correlationId,
         generationJobId: fixtureIds.generationJobId,
         organizationId: fixtureIds.organizationAlphaId,
@@ -309,6 +371,9 @@ test("durable worker creates a v2 generated draft without bypassing review", asy
       return Promise.resolve({
         ...readyAttempt,
         brief: strongrDailyAudioReflectionV2BriefFixture,
+        contentProfile: contentProfileSelectionFixture,
+        contentProfileSourceManifestChecksum:
+          strongrDailyContentProfileSourceManifestV1.canonical_checksum,
         promptChecksum: createGenerationPromptChecksum("strongr.daily.v2", 1),
         promptKey: "strongr.daily.v2",
       });
@@ -330,4 +395,49 @@ test("durable worker creates a v2 generated draft without bypassing review", asy
   assert.equal(summary.succeeded, 1);
   assert.equal(completedSchemaId, "strongr.strongr_daily_audio_reflection.v2");
   assert.deepEqual(calls, ["claim", "begin", "complete", "acknowledge", "heartbeat"]);
+});
+
+test("worker rejects a valid v2 payload that is rebound to another brief", async () => {
+  const adapter: GenerationAdapter = {
+    async generate(request) {
+      const result = await deterministicGenerationAdapter.generate(request);
+      if (result.output.schema_id !== "strongr.strongr_daily_audio_reflection.v2") {
+        throw new Error("unexpected fixture schema");
+      }
+      const reboundOutput = {
+        ...result.output,
+        source_brief_identifier: "strongr-daily-different-brief-v1",
+      };
+      return {
+        ...result,
+        output: reboundOutput,
+        outputHash: createGenerationOutputHash(reboundOutput),
+      };
+    },
+    identity: deterministicGenerationAdapter.identity,
+  };
+  const { calls, store } = createStore({
+    beginGenerationAttempt() {
+      calls.push("begin");
+      return Promise.resolve({
+        ...readyAttempt,
+        brief: strongrDailyAudioReflectionV2BriefFixture,
+        contentProfile: contentProfileSelectionFixture,
+        contentProfileSourceManifestChecksum:
+          strongrDailyContentProfileSourceManifestV1.canonical_checksum,
+        promptChecksum: createGenerationPromptChecksum("strongr.daily.v2", 1),
+        promptKey: "strongr.daily.v2",
+      });
+    },
+  });
+  const worker = new DurableGenerationWorker({
+    adapter,
+    store,
+    workerId: "m1-worker-v2-rebound",
+  });
+
+  const summary = await worker.runOnce();
+
+  assert.equal(summary.retried, 1);
+  assert.ok(!calls.includes("complete"));
 });

@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 import type {
   AudioReflection,
@@ -5,6 +6,7 @@ import type {
   StrongrDailyAudioReflectionV2,
   StrongrDailyAudioReflectionV2Brief,
 } from "../../content-schemas/src/index.ts";
+import type { ContentProfileSelection } from "../../content-profiles/src/index.ts";
 import type { Uuid } from "../../contracts/src/index.ts";
 
 export type GenerationBrief = AudioReflectionBrief | StrongrDailyAudioReflectionV2Brief;
@@ -25,9 +27,12 @@ export interface GenerationRequest {
   readonly promptKey: string;
   readonly promptVersion: number;
   readonly brief: GenerationBrief;
+  readonly contentProfile: ContentProfileSelection | null;
+  readonly contentProfileSourceManifestChecksum: string | null;
 }
 
 export interface GenerationUsage {
+  readonly estimatedCostMicrounits: number;
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly totalTokens: number;
@@ -41,6 +46,8 @@ export interface GenerationResult {
   readonly responseSchemaId: GenerationSchemaId;
   readonly outputHash: string;
   readonly output: GenerationOutput;
+  readonly contentProfile: ContentProfileSelection | null;
+  readonly contentProfileSourceManifestChecksum: string | null;
   readonly usage?: GenerationUsage;
 }
 
@@ -57,6 +64,44 @@ export class GenerationProviderError extends Error {
     this.name = "GenerationProviderError";
     this.safeCode = safeCode;
   }
+}
+
+export function contentProfileSelectionsMatch(
+  left: ContentProfileSelection | null,
+  right: ContentProfileSelection | null,
+): boolean {
+  if (left === null || right === null) return left === right;
+  return (
+    left.profile_id === right.profile_id &&
+    left.profile_version === right.profile_version &&
+    left.canonical_checksum === right.canonical_checksum &&
+    left.content_type === right.content_type
+  );
+}
+
+export function isGenerationOutputBoundToBrief(
+  brief: GenerationBrief,
+  output: GenerationOutput,
+): boolean {
+  if (brief.schema_id !== "strongr.strongr_daily_audio_reflection_brief.v2") {
+    return output.schema_id === "strongr.audio_reflection.v1";
+  }
+  if (output.schema_id !== "strongr.strongr_daily_audio_reflection.v2") {
+    return false;
+  }
+  return (
+    contentProfileSelectionsMatch(output.content_profile ?? null, brief.content_profile ?? null) &&
+    output.content_type === brief.content_type &&
+    output.source_brief_identifier === brief.source_brief_identifier &&
+    output.audience === brief.audience &&
+    output.pastoral_purpose === brief.pastoral_purpose &&
+    output.tone === brief.tone &&
+    output.scripture_reference.reference === brief.scripture_reference.reference &&
+    output.scripture_reference.source_citation === brief.scripture_reference.source_citation &&
+    output.scripture_reference.translation === brief.scripture_reference.translation &&
+    JSON.stringify(output.prohibited_claims_or_wording) ===
+      JSON.stringify(brief.prohibited_claims_or_wording)
+  );
 }
 
 function postgresJsonbText(value: unknown): string {

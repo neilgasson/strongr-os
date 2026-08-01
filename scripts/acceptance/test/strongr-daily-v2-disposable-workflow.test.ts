@@ -15,6 +15,10 @@ const workflow = readFileSync(
   ),
   "utf8",
 );
+const acceptanceHarness = readFileSync(
+  resolve(import.meta.dirname, "..", "run_strongr_daily_v2_supabase_acceptance.ts"),
+  "utf8",
+);
 
 test("Strongr Daily v2 disposable workflow is manually dispatched and target-locked", () => {
   assert.match(workflow, /workflow_dispatch:/);
@@ -47,4 +51,22 @@ test("Strongr Daily v2 disposable workflow always preserves evidence", () => {
   assert.match(workflow, /if: always\(\)/);
   assert.match(workflow, /pnpm acceptance:strongr-daily-v2/);
   assert.match(workflow, /path: artifacts\/acceptance/);
+});
+
+test("Phase 4B.1 remote acceptance is persistent-state-free and fail-closed", () => {
+  const runAcceptance = acceptanceHarness.slice(
+    acceptanceHarness.indexOf("async function runAcceptance"),
+    acceptanceHarness.indexOf("function writeArtifact"),
+  );
+
+  assert.match(runAcceptance, /v2_content_profile_registry_is_empty/);
+  assert.match(runAcceptance, /v2_no_content_profile_is_active/);
+  assert.match(runAcceptance, /v2_brief_requires_exact_registered_content_profile/);
+  assert.match(runAcceptance, /v2_live_provider_request_requires_active_profile/);
+  assert.match(runAcceptance, /provider_call_count:\s*0/);
+  assert.doesNotMatch(
+    acceptanceHarness,
+    /(?:insert into|delete from) app_private\.strongr_daily_content_profiles/i,
+  );
+  assert.doesNotMatch(runAcceptance, /\b(?:claimGeneration|completeGeneration)\s*\(/);
 });

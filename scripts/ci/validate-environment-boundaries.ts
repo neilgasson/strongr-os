@@ -1,4 +1,4 @@
-import { readFile, readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,10 +8,12 @@ const repositoryRoot = resolve(fileURLToPath(new URL("../..", import.meta.url)))
 // for source-level database calls.
 const clientRoots = ["apps/studio/src"];
 const forbiddenTokens = [
+  "OPENAI_API_KEY",
   "SUPABASE_ACCESS_TOKEN",
   "SUPABASE_SECRET_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "STRONGR_OS_DATABASE_URL",
+  "STRONGR_OS_OPENAI_API_KEY",
   "STRONGR_OS_SUPABASE_SECRET_KEY",
   "STRONGR_OS_SUPABASE_SERVICE_ROLE_KEY",
   "@strongr/worker",
@@ -22,6 +24,7 @@ const directMutation =
 const storageMutationOrListing =
   /\.(?:copy|createSignedUploadUrl|getPublicUrl|list|move|remove|upload)\s*\(/;
 const secretLiteral = /\bsb_secret_[A-Za-z0-9_-]{8,}\b/;
+const openAiSecretLiteral = /\bsk-(?:(?:proj|svcacct)-)?[A-Za-z0-9_-]{16,}\b/;
 const managedStorageMutation =
   /\b(?:delete\s+from|insert\s+into|update)\s+storage\.(?:buckets|objects)\b/i;
 
@@ -34,9 +37,20 @@ async function collectFiles(root: string): Promise<string[]> {
     if (entry.isDirectory()) {
       files.push(...(await collectFiles(path)));
     } else if (
-      [".css", ".html", ".js", ".json", ".map", ".mjs", ".sql", ".ts", ".tsx"].includes(
-        extname(entry.name),
-      )
+      [
+        ".css",
+        ".html",
+        ".js",
+        ".json",
+        ".log",
+        ".map",
+        ".md",
+        ".mjs",
+        ".sql",
+        ".ts",
+        ".tsx",
+        ".txt",
+      ].includes(extname(entry.name))
     ) {
       files.push(path);
     }
@@ -67,6 +81,19 @@ for (const relativeRoot of clientRoots) {
     if (secretLiteral.test(content)) {
       violations.push(`${relativePath}: privileged Supabase key literal`);
     }
+    if (openAiSecretLiteral.test(content)) {
+      violations.push(`${relativePath}: OpenAI key literal`);
+    }
+  }
+}
+
+// Durable acceptance evidence may safely name configuration boundaries, but it
+// must never preserve a provider credential value.
+for (const path of await collectFiles(resolve(repositoryRoot, "evidence"))) {
+  const content = await readFile(path, "utf8");
+  const relativePath = path.slice(repositoryRoot.length + 1).replaceAll("\\", "/");
+  if (openAiSecretLiteral.test(content)) {
+    violations.push(`${relativePath}: OpenAI key literal in evidence`);
   }
 }
 

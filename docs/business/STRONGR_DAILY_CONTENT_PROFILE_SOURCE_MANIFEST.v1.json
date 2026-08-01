@@ -1,0 +1,114 @@
+{
+  "canonical_checksum": "8ba29991786e6d5172ccebe8ebccbd58365c58939d98ee387fdbc0fa31f50b06",
+  "manifest_version": 1,
+  "schema_id": "strongr.strongr_daily_content_profile_source_manifest.v1",
+  "sources": [
+    {
+      "approved_as_normative": true,
+      "locator": "docs/business/STRONGR_DAILY_ECONOMIC_TARGET_PLAN_LOCKED.md",
+      "provider_use_status": "forbidden",
+      "rights_status": "repository_source",
+      "source_id": "locked-economic-target-plan",
+      "source_kind": "documentation",
+      "source_revision": "sha256:76dafb929acf62293e1029bac40880ba173cae8cddc3fa798c0e7e1f4865dba8",
+      "source_sha256": "76dafb929acf62293e1029bac40880ba173cae8cddc3fa798c0e7e1f4865dba8",
+      "status": "reviewed",
+      "title": "Locked Strongr Daily economic-target plan"
+    },
+    {
+      "approved_as_normative": true,
+      "locator": "packages/content-schemas/src/audio-reflection.ts",
+      "provider_use_status": "forbidden",
+      "rights_status": "repository_source",
+      "source_id": "audio-reflection-contracts",
+      "source_kind": "content_contract",
+      "source_revision": "sha256:736b15a84afd1f548680cb94a33a2faa4b9d622f445f82430c8939fec0502cbe",
+      "source_sha256": "736b15a84afd1f548680cb94a33a2faa4b9d622f445f82430c8939fec0502cbe",
+      "status": "reviewed",
+      "title": "Audio-reflection content contracts"
+    },
+    {
+      "approved_as_normative": true,
+      "locator": "supabase/migrations/202607241330_m1_governed_audio_reflection.sql",
+      "provider_use_status": "forbidden",
+      "rights_status": "repository_source",
+      "source_id": "governed-audio-reflection-database-scope",
+      "source_kind": "content_contract",
+      "source_revision": "sha256:287b1ecd49357be2d4874b01047a5a925c1dc570a31ca9ace9433a66b312d8b3",
+      "source_sha256": "287b1ecd49357be2d4874b01047a5a925c1dc570a31ca9ace9433a66b312d8b3",
+      "status": "reviewed",
+      "title": "Governed audio-reflection database scope"
+    },
+    {
+      "approved_as_normative": true,
+      "locator": "supabase/migrations/20260728090000_strongr_daily_audio_reflection_v2.sql",
+      "provider_use_status": "forbidden",
+      "rights_status": "repository_source",
+      "source_id": "v2-audio-reflection-schema-allowlist",
+      "source_kind": "content_contract",
+      "source_revision": "sha256:7ca64b99edfffd27d94776dfab154b963eab14eefe38ba8615086680ed64aadf",
+      "source_sha256": "7ca64b99edfffd27d94776dfab154b963eab14eefe38ba8615086680ed64aadf",
+      "status": "reviewed",
+      "title": "Strongr Daily v2 audio-reflection schema allowlist"
+    },
+    {
+      "approved_as_normative": true,
+      "locator": "docs/standards/Strongr_OS_Engineering_Standards_v1.0.md",
+      "provider_use_status": "forbidden",
+      "rights_status": "repository_source",
+      "source_id": "engineering-content-governance",
+      "source_kind": "style_guidance",
+      "source_revision": "sha256:98301f9b9b16b9e6371f05e994302a6caf695c9a5782d8466de67c342a011e78",
+      "source_sha256": "98301f9b9b16b9e6371f05e994302a6caf695c9a5782d8466de67c342a011e78",
+      "status": "reviewed",
+      "title": "Strongr OS engineering content-governance standards"
+    },
+    {
+      "approved_as_normative": true,
+      "locator": "evidence/phase-4a/acceptance-record.json",
+      "provider_use_status": "forbidden",
+      "rights_status": "repository_source",
+      "source_id": "quiet-trust-phase-4a-checkpoint",
+      "source_kind": "project_record",
+      "source_revision": "sha256:dd6558e2e2d3c3fe2cce9895ff448b0743065d3471aa66c1cfdf5acda626ce8a",
+      "source_sha256": "dd6558e2e2d3c3fe2cce9895ff448b0743065d3471aa66c1cfdf5acda626ce8a",
+      "status": "reviewed",
+      "title": "Quiet Trust Phase 4A checkpoint"
+    },
+    {
+      "approved_as_normative": true,
+      "locator": "apps/studio/src/strongr-daily-export.ts",
+      "provider_use_status": "forbidden",
+      "rights_status": "repository_source",
+      "source_id": "approved-package-export-projection",
+      "source_kind": "content_contract",
+      "source_revision": "sha256:de35a0692738929f1ec243ff2cb90dbc141267197f38a664d7e41defd74c5163",
+      "source_sha256": "de35a0692738929f1ec243ff2cb90dbc141267197f38a664d7e41defd74c5163",
+      "status": "reviewed",
+      "title": "Approved package export projection"
+    },
+    {
+      "approved_as_normative": true,
+      "locator": "docs/runbooks/phase-4b-live-provider.md",
+      "provider_use_status": "forbidden",
+      "rights_status": "repository_source",
+      "source_id": "scripture-rights-pre-call-boundary",
+      "source_kind": "documentation",
+      "source_revision": "sha256:d798082b086075e02d6d9ac7d7cc4a7b48eb7bce0dda2a9a5aa803f7e2d39a8c",
+      "source_sha256": "d798082b086075e02d6d9ac7d7cc4a7b48eb7bce0dda2a9a5aa803f7e2d39a8c",
+      "status": "reviewed",
+      "title": "Scripture-rights pre-call boundary"
+    },
+    {
+      "approved_as_normative": false,
+      "locator": "packages/ai/src/openai-strongr-daily-v2-adapter.ts",
+      "provider_use_status": "forbidden",
+      "rights_status": "repository_source",
+      "source_id": "current-generic-provider-candidate",
+      "source_kind": "script",
+      "source_revision": "working-tree-candidate:2026-07-31",
+      "status": "reviewed",
+      "title": "Current generic provider candidate"
+    }
+  ]
+}
