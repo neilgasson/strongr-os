@@ -6,15 +6,32 @@ export {
   computeContentProfileSourceManifestChecksum,
 } from "./canonical.ts";
 export {
+  assessGuidedAudioReflectionV1ActivationCandidate,
+  guidedAudioReflectionV1Proposal,
+  guidedAudioReflectionV1ProposalLibrary,
+  guidedAudioReflectionV1ProposalOwnerGate,
+  guidedAudioReflectionV1ProposalRegistryV2,
+  guidedAudioReflectionV1ProposalSourceManifestV2,
+} from "./guided-audio-reflection-v1-proposal.ts";
+export type {
+  ContentProfileLibrary,
+  ContentProfileLibraryErrorCode,
+} from "./library.ts";
+export {
   ContentProfileLibraryError,
   createContentProfileLibrary,
   inspectContentProfile,
   resolveContentProfile,
 } from "./library.ts";
 export type {
-  ContentProfileLibrary,
-  ContentProfileLibraryErrorCode,
-} from "./library.ts";
+  ContentProfile,
+  ContentProfileRegistry,
+  ContentProfileSelection,
+  ContentProfileSourceManifest,
+  UnsignedContentProfile,
+  UnsignedContentProfileRegistry,
+  UnsignedContentProfileSourceManifest,
+} from "./schema.ts";
 export {
   contentProfileRegistrySchema,
   contentProfileRegistrySchemaId,
@@ -33,12 +50,3 @@ export {
   strongrDailyContentProfileSourceManifestV1,
 } from "./strongr-daily-v1.ts";
 export { strongrDailyContentProfileLibraryV1 } from "./strongr-daily-v1-library.ts";
-export type {
-  ContentProfile,
-  ContentProfileRegistry,
-  ContentProfileSelection,
-  ContentProfileSourceManifest,
-  UnsignedContentProfile,
-  UnsignedContentProfileRegistry,
-  UnsignedContentProfileSourceManifest,
-} from "./schema.ts";

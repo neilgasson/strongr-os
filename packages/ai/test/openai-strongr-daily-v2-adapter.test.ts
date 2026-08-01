@@ -191,6 +191,70 @@ test("adversarial brief text remains separate from immutable provider authority"
   assert.equal(result.output.pastoral_purpose, adversarialBrief.pastoral_purpose);
 });
 
+test("OpenAI adapter rejects nested content-profile spoofing before provider use", async () => {
+  const spoofedFields = [
+    ["profile_id", "strongr_daily.spoofed_audio_reflection"],
+    ["profile_version", 2],
+    ["canonical_checksum", "b".repeat(64)],
+    ["content_type", "bible_study"],
+  ] as const;
+
+  for (const [field, value] of spoofedFields) {
+    let calls = 0;
+    let capturedBody: string | undefined;
+    const adapter = createOpenAiStrongrDailyV2Adapter({
+      apiKey: providerKeyFixture,
+      fetch: async (_url, init) => {
+        calls += 1;
+        capturedBody = init.body;
+        return successResponse();
+      },
+    });
+    const brief = {
+      ...strongrDailyAudioReflectionV2BriefFixture,
+      content_profile: {
+        ...contentProfileSelectionFixture,
+        [field]: value,
+      },
+    };
+
+    await expectSafeCode(
+      () => adapter.generate({ ...requestFixture(), brief }),
+      "generation.content_profile_not_active",
+    );
+    assert.equal(calls, 0, field);
+    assert.equal(capturedBody, undefined, field);
+  }
+});
+
+test("OpenAI adapter rejects private prayer and journal fields before serialization", async () => {
+  const privatePrayerSentinel = "PRIVATE_PRAYER_SENTINEL_DO_NOT_SEND";
+  const privateJournalSentinel = "PRIVATE_JOURNAL_SENTINEL_DO_NOT_SEND";
+  let calls = 0;
+  let capturedBody: string | undefined;
+  const adapter = createOpenAiStrongrDailyV2Adapter({
+    apiKey: providerKeyFixture,
+    fetch: async (_url, init) => {
+      calls += 1;
+      capturedBody = init.body;
+      return successResponse();
+    },
+  });
+  const briefWithPrivateUserText = {
+    ...strongrDailyAudioReflectionV2BriefFixture,
+    private_prayer_request: privatePrayerSentinel,
+    private_journal_entry: privateJournalSentinel,
+  } as unknown as typeof strongrDailyAudioReflectionV2BriefFixture;
+
+  await expectSafeCode(
+    () => adapter.generate({ ...requestFixture(), brief: briefWithPrivateUserText }),
+    "generation.provider_unsupported_brief",
+  );
+  assert.equal(calls, 0);
+  assert.equal(capturedBody, undefined);
+  assert.doesNotMatch(capturedBody ?? "", /PRIVATE_(?:PRAYER|JOURNAL)_SENTINEL/);
+});
+
 test("OpenAI adapter parses canonical nested Responses API output text", async () => {
   const adapter = createOpenAiStrongrDailyV2Adapter({
     apiKey: providerKeyFixture,

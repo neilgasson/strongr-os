@@ -1,0 +1,203 @@
+{
+  "schema_id": "strongr.phase_4b_3.guided_audio_reflection_activation_proposal.v1",
+  "phase": "4B.3",
+  "status": "owner_review_required_no_activation",
+  "baseline_commit": "8a7407e7330ce5d7fbca8a9eb73df8bd69bbf4ee",
+  "branch": "agent/strongr-daily-phase4b3-guided-audio-profile",
+  "proposal": {
+    "profile_id": "guided_audio_reflection",
+    "profile_version": 1,
+    "technical_content_type": "audio_reflection",
+    "format_variant": "guided_v1",
+    "brief_schema_id": "strongr.strongr_daily_audio_reflection_brief.v2",
+    "response_schema_id": "strongr.strongr_daily_audio_reflection.v2",
+    "lifecycle": "owner_review",
+    "activation_status": "inactive",
+    "profile_checksum": "3fa64f05911042bd2e2f7e58d14700581ca5025adc587425fd25afb2880210d9",
+    "registry_checksum": "54438c7601d4125f95e6babbdd831202a23322f89af5e86ce82ed51b44fa5602",
+    "source_manifest_checksum": "b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e",
+    "database_registration_performed": false,
+    "runtime_authorization_present": false
+  },
+  "source_artifacts": {
+    "owner_policy": {
+      "path": "docs/business/STRONGR_DAILY_PHASE_4B_2_POLICY_DECISIONS.md",
+      "file_sha256": "e9f2d3d033953c1c7aa1aa9e52d667f0084f7fe2d5880e4fd265c8a2d8a9be3f"
+    },
+    "profile_rules": {
+      "path": "docs/business/content-profiles/guided-audio-reflection/STRONGR_DAILY_GUIDED_AUDIO_REFLECTION_PROFILE_V1.md",
+      "file_sha256": "a3067d5259457257aaecd6be747524dd76456cf1733ff31f200c6dc6a524ac58"
+    },
+    "golden_example": {
+      "path": "docs/business/content-profiles/guided-audio-reflection/quiet-trust-golden-example.v1.json",
+      "file_sha256": "fffa3521b410a614bd3c9cc3b5485d75ffa2510a378ec8b46bc38e543ca45882",
+      "example_id": "quiet-trust-guided-audio-v1",
+      "descriptor_only": true,
+      "public_repository_contains_prose": false,
+      "private_environment": "strongr-os-dev",
+      "content_version_id": "051f4e6f-f749-4c30-b5cd-df7a1856eb50",
+      "payload_sha256": "239b4d2d16f376e3a578463532e35c7420bba325370515aedbf1cfe47ab5938a",
+      "content_sha256": "4f90e7e08ce4e728f927bdfd621ea18339998e26e443a2faa3e23cace8f8c4c4",
+      "production_package_id": "9272b4a2-2341-424a-8a6e-15347f53796c",
+      "package_manifest_sha256": "e10d22345f9ef6eb7501dbd9c745c4d6b87785b06fe14802f7e48fece06e254f",
+      "approval_snapshot_id": "64b8ed80-8c19-4ad2-97bd-c33517b2246f",
+      "rights_snapshot_id": "df93b71f-97cc-45e6-a3a1-b9d4b597fb94",
+      "scripture_evidence_id": "e08002c5-8f21-443e-86ea-8bca6317e3c7",
+      "exact_descriptor_owner_approval_recorded": false,
+      "effective_provider_authority": false
+    },
+    "rights_record": {
+      "path": "docs/business/content-profiles/guided-audio-reflection/quiet-trust-rights.v1.json",
+      "file_sha256": "effe9ead79efc9661fa2bdebcdcef86543708a7a9e76bacc245a0607cf35ca68",
+      "rights_record_id": "quiet-trust-guided-audio-v1-rights",
+      "claimed_status": "cleared_with_explicit_exclusions",
+      "historical_phase_4a_content_and_rights_owner_approved": true,
+      "technical_clearance_record_present": true,
+      "effective_status_for_this_proposal": "pending_exact_owner_approval",
+      "exact_rights_record_owner_approval_recorded": false,
+      "new_scoped_authority_dimensions_owner_approved": false
+    },
+    "source_manifest": {
+      "path": "docs/business/STRONGR_DAILY_CONTENT_PROFILE_SOURCE_MANIFEST.v2.json",
+      "manifest_version": 2,
+      "canonical_checksum": "b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e",
+      "file_sha256": "03bec0cf4996d454d6852873673ceba5416f6177bc38002397b36086f24c0199",
+      "status": "checksum_finalized_owner_activation_approval_pending"
+    }
+  },
+  "exact_rights_boundary": {
+    "golden_authority_scope": [
+      "five_part_content_structure",
+      "warm_pastoral_tone",
+      "public_editorial_prayer_style",
+      "gentle_closing_style",
+      "app_description_and_summary_format",
+      "supporting_metadata_categories"
+    ],
+    "excluded_authority_scope": [
+      "exact_or_similar_prose",
+      "scripture_wording_or_quotation_rights",
+      "narration_assembly_or_delivery_pacing",
+      "pronunciation_or_music_direction",
+      "theological_or_factual_truth"
+    ],
+    "raw_prose_provider_use_authorized": false,
+    "close_copying_authorized": false,
+    "scripture_reference": "Psalm 46:10",
+    "scripture_translation": "NIV",
+    "scripture_metadata_provider_use_authorized": false,
+    "scripture_full_or_partial_text_storage_authorized": false,
+    "scripture_provider_text_use_authorized": false,
+    "scripture_spoken_use_authorized": false,
+    "scripture_export_or_distribution_authorized": false,
+    "historical_direct_quote_conflict_acknowledged": true,
+    "historical_narration_in_golden_authority": false,
+    "distribution_authorized": false,
+    "private_prayer_or_journal_provider_use_authorized": false
+  },
+  "activation_gates": {
+    "profile_artifact_owner_approved": false,
+    "golden_descriptor_owner_approved": false,
+    "rights_record_owner_approved": false,
+    "source_manifest_owner_approved": false,
+    "profile_checksum_approved": false,
+    "source_manifest_checksum_approved": false,
+    "inactive_registration_authorized": false,
+    "profile_activation_authorized": false,
+    "runtime_allowlist_authorized": false,
+    "provider_projection_authorized": false,
+    "provider_spend_authorized": false,
+    "paid_generation_authorized": false,
+    "narration_authorized": false,
+    "audio_generation_authorized": false,
+    "upload_authorized": false,
+    "publication_authorized": false,
+    "production_change_authorized": false
+  },
+  "rollback_plan": {
+    "current_state_requires_operational_rollback": false,
+    "current_state_reason": "proposal_only_no_registration_no_activation_no_runtime_authorization",
+    "future_if_separately_activated": {
+      "profile_transition": "active_to_superseded_or_retired",
+      "runtime_action": "remove_exact_profile_version_and_checksum_from_runtime_authorization",
+      "source_action": "set_exact_source_provider_use_to_forbidden",
+      "new_or_unclaimed_jobs": "deny_fail_closed",
+      "historical_evidence": "preserve_immutable",
+      "destructive_delete": false
+    }
+  },
+  "document_audit": {
+    "files_reviewed": 4,
+    "creative_body_prose_found": false,
+    "synthetic_placeholder_content_found": false,
+    "credential_or_secret_found": false,
+    "personal_data_found": false,
+    "private_prayer_or_journal_text_found": false,
+    "rights_overstatement_found": false,
+    "rights_boundary_findings": [
+      {
+        "code": "historical_scripture_quote_conflicts_with_reference_only_rights",
+        "file": "docs/business/content-profiles/guided-audio-reflection/quiet-trust-rights.v1.json",
+        "effect": "narration_excluded_from_golden_authority_and_provider_use"
+      }
+    ],
+    "effective_conclusion": "technical_source_and_rights_records_present_exact_new_scoped_authority_pending_owner_approval"
+  },
+  "validation": {
+    "document_json_parse": "passed",
+    "source_file_hashes": "passed_four_source_artifacts",
+    "creative_prose_scan": "passed_no_raw_golden_body",
+    "secret_and_personal_data_scan": "passed",
+    "profile_library_validation": "passed_exact_inactive_profile_and_fail_closed_candidate_assessment",
+    "source_manifest_validation": "passed_thirteen_checksum_bound_sources",
+    "mocked_provider_boundary_tests": "passed_no_fetch_for_nested_profile_spoof_or_private_user_fields",
+    "database_registration_tests": "not_applicable_no_registration",
+    "runtime_activation_tests": "not_applicable_no_activation",
+    "unit_tests": "passed_167_of_167",
+    "browser_tests": "passed_44_of_44",
+    "preview_contract_tests": "passed_7_of_7",
+    "typecheck_schema_boundaries_lint_format_build": "passed",
+    "database_contract": "pending_required_github_actions_no_local_docker_available",
+    "full_ci": "pending_required_github_actions",
+    "independent_security_review": "passed_no_findings"
+  },
+  "unresolved_exact_owner_approval": {
+    "required": true,
+    "status": "not_recorded",
+    "must_bind": [
+      "profile_id_and_version",
+      "profile_checksum",
+      "source_manifest_checksum",
+      "golden_example_descriptor_file_sha256",
+      "rights_record_file_sha256",
+      "exact_authority_and_exclusion_scopes"
+    ],
+    "approval_wording_template": "I approve guided_audio_reflection@1, profile checksum 3fa64f05911042bd2e2f7e58d14700581ca5025adc587425fd25afb2880210d9, source-manifest checksum b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e, golden descriptor SHA-256 fffa3521b410a614bd3c9cc3b5485d75ffa2510a378ec8b46bc38e543ca45882, and rights record SHA-256 effe9ead79efc9661fa2bdebcdcef86543708a7a9e76bacc245a0607cf35ca68 for the exact scoped authority and exclusions recorded in this proposal. I authorize a separately reviewed development-only activation of this exact version and metadata-only golden projection. Raw example prose, Scripture text, private prayer or journal content, provider calls or spending, generation, narration, audio, upload, publication, distribution, and production changes remain unauthorized."
+  },
+  "outcomes": {
+    "provider_calls": 0,
+    "provider_cost_microunits": 0,
+    "drafts_generated": 0,
+    "narration_jobs": 0,
+    "audio_generated": 0,
+    "content_uploaded": 0,
+    "content_published": 0,
+    "profiles_activated": 0,
+    "database_changes": 0,
+    "production_changes": 0
+  },
+  "security_and_privacy": {
+    "credentials_or_tokens_present": false,
+    "authorization_headers_present": false,
+    "database_urls_or_passwords_present": false,
+    "private_prayer_or_journal_text_present": false,
+    "personal_data_present": false,
+    "raw_golden_example_prose_present": false,
+    "rls_changed": false,
+    "grants_changed": false,
+    "mfa_or_aal2_changed": false,
+    "tenant_isolation_changed": false,
+    "approval_authority_changed": false,
+    "production_strongr_daily_changed": false
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "schema_id": "strongr.strongr_daily_guided_audio_golden_example_descriptor.v1",
+  "example_id": "quiet-trust-guided-audio-v1",
+  "status": "phase_4a_source_approved_scope_pending_owner_approval",
+  "title": "Quiet Trust",
+  "source_brief_identifier": "strongr-daily-quiet-trust-psalm-46-10-v1",
+  "private_source": {
+    "environment": "strongr-os-dev",
+    "content_version_id": "051f4e6f-f749-4c30-b5cd-df7a1856eb50",
+    "version_number": 1,
+    "payload_sha256": "239b4d2d16f376e3a578463532e35c7420bba325370515aedbf1cfe47ab5938a",
+    "content_sha256": "4f90e7e08ce4e728f927bdfd621ea18339998e26e443a2faa3e23cace8f8c4c4",
+    "approval_snapshot_id": "64b8ed80-8c19-4ad2-97bd-c33517b2246f",
+    "production_package_id": "9272b4a2-2341-424a-8a6e-15347f53796c",
+    "package_manifest_sha256": "e10d22345f9ef6eb7501dbd9c745c4d6b87785b06fe14802f7e48fece06e254f",
+    "rights_snapshot_id": "df93b71f-97cc-45e6-a3a1-b9d4b597fb94",
+    "scripture_evidence_id": "e08002c5-8f21-443e-86ea-8bca6317e3c7"
+  },
+  "public_repository_contains_prose": false,
+  "authority_dimensions": [
+    "five_part_content_structure",
+    "warm_pastoral_tone",
+    "public_editorial_prayer_style",
+    "gentle_closing_style",
+    "app_description_and_summary_format",
+    "supporting_metadata_categories"
+  ],
+  "excluded_dimensions": [
+    "exact_or_similar_prose",
+    "scripture_wording_or_quotation_rights",
+    "narration_assembly_or_delivery_pacing",
+    "pronunciation_or_music_direction",
+    "theological_or_factual_truth"
+  ],
+  "provider_projection": {
+    "status": "metadata_only_after_separate_owner_activation",
+    "raw_prose_permitted": false,
+    "scripture_text_permitted": false,
+    "close_copying_permitted": false,
+    "permitted_values": [
+      "example_id",
+      "authority_dimensions",
+      "excluded_dimensions",
+      "payload_sha256",
+      "content_sha256"
+    ]
+  },
+  "authority_scope_owner_approved": false,
+  "rights_record": "docs/business/content-profiles/guided-audio-reflection/quiet-trust-rights.v1.json"
+}
