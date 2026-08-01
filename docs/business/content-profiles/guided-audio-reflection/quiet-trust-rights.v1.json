@@ -1,0 +1,61 @@
+{
+  "schema_id": "strongr.strongr_daily_content_source_rights.v1",
+  "rights_record_id": "quiet-trust-guided-audio-v1-rights",
+  "status": "cleared_with_explicit_exclusions",
+  "new_authority_scope_status": "pending_exact_owner_approval",
+  "source_kind": "ai_assisted_strongr_commissioned_output",
+  "source_identity": {
+    "content_version_id": "051f4e6f-f749-4c30-b5cd-df7a1856eb50",
+    "payload_sha256": "239b4d2d16f376e3a578463532e35c7420bba325370515aedbf1cfe47ab5938a",
+    "content_sha256": "4f90e7e08ce4e728f927bdfd621ea18339998e26e443a2faa3e23cace8f8c4c4",
+    "production_package_id": "9272b4a2-2341-424a-8a6e-15347f53796c"
+  },
+  "control_evidence": {
+    "strongr_controlled": true,
+    "phase_4a_rights_snapshot_id": "df93b71f-97cc-45e6-a3a1-b9d4b597fb94",
+    "phase_4a_rights_snapshot_status": "cleared",
+    "phase_4a_approval_snapshot_id": "64b8ed80-8c19-4ad2-97bd-c33517b2246f",
+    "openai_output_terms_url": "https://openai.com/policies/terms-of-use/",
+    "openai_output_terms_checked_on": "2026-07-31",
+    "openai_terms_scope": "As between the user and OpenAI, and to the extent permitted by applicable law, the user owns Output; third-party rights remain the user's responsibility."
+  },
+  "approved_authority_dimensions": [
+    "five_part_content_structure",
+    "warm_pastoral_tone",
+    "public_editorial_prayer_style",
+    "gentle_closing_style",
+    "app_description_and_summary_format",
+    "supporting_metadata_categories"
+  ],
+  "uses": {
+    "profile_rule_derivation": "approved",
+    "provider_use": "metadata_only_after_separate_owner_activation",
+    "raw_prose_provider_use": "forbidden",
+    "transformation": "abstract_rules_only_no_close_copying",
+    "narration_preparation": "permitted_only_for_non_scripture_strongr_controlled_content_after_human_review",
+    "export": "approved_private_governed_export",
+    "distribution": "not_authorized_by_phase_4b_3"
+  },
+  "scripture": {
+    "reference": "Psalm 46:10",
+    "translation": "NIV",
+    "rights_scope": "reference_and_translation_metadata_only",
+    "provider_use": "metadata_only",
+    "spoken_use": "forbidden_without_new_exact_permission",
+    "full_or_partial_text_storage": "forbidden_without_new_exact_permission",
+    "known_conflict": "The immutable historical narration contains a short direct quotation while its rights snapshot is reference-only; narration is excluded from golden authority and provider use."
+  },
+  "privacy": {
+    "private_prayer_or_journal_content_present": false,
+    "private_user_content_provider_use": "forbidden"
+  },
+  "revocation": {
+    "status": "not_revoked",
+    "rollback": "Set the source to forbidden and retire or supersede the exact profile version without deleting historical evidence."
+  },
+  "owner_gate": {
+    "exact_profile_activation_approved": false,
+    "provider_spend_approved": false,
+    "publication_approved": false
+  }
+}
