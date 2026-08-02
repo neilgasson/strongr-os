@@ -1,6 +1,6 @@
 import {
   createOpenAiStrongrDailyV2Adapter,
-  estimateOpenAiStrongrDailyV2Generation,
+  createOpenAiStrongrDailyV2RequestFingerprint,
   GenerationProviderError,
   openAiStrongrDailyPhase4b5OneCallProviderConfig,
 } from "../../../packages/ai/src/index.ts";
@@ -156,6 +156,8 @@ async function completeFailure(
   supabaseUrl: string,
   serviceRoleKey: string,
   authorizationId: string,
+  correlationId: string,
+  requestSha256: string,
   safeErrorCode: string,
 ): Promise<void> {
   await fetch(`${supabaseUrl}/rest/v1/rpc/m1_complete_phase4b5_one_call`, {
@@ -163,11 +165,13 @@ async function completeFailure(
       p_actual_cost_microunits: null,
       p_attempt_state: "failed",
       p_authorization_id: authorizationId,
+      p_correlation_id: correlationId,
       p_input_tokens: null,
       p_output_hash: null,
       p_output_tokens: null,
       p_provider_response_id: null,
       p_quarantined_payload: null,
+      p_request_sha256: requestSha256,
       p_returned_model: null,
       p_safe_error_code: safeErrorCode,
       p_total_tokens: null,
@@ -202,7 +206,7 @@ export function createStrongrDailyPhase4b5OnceHandler(options: HandlerOptions) {
       return failure(401, "authentication_failed");
 
     const briefResponse = await fetch(
-      `${config.supabaseUrl}/rest/v1/content_briefs?id=eq.${body.briefId}&organization_id=eq.${body.organizationId}&select=id,organization_id,payload,schema_id,content_profile_id,content_profile_version,content_profile_checksum,content_profile_content_type,content_profile_source_manifest_checksum`,
+      `${config.supabaseUrl}/rest/v1/content_briefs?id=eq.${body.briefId}&organization_id=eq.${body.organizationId}&select=id,organization_id,payload,payload_hash,schema_id,content_profile_id,content_profile_version,content_profile_checksum,content_profile_content_type,content_profile_source_manifest_checksum`,
       { headers: userHeaders(config.anonKey, token), method: "GET" },
     );
     const rows = briefResponse.ok ? await json(briefResponse) : null;
@@ -232,21 +236,40 @@ export function createStrongrDailyPhase4b5OnceHandler(options: HandlerOptions) {
     )
       return failure(409, "invalid_request");
 
-    const estimate = estimateOpenAiStrongrDailyV2Generation(brief);
+    const requestFingerprint = createOpenAiStrongrDailyV2RequestFingerprint(brief, {
+      promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
+      sourceManifestChecksum: guidedAudioReflectionV1ProposalSourceManifestV2.canonical_checksum,
+    });
+    const estimate = Object.freeze({
+      inputTokenUpperBound: requestFingerprint.estimatedInputTokens,
+      maxOutputTokens: requestFingerprint.maxOutputTokens,
+      worstCaseCostMicrounits: requestFingerprint.worstCaseCostMicrounits,
+    });
     if (estimate.worstCaseCostMicrounits > 100_000) {
       return failure(409, "generation_provider_cost_limit_exceeded");
     }
     const start = await fetch(`${config.supabaseUrl}/rest/v1/rpc/m1_begin_phase4b5_one_call`, {
       body: JSON.stringify({
         p_brief_id: body.briefId,
+        p_canonical_request_byte_count: requestFingerprint.canonicalRequestByteCount,
+        p_estimated_input_tokens: requestFingerprint.estimatedInputTokens,
         p_organization_id: body.organizationId,
         p_pre_call_estimate_microunits: estimate.worstCaseCostMicrounits,
+        p_price_schedule_version: requestFingerprint.priceScheduleVersion,
+        p_request_sha256: requestFingerprint.requestSha256,
       }),
       headers: userHeaders(config.anonKey, token, true),
       method: "POST",
     });
-    const authorizationId = start.ok ? await json(start) : null;
-    if (typeof authorizationId !== "string" || !uuidPattern.test(authorizationId)) {
+    const authorization = start.ok ? record(await json(start)) : null;
+    const authorizationId = authorization?.authorization_id;
+    const correlationId = authorization?.correlation_id;
+    if (
+      typeof authorizationId !== "string" ||
+      !uuidPattern.test(authorizationId) ||
+      typeof correlationId !== "string" ||
+      !uuidPattern.test(correlationId)
+    ) {
       return failure(
         start.status === 409 ? 409 : 403,
         start.status === 409 ? "generation_already_consumed" : "permission_denied",
@@ -254,12 +277,35 @@ export function createStrongrDailyPhase4b5OnceHandler(options: HandlerOptions) {
     }
 
     try {
+      // Reconstruct immediately before the provider boundary. Any code or data
+      // drift burns the one-use authorization as failed without a provider call.
+      const finalRequestFingerprint = createOpenAiStrongrDailyV2RequestFingerprint(brief, {
+        promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
+        sourceManifestChecksum: guidedAudioReflectionV1ProposalSourceManifestV2.canonical_checksum,
+      });
+      if (
+        finalRequestFingerprint.requestSha256 !== requestFingerprint.requestSha256 ||
+        finalRequestFingerprint.canonicalRequestByteCount !==
+          requestFingerprint.canonicalRequestByteCount
+      ) {
+        await completeFailure(
+          fetch,
+          config.supabaseUrl,
+          config.serviceRoleKey,
+          authorizationId,
+          correlationId,
+          requestFingerprint.requestSha256,
+          "generation.provider_request_hash_mismatch",
+        );
+        return failure(503, "generation_service_unavailable");
+      }
       const adapter = createOpenAiStrongrDailyV2Adapter({
         apiKey: config.openAiApiKey,
         authorizeContentProfile: (selection, manifest) =>
           selection.canonical_checksum === guidedAudioReflectionV1Proposal.canonical_checksum &&
           manifest === guidedAudioReflectionV1ProposalSourceManifestV2.canonical_checksum,
         fetch: (input, init) => fetch(input, init),
+        expectedRequestSha256: requestFingerprint.requestSha256,
         promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
         sourceManifestChecksum: guidedAudioReflectionV1ProposalSourceManifestV2.canonical_checksum,
       });
@@ -268,7 +314,7 @@ export function createStrongrDailyPhase4b5OnceHandler(options: HandlerOptions) {
         contentProfile: profile,
         contentProfileSourceManifestChecksum:
           guidedAudioReflectionV1ProposalSourceManifestV2.canonical_checksum,
-        correlationId: authorizationId as `${string}-${string}-${string}-${string}-${string}`,
+        correlationId: correlationId as `${string}-${string}-${string}-${string}-${string}`,
         generationJobId: authorizationId as `${string}-${string}-${string}-${string}-${string}`,
         organizationId: body.organizationId as `${string}-${string}-${string}-${string}-${string}`,
         promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
@@ -281,11 +327,13 @@ export function createStrongrDailyPhase4b5OnceHandler(options: HandlerOptions) {
             p_actual_cost_microunits: result.usage?.estimatedCostMicrounits ?? null,
             p_attempt_state: "quarantined",
             p_authorization_id: authorizationId,
+            p_correlation_id: correlationId,
             p_input_tokens: result.usage?.inputTokens ?? null,
             p_output_hash: result.outputHash,
             p_output_tokens: result.usage?.outputTokens ?? null,
             p_provider_response_id: result.providerResponseId,
             p_quarantined_payload: result.output,
+            p_request_sha256: requestFingerprint.requestSha256,
             p_returned_model: result.model,
             p_safe_error_code: null,
             p_total_tokens: result.usage?.totalTokens ?? null,
@@ -298,10 +346,12 @@ export function createStrongrDailyPhase4b5OnceHandler(options: HandlerOptions) {
       return response(200, {
         actual_cost_microunits: result.usage?.estimatedCostMicrounits ?? null,
         authorization_id: authorizationId,
+        correlation_id: correlationId,
         error_code: null,
         model: result.model,
         output_tokens: result.usage?.outputTokens ?? null,
         pre_call_estimate_microunits: estimate.worstCaseCostMicrounits,
+        request_sha256: requestFingerprint.requestSha256,
         state: "quarantined",
       });
     } catch (error) {
@@ -310,6 +360,8 @@ export function createStrongrDailyPhase4b5OnceHandler(options: HandlerOptions) {
         config.supabaseUrl,
         config.serviceRoleKey,
         authorizationId,
+        correlationId,
+        requestFingerprint.requestSha256,
         safeProviderFailure(error),
       );
       return failure(502, "generation_service_unavailable");
