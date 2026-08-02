@@ -262,7 +262,7 @@ function requireUsageCounter(value: unknown): number {
 function estimateCostMicrounits(
   inputTokens: number,
   outputTokens: number,
-  config = openAiStrongrDailyV2ProviderConfig,
+  config: OpenAiStrongrDailyV2ProviderConfiguration = openAiStrongrDailyV2ProviderConfig,
 ): number {
   const approvedConfig = requirePriceSchedule(config);
   const inputRateMicrounits = approvedConfig.inputUsdPerMillionTokens * 1_000_000;
