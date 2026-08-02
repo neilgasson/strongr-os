@@ -77,7 +77,9 @@ function successfulFetch(calls: string[]): Phase4b5Fetch {
       );
     }
     if (url.endsWith("/rest/v1/rpc/m1_begin_phase4b5_one_call")) {
-      return Promise.resolve(Response.json({ authorization_id: authorizationId, correlation_id: correlationId }));
+      return Promise.resolve(
+        Response.json({ authorization_id: authorizationId, correlation_id: correlationId }),
+      );
     }
     if (url === "https://api.openai.com/v1/responses") {
       return Promise.resolve(
@@ -135,8 +137,10 @@ test("one eligible request makes one provider call then returns only quarantine-
 });
 
 test("the exact request hash is persisted before the provider boundary and bound at completion", async () => {
-  let beginPayload: Record<string, unknown> | null = null;
-  let completionPayload: Record<string, unknown> | null = null;
+  const captured = {
+    beginPayload: null as Record<string, unknown> | null,
+    completionPayload: null as Record<string, unknown> | null,
+  };
   let providerSawPersistedHash = false;
   const fetch: Phase4b5Fetch = async (input, init) => {
     const url = String(input);
@@ -159,11 +163,11 @@ test("the exact request hash is persisted before the provider boundary and bound
       ]);
     }
     if (url.endsWith("/rest/v1/rpc/m1_begin_phase4b5_one_call")) {
-      beginPayload = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      captured.beginPayload = JSON.parse(String(init?.body)) as Record<string, unknown>;
       return Response.json({ authorization_id: authorizationId, correlation_id: correlationId });
     }
     if (url === "https://api.openai.com/v1/responses") {
-      providerSawPersistedHash = typeof beginPayload?.p_request_sha256 === "string";
+      providerSawPersistedHash = typeof captured.beginPayload?.p_request_sha256 === "string";
       return Response.json({
         id: "resp_phase4b5_hash_test",
         model: "gpt-5.6-terra",
@@ -172,7 +176,7 @@ test("the exact request hash is persisted before the provider boundary and bound
       });
     }
     if (url.endsWith("/rest/v1/rpc/m1_complete_phase4b5_one_call")) {
-      completionPayload = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      captured.completionPayload = JSON.parse(String(init?.body)) as Record<string, unknown>;
       return new Response(null, { status: 204 });
     }
     throw new Error("unexpected fetch");
@@ -181,11 +185,20 @@ test("the exact request hash is persisted before the provider boundary and bound
   const response = await createStrongrDailyPhase4b5OnceHandler({ environment, fetch })(request());
   assert.equal(response.status, 200);
   assert.equal(providerSawPersistedHash, true);
-  assert.equal(beginPayload?.p_estimated_input_tokens, beginPayload?.p_canonical_request_byte_count);
-  assert.equal(beginPayload?.p_price_schedule_version, "openai.responses.gpt-5.6-terra.2026-08-01.v1");
-  assert.match(String(beginPayload?.p_request_sha256), /^[a-f0-9]{64}$/);
-  assert.equal(completionPayload?.p_request_sha256, beginPayload?.p_request_sha256);
-  assert.equal(completionPayload?.p_correlation_id, correlationId);
+  assert.equal(
+    captured.beginPayload?.p_estimated_input_tokens,
+    captured.beginPayload?.p_canonical_request_byte_count,
+  );
+  assert.equal(
+    captured.beginPayload?.p_price_schedule_version,
+    "openai.responses.gpt-5.6-terra.2026-08-01.v1",
+  );
+  assert.match(String(captured.beginPayload?.p_request_sha256), /^[a-f0-9]{64}$/);
+  assert.equal(
+    captured.completionPayload?.p_request_sha256,
+    captured.beginPayload?.p_request_sha256,
+  );
+  assert.equal(captured.completionPayload?.p_correlation_id, correlationId);
 });
 
 test("a consumed authorization fails before any provider request", async () => {
