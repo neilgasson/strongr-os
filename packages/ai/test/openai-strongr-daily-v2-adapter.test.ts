@@ -155,7 +155,10 @@ test("OpenAI request fingerprints are deterministic and bind every billable requ
 
   assert.equal(first.requestSha256, second.requestSha256);
   assert.equal(first.canonicalRequest, second.canonicalRequest);
-  assert.equal(first.canonicalRequestByteCount, new TextEncoder().encode(first.canonicalRequest).byteLength);
+  assert.equal(
+    first.canonicalRequestByteCount,
+    new TextEncoder().encode(first.canonicalRequest).byteLength,
+  );
   assert.notEqual(first.requestSha256, changedBrief.requestSha256);
   assert.notEqual(first.requestSha256, changedPrompt.requestSha256);
   assert.notEqual(first.requestSha256, changedModel.requestSha256);
