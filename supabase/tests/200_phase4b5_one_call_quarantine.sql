@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, pg_catalog;
 
-select plan(12);
+select plan(16);
 
 select ok(
   to_regclass('app_private.strongr_daily_phase4b5_one_call_attempts') is not null,
@@ -47,7 +47,7 @@ select ok(
   'the one-call migration does not activate the profile generally'
 );
 select ok(
-  pg_get_functiondef('public.m1_begin_phase4b5_one_call(uuid,uuid,integer)'::regprocedure)
+  pg_get_functiondef('public.m1_begin_phase4b5_one_call(uuid,uuid,text,integer,integer,text,integer)'::regprocedure)
     like all (array[
       '%require_permission%', '%content.create%', '%role_record.key = ''owner''%', '%true%',
       '%owner_approved_inactive%', '%pg_advisory_xact_lock%',
@@ -56,26 +56,26 @@ select ok(
   'begin command rechecks owner role, AAL2, inactive provenance, and atomically consumes one authorization'
 );
 select ok(
-  has_function_privilege('authenticated', 'public.m1_begin_phase4b5_one_call(uuid,uuid,integer)', 'EXECUTE')
-  and not has_function_privilege('anon', 'public.m1_begin_phase4b5_one_call(uuid,uuid,integer)', 'EXECUTE')
-  and not has_function_privilege('service_role', 'public.m1_begin_phase4b5_one_call(uuid,uuid,integer)', 'EXECUTE'),
+  has_function_privilege('authenticated', 'public.m1_begin_phase4b5_one_call(uuid,uuid,text,integer,integer,text,integer)', 'EXECUTE')
+  and not has_function_privilege('anon', 'public.m1_begin_phase4b5_one_call(uuid,uuid,text,integer,integer,text,integer)', 'EXECUTE')
+  and not has_function_privilege('service_role', 'public.m1_begin_phase4b5_one_call(uuid,uuid,text,integer,integer,text,integer)', 'EXECUTE'),
   'only authenticated callers may begin the AAL2 checked request'
 );
 select ok(
-  has_function_privilege('service_role', 'public.m1_complete_phase4b5_one_call(uuid,text,text,text,integer,integer,integer,integer,text,jsonb,text)', 'EXECUTE')
-  and not has_function_privilege('anon', 'public.m1_complete_phase4b5_one_call(uuid,text,text,text,integer,integer,integer,integer,text,jsonb,text)', 'EXECUTE')
-  and not has_function_privilege('authenticated', 'public.m1_complete_phase4b5_one_call(uuid,text,text,text,integer,integer,integer,integer,text,jsonb,text)', 'EXECUTE'),
+  has_function_privilege('service_role', 'public.m1_complete_phase4b5_one_call(uuid,uuid,text,text,text,text,integer,integer,integer,integer,text,jsonb,text)', 'EXECUTE')
+  and not has_function_privilege('anon', 'public.m1_complete_phase4b5_one_call(uuid,uuid,text,text,text,text,integer,integer,integer,integer,text,jsonb,text)', 'EXECUTE')
+  and not has_function_privilege('authenticated', 'public.m1_complete_phase4b5_one_call(uuid,uuid,text,text,text,text,integer,integer,integer,integer,text,jsonb,text)', 'EXECUTE'),
   'only the server-side worker may complete a consumed authorization'
 );
 select ok(
-  pg_get_functiondef('public.m1_complete_phase4b5_one_call(uuid,text,text,text,integer,integer,integer,integer,text,jsonb,text)'::regprocedure)
+  pg_get_functiondef('public.m1_complete_phase4b5_one_call(uuid,uuid,text,text,text,text,integer,integer,integer,integer,text,jsonb,text)'::regprocedure)
     like all (array[
       '%scripture_text%', '%prayer_request_prompt%', '%quarantined%', '%failed%'
     ]),
   'completion rejects unapproved Scripture and private prayer fields while retaining only quarantine state'
 );
 select ok(
-  pg_get_functiondef('public.m1_complete_phase4b5_one_call(uuid,text,text,text,integer,integer,integer,integer,text,jsonb,text)'::regprocedure)
+  pg_get_functiondef('public.m1_complete_phase4b5_one_call(uuid,uuid,text,text,text,text,integer,integer,integer,integer,text,jsonb,text)'::regprocedure)
     not like any (array['%content_versions%', '%generation_jobs%', '%production_packages%', '%media_jobs%']),
   'completion cannot create versions, jobs, packages, or media'
 );
@@ -100,6 +100,44 @@ select ok(
     limit 1
   ) like '%automatic_retry_count = 0%',
   'the table hard-disables automatic retries'
+);
+select is(
+  (
+    select count(*)
+    from information_schema.columns
+    where table_schema = 'app_private'
+      and table_name = 'strongr_daily_phase4b5_one_call_attempts'
+      and column_name = any (array[
+        'brief_payload_hash', 'request_sha256', 'canonical_request_byte_count',
+        'estimated_input_tokens', 'price_schedule_version', 'correlation_id'
+      ])
+  ),
+  6::bigint,
+  'the private attempt records immutable brief, canonical request, pricing, and correlation evidence before execution'
+);
+select ok(
+  pg_get_functiondef('public.m1_begin_phase4b5_one_call(uuid,uuid,text,integer,integer,text,integer)'::regprocedure)
+    like all (array[
+      '%p_request_sha256%', '%p_canonical_request_byte_count%', '%p_estimated_input_tokens%',
+      '%p_price_schedule_version%', '%payload_hash%', '%correlation_id%'
+    ]),
+  'begin binds the exact request fingerprint and immutable brief version before an attempt can start'
+);
+select ok(
+  pg_get_functiondef('public.m1_complete_phase4b5_one_call(uuid,uuid,text,text,text,text,integer,integer,integer,integer,text,jsonb,text)'::regprocedure)
+    like all (array['%p_request_sha256%', '%p_correlation_id%', '%one-call request binding is invalid%']),
+  'completion rejects a result that is not bound to the persisted request and correlation identifiers'
+);
+select ok(
+  (
+    select pg_get_constraintdef(oid)
+    from pg_constraint
+    where conrelid = 'app_private.strongr_daily_phase4b5_one_call_attempts'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) like '%price_schedule_version%'
+    limit 1
+  ) like '%openai.responses.gpt-5.6-terra.2026-08-01.v1%',
+  'the local pre-call ceiling is tied to an exact recorded price schedule version'
 );
 
 select * from finish();
