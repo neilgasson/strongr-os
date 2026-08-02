@@ -49,7 +49,7 @@ select ok(
 select ok(
   pg_get_functiondef('public.m1_begin_phase4b5_one_call(uuid,uuid,text,integer,integer,text,integer)'::regprocedure)
     like all (array[
-      '%m1_phase4b5_require_owner%', '%owner_approved_inactive%',
+      '%m1_phase4b5_require_owner%', '%strongr_daily_phase4b5_brief_preparations%',
       '%pre-call request does not match the owner-prepared immutable binding%',
       '%pg_advisory_xact_lock%',
       '%one-call authorization has already been consumed%'
