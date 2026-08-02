@@ -123,7 +123,19 @@ function requireSupportedPromptKey(value: string): string {
   return value;
 }
 
-type OpenAiStrongrDailyV2ProviderConfiguration = typeof openAiStrongrDailyV2ProviderConfig;
+interface OpenAiStrongrDailyV2ProviderConfiguration {
+  readonly inputUsdPerMillionTokens: number;
+  readonly maxOutputTokens: number;
+  readonly maxWorstCaseCostMicrounits: number;
+  readonly model: string;
+  readonly outputUsdPerMillionTokens: number;
+  readonly priceScheduleVersion: string;
+  readonly promptKey: string;
+  readonly promptVersion: number;
+  readonly provider: string;
+  readonly reasoningEffort: "low";
+  readonly timeoutMs: number;
+}
 
 function requirePriceSchedule(
   config: OpenAiStrongrDailyV2ProviderConfiguration,
