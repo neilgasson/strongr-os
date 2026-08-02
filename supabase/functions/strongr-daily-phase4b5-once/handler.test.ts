@@ -17,6 +17,7 @@ import {
 const organizationId = "52000000-0000-4000-8000-000000000001";
 const briefId = "52000000-0000-4000-8000-000000000002";
 const authorizationId = "52000000-0000-4000-8000-000000000003";
+const correlationId = "52000000-0000-4000-8000-000000000005";
 const userId = "52000000-0000-4000-8000-000000000004";
 const token = `user_${"x".repeat(48)}`;
 const secret = `sk-${"p".repeat(48)}`;
@@ -69,13 +70,14 @@ function successfulFetch(calls: string[]): Phase4b5Fetch {
             id: briefId,
             organization_id: organizationId,
             payload: brief,
+            payload_hash: "a".repeat(64),
             schema_id: brief.schema_id,
           },
         ]),
       );
     }
     if (url.endsWith("/rest/v1/rpc/m1_begin_phase4b5_one_call")) {
-      return Promise.resolve(Response.json(authorizationId));
+      return Promise.resolve(Response.json({ authorization_id: authorizationId, correlation_id: correlationId }));
     }
     if (url === "https://api.openai.com/v1/responses") {
       return Promise.resolve(
@@ -115,18 +117,75 @@ test("one eligible request makes one provider call then returns only quarantine-
   assert.deepEqual(body, {
     actual_cost_microunits: 3313,
     authorization_id: authorizationId,
+    correlation_id: correlationId,
     error_code: null,
     model: "gpt-5.6-terra",
     output_tokens: 200,
     pre_call_estimate_microunits: body.pre_call_estimate_microunits,
+    request_sha256: body.request_sha256,
     state: "quarantined",
   });
   assert.equal(calls.filter((value) => value === "https://api.openai.com/v1/responses").length, 1);
+  assert.match(String(body.request_sha256), /^[a-f0-9]{64}$/);
   const serialized = JSON.stringify({ body, calls });
   assert.doesNotMatch(serialized, new RegExp(secret));
   assert.doesNotMatch(serialized, new RegExp(service));
   assert.doesNotMatch(serialized, new RegExp(token));
   assert.doesNotMatch(serialized, /narration_text|warm_welcome|quarantined_payload/);
+});
+
+test("the exact request hash is persisted before the provider boundary and bound at completion", async () => {
+  let beginPayload: Record<string, unknown> | null = null;
+  let completionPayload: Record<string, unknown> | null = null;
+  let providerSawPersistedHash = false;
+  const fetch: Phase4b5Fetch = async (input, init) => {
+    const url = String(input);
+    if (url.endsWith("/auth/v1/user")) return Response.json({ id: userId });
+    if (url.includes("/rest/v1/content_briefs?")) {
+      return Response.json([
+        {
+          content_profile_checksum: profile.canonical_checksum,
+          content_profile_content_type: profile.content_type,
+          content_profile_id: profile.profile_id,
+          content_profile_source_manifest_checksum:
+            guidedAudioReflectionV1ProposalSourceManifestV2.canonical_checksum,
+          content_profile_version: profile.profile_version,
+          id: briefId,
+          organization_id: organizationId,
+          payload: brief,
+          payload_hash: "a".repeat(64),
+          schema_id: brief.schema_id,
+        },
+      ]);
+    }
+    if (url.endsWith("/rest/v1/rpc/m1_begin_phase4b5_one_call")) {
+      beginPayload = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return Response.json({ authorization_id: authorizationId, correlation_id: correlationId });
+    }
+    if (url === "https://api.openai.com/v1/responses") {
+      providerSawPersistedHash = typeof beginPayload?.p_request_sha256 === "string";
+      return Response.json({
+        id: "resp_phase4b5_hash_test",
+        model: "gpt-5.6-terra",
+        output_text: JSON.stringify(createStrongrDailyV2FixtureOutput(brief)),
+        usage: { input_tokens: 100, output_tokens: 200, total_tokens: 300 },
+      });
+    }
+    if (url.endsWith("/rest/v1/rpc/m1_complete_phase4b5_one_call")) {
+      completionPayload = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(null, { status: 204 });
+    }
+    throw new Error("unexpected fetch");
+  };
+
+  const response = await createStrongrDailyPhase4b5OnceHandler({ environment, fetch })(request());
+  assert.equal(response.status, 200);
+  assert.equal(providerSawPersistedHash, true);
+  assert.equal(beginPayload?.p_estimated_input_tokens, beginPayload?.p_canonical_request_byte_count);
+  assert.equal(beginPayload?.p_price_schedule_version, "openai.responses.gpt-5.6-terra.2026-08-01.v1");
+  assert.match(String(beginPayload?.p_request_sha256), /^[a-f0-9]{64}$/);
+  assert.equal(completionPayload?.p_request_sha256, beginPayload?.p_request_sha256);
+  assert.equal(completionPayload?.p_correlation_id, correlationId);
 });
 
 test("a consumed authorization fails before any provider request", async () => {
