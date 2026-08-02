@@ -49,11 +49,12 @@ select ok(
 select ok(
   pg_get_functiondef('public.m1_begin_phase4b5_one_call(uuid,uuid,text,integer,integer,text,integer)'::regprocedure)
     like all (array[
-      '%require_permission%', '%content.create%', '%role_record.key = ''owner''%', '%true%',
-      '%owner_approved_inactive%', '%pg_advisory_xact_lock%',
+      '%m1_phase4b5_require_owner%', '%owner_approved_inactive%',
+      '%pre-call request does not match the owner-prepared immutable binding%',
+      '%pg_advisory_xact_lock%',
       '%one-call authorization has already been consumed%'
     ]),
-  'begin command rechecks owner role, AAL2, inactive provenance, and atomically consumes one authorization'
+  'begin command delegates the owner and AAL2 gate, binds the prepared request, and atomically consumes one authorization'
 );
 select ok(
   has_function_privilege('authenticated', 'public.m1_begin_phase4b5_one_call(uuid,uuid,text,integer,integer,text,integer)', 'EXECUTE')
