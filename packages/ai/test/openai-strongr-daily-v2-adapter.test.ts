@@ -8,6 +8,7 @@ import {
 } from "../../testing/src/index.ts";
 import {
   createOpenAiStrongrDailyV2Adapter as createAdapterUnderTest,
+  createOpenAiStrongrDailyV2RequestFingerprint,
   createStrongrDailyV2FixtureOutput,
   estimateOpenAiStrongrDailyV2Generation,
   GenerationProviderError,
@@ -114,6 +115,86 @@ test("OpenAI adapter sends one fixed, non-stored, tool-free structured draft req
   assert.equal(estimate.inputTokenUpperBound, new TextEncoder().encode(capturedBody).byteLength);
   assert.equal(estimate.maxOutputTokens, 5_000);
   assert.ok(estimate.worstCaseCostMicrounits <= 100_000);
+});
+
+test("OpenAI request fingerprints are deterministic and bind every billable request field", () => {
+  const options = {
+    promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
+    sourceManifestChecksum: "b".repeat(64),
+  } as const;
+  const first = createOpenAiStrongrDailyV2RequestFingerprint(
+    strongrDailyAudioReflectionV2BriefFixture,
+    options,
+  );
+  const second = createOpenAiStrongrDailyV2RequestFingerprint(
+    JSON.parse(JSON.stringify(strongrDailyAudioReflectionV2BriefFixture)),
+    options,
+  );
+  const changedBrief = createOpenAiStrongrDailyV2RequestFingerprint(
+    { ...strongrDailyAudioReflectionV2BriefFixture, theme: "A different governed theme" },
+    options,
+  );
+  const changedPrompt = createOpenAiStrongrDailyV2RequestFingerprint(
+    strongrDailyAudioReflectionV2BriefFixture,
+    { ...options, promptKey: openAiStrongrDailyV2ProviderConfig.promptKey },
+  );
+  const changedModel = createOpenAiStrongrDailyV2RequestFingerprint(
+    strongrDailyAudioReflectionV2BriefFixture,
+    {
+      ...options,
+      configuration: { ...openAiStrongrDailyV2ProviderConfig, model: "gpt-5.6-terra-revision" },
+    },
+  );
+  const changedTokenLimit = createOpenAiStrongrDailyV2RequestFingerprint(
+    strongrDailyAudioReflectionV2BriefFixture,
+    {
+      ...options,
+      configuration: { ...openAiStrongrDailyV2ProviderConfig, maxOutputTokens: 4_999 },
+    },
+  );
+
+  assert.equal(first.requestSha256, second.requestSha256);
+  assert.equal(first.canonicalRequest, second.canonicalRequest);
+  assert.equal(first.canonicalRequestByteCount, new TextEncoder().encode(first.canonicalRequest).byteLength);
+  assert.notEqual(first.requestSha256, changedBrief.requestSha256);
+  assert.notEqual(first.requestSha256, changedPrompt.requestSha256);
+  assert.notEqual(first.requestSha256, changedModel.requestSha256);
+  assert.notEqual(first.requestSha256, changedTokenLimit.requestSha256);
+  const request = JSON.parse(first.canonicalRequest) as { readonly input: string };
+  assert.match(request.input, /content_profile_source_manifest_checksum/);
+  assert.match(request.input, /"prompt_key"/);
+  assert.doesNotMatch(first.canonicalRequest, /sk_provider_fixture_|authorization|bearer/i);
+  assert.throws(
+    () =>
+      createOpenAiStrongrDailyV2RequestFingerprint(strongrDailyAudioReflectionV2BriefFixture, {
+        ...options,
+        configuration: {
+          ...openAiStrongrDailyV2ProviderConfig,
+          priceScheduleVersion: "unapproved-price-schedule",
+        },
+      }),
+    (error: unknown) =>
+      error instanceof GenerationProviderError &&
+      error.safeCode === "generation.provider_pricing_unavailable",
+  );
+});
+
+test("OpenAI adapter blocks a mismatched persisted request hash before fetch", async () => {
+  let calls = 0;
+  const adapter = createOpenAiStrongrDailyV2Adapter({
+    apiKey: providerKeyFixture,
+    expectedRequestSha256: "f".repeat(64),
+    fetch: async () => {
+      calls += 1;
+      return successResponse();
+    },
+  });
+
+  await expectSafeCode(
+    () => adapter.generate(requestFixture()),
+    "generation.provider_request_hash_mismatch",
+  );
+  assert.equal(calls, 0);
 });
 
 test("OpenAI adapter prices every input token at the cache-write worst case", async () => {
