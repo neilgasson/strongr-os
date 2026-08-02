@@ -869,6 +869,10 @@ function BriefComposer({
   const reference = brief.scripture_reference;
   const selectedProfile = findStudioContentProfileOption(selectedProfileKey);
   const profileGate = contentProfileGateForOption(selectedProfile);
+  const isPhase4b5GuidedAudioPreparation =
+    selectedProfile?.profile.profile_id === "guided_audio_reflection" &&
+    selectedProfile.profile.profile_version === 1 &&
+    selectedProfile.profile.lifecycle === "owner_approved_inactive";
   const updateReference = (patch: Partial<typeof brief.scripture_reference>) => {
     setBrief({
       ...brief,
@@ -893,6 +897,21 @@ function BriefComposer({
         className="workflow-form"
         onSubmit={(event) => {
           event.preventDefault();
+          if (isPhase4b5GuidedAudioPreparation) {
+            void execute(
+              "prepare-phase4b5-guided-audio-brief",
+              "The one approved development test brief is now locked. Studio did not contact a provider, spend credits, or activate the profile.",
+              "The one approved development test brief was not prepared",
+              async () => {
+                const result = await flow.preparePhase4b5GuidedAudioReflectionBrief({
+                  correlationId: newUuid(),
+                  organizationId,
+                });
+                onBriefCreated(result.briefId);
+              },
+            );
+            return;
+          }
           if (!selectedProfile || !profileGate.allowed) {
             return;
           }
@@ -919,7 +938,21 @@ function BriefComposer({
         }}
       >
         <ContentProfileSelector onSelect={setSelectedProfileKey} selectedKey={selectedProfileKey} />
-        {selectedProfile?.profile.profile_id === "strongr_daily_audio_reflection_v2" ? (
+        {isPhase4b5GuidedAudioPreparation ? (
+          <div className="confirmation-panel" role="status">
+            <strong>One approved development test</strong>
+            <p>
+              Studio will create the pre-approved <em>Quiet Trust</em> brief exactly once. Its
+              profile, source manifest, rights record, cost ceiling, and future request hash are
+              already locked by the database.
+            </p>
+            <p>
+              There is nothing to edit here. This prepares a private brief only; it does not
+              activate this format, contact OpenAI, spend credits, create a draft, or publish
+              anything.
+            </p>
+          </div>
+        ) : selectedProfile?.profile.profile_id === "strongr_daily_audio_reflection_v2" ? (
           <>
             <div className="form-grid">
               <Field
@@ -1033,16 +1066,22 @@ function BriefComposer({
         )}
         <button
           aria-describedby={
-            !profileGate.allowed || !canCreate || pending ? "brief-access-reason" : undefined
+            (!isPhase4b5GuidedAudioPreparation && !profileGate.allowed) || !canCreate || pending
+              ? "brief-access-reason"
+              : undefined
           }
           className="primary-button"
           data-primary-action
-          disabled={!profileGate.allowed || !canCreate || pending}
+          disabled={
+            (!isPhase4b5GuidedAudioPreparation && !profileGate.allowed) || !canCreate || pending
+          }
           type="submit"
         >
-          Save brief
+          {isPhase4b5GuidedAudioPreparation
+            ? "Prepare the one approved development test"
+            : "Save brief"}
         </button>
-        {!profileGate.allowed ? (
+        {!isPhase4b5GuidedAudioPreparation && !profileGate.allowed ? (
           <p className="permission-note" id="brief-access-reason">
             {profileGate.reason}
           </p>
@@ -1103,6 +1142,10 @@ function ContentProfileSelector({
 }
 
 function ContentProfileReview({ option }: { readonly option: StudioContentProfileOption }) {
+  const isPhase4b5GuidedAudioPreparation =
+    option.profile.profile_id === "guided_audio_reflection" &&
+    option.profile.profile_version === 1 &&
+    option.profile.lifecycle === "owner_approved_inactive";
   return (
     <div className="content-profile-review" role="status">
       <div className="section-heading">
@@ -1113,8 +1156,9 @@ function ContentProfileReview({ option }: { readonly option: StudioContentProfil
         <span className="status-pill status-pill--neutral">{option.statusLabel}</span>
       </div>
       <p className="permission-note">
-        Phase 4B.1 is review-only. This selection cannot save a new brief or contact the provider
-        until this exact profile version is explicitly activated later.
+        {isPhase4b5GuidedAudioPreparation
+          ? "A separately authorized, one-time development brief may be prepared below. This does not activate the profile or contact the provider."
+          : "This selection cannot save a new brief or contact the provider until this exact profile version is explicitly activated later."}
       </p>
       {option.profile.unresolved_decisions.length > 0 ? (
         <details className="advanced-details">
