@@ -39,6 +39,8 @@ create table app_private.strongr_daily_phase4b5_one_call_attempts (
     check (scope_key = 'strongr-daily-phase4b5-guided-audio-reflection-v1'),
   organization_id uuid not null references public.organizations(id) on delete restrict,
   brief_id uuid not null,
+  -- content_briefs.payload_hash is the immutable selected brief version.
+  brief_payload_hash text not null check (brief_payload_hash ~ '^[a-f0-9]{64}$'),
   requested_by_membership_id uuid not null,
   profile_id text not null,
   profile_version integer not null check (profile_version = 1),
@@ -53,9 +55,24 @@ create table app_private.strongr_daily_phase4b5_one_call_attempts (
   timeout_ms integer not null check (timeout_ms = 60000),
   max_output_tokens integer not null check (max_output_tokens = 5000),
   maximum_cost_microunits integer not null check (maximum_cost_microunits = 100000),
+  price_schedule_version text not null check (
+    price_schedule_version = 'openai.responses.gpt-5.6-terra.2026-08-01.v1'
+  ),
+  input_price_microunits_per_token numeric(10,3) not null check (
+    input_price_microunits_per_token = 3.125
+  ),
+  output_price_microunits_per_token numeric(10,3) not null check (
+    output_price_microunits_per_token = 15.000
+  ),
+  request_sha256 text not null check (request_sha256 ~ '^[a-f0-9]{64}$'),
+  canonical_request_byte_count integer not null check (canonical_request_byte_count > 0),
+  estimated_input_tokens integer not null check (
+    estimated_input_tokens = canonical_request_byte_count
+  ),
   pre_call_estimate_microunits integer not null check (
     pre_call_estimate_microunits between 0 and 100000
   ),
+  correlation_id uuid not null,
   allowed_calls integer not null default 1 check (allowed_calls = 1),
   automatic_retry_count integer not null default 0 check (automatic_retry_count = 0),
   attempt_state text not null check (
@@ -126,9 +143,13 @@ from public, anon, authenticated, service_role;
 create function public.m1_begin_phase4b5_one_call(
   p_organization_id uuid,
   p_brief_id uuid,
+  p_request_sha256 text,
+  p_canonical_request_byte_count integer,
+  p_estimated_input_tokens integer,
+  p_price_schedule_version text,
   p_pre_call_estimate_microunits integer
 )
-returns uuid
+returns jsonb
 language plpgsql
 security definer
 set search_path = pg_catalog, public, app_private
@@ -138,6 +159,7 @@ declare
   v_brief public.content_briefs%rowtype;
   v_profile app_private.strongr_daily_content_profiles%rowtype;
   v_authorization_id uuid;
+  v_correlation_id uuid;
 begin
   -- This is a high-assurance, billable owner action. The database rechecks
   -- tenant-scoped content permission, an unrevoked owner role, and AAL2
@@ -168,12 +190,21 @@ begin
       message = 'one-call authorization requires the owner role';
   end if;
 
-  if p_pre_call_estimate_microunits is null
+  if p_request_sha256 is null
+     or p_request_sha256 !~ '^[a-f0-9]{64}$'
+     or p_canonical_request_byte_count is null
+     or p_canonical_request_byte_count <= 0
+     or p_estimated_input_tokens is distinct from p_canonical_request_byte_count
+     or p_price_schedule_version <> 'openai.responses.gpt-5.6-terra.2026-08-01.v1'
+     or p_pre_call_estimate_microunits is null
      or p_pre_call_estimate_microunits < 0
-     or p_pre_call_estimate_microunits > 100000 then
+     or p_pre_call_estimate_microunits > 100000
+     or p_pre_call_estimate_microunits <> ceil(
+       p_estimated_input_tokens::numeric * 3.125 + 5000::numeric * 15.000
+     )::integer then
     raise exception using
       errcode = '22023',
-      message = 'pre-call estimate exceeds the approved ceiling';
+      message = 'pre-call request binding or estimate is invalid';
   end if;
 
   select p.* into v_profile
@@ -236,10 +267,13 @@ begin
       message = 'one-call authorization has already been consumed';
   end if;
 
+  v_correlation_id := gen_random_uuid();
+
   insert into app_private.strongr_daily_phase4b5_one_call_attempts (
     scope_key,
     organization_id,
     brief_id,
+    brief_payload_hash,
     requested_by_membership_id,
     profile_id,
     profile_version,
@@ -254,12 +288,20 @@ begin
     timeout_ms,
     max_output_tokens,
     maximum_cost_microunits,
+    price_schedule_version,
+    input_price_microunits_per_token,
+    output_price_microunits_per_token,
+    request_sha256,
+    canonical_request_byte_count,
+    estimated_input_tokens,
     pre_call_estimate_microunits,
+    correlation_id,
     attempt_state
   ) values (
     'strongr-daily-phase4b5-guided-audio-reflection-v1',
     p_organization_id,
     p_brief_id,
+    v_brief.payload_hash,
     v_actor,
     v_profile.profile_id,
     v_profile.profile_version,
@@ -274,21 +316,33 @@ begin
     60000,
     5000,
     100000,
+    'openai.responses.gpt-5.6-terra.2026-08-01.v1',
+    3.125,
+    15.000,
+    p_request_sha256,
+    p_canonical_request_byte_count,
+    p_estimated_input_tokens,
     p_pre_call_estimate_microunits,
+    v_correlation_id,
     'consumed_pre_call'
   ) returning authorization_id into v_authorization_id;
 
-  return v_authorization_id;
+  return jsonb_build_object(
+    'authorization_id', v_authorization_id,
+    'correlation_id', v_correlation_id
+  );
 end;
 $$;
 
-revoke all on function public.m1_begin_phase4b5_one_call(uuid, uuid, integer)
+revoke all on function public.m1_begin_phase4b5_one_call(uuid, uuid, text, integer, integer, text, integer)
 from public, anon, authenticated, service_role;
-grant execute on function public.m1_begin_phase4b5_one_call(uuid, uuid, integer)
+grant execute on function public.m1_begin_phase4b5_one_call(uuid, uuid, text, integer, integer, text, integer)
 to authenticated;
 
 create function public.m1_complete_phase4b5_one_call(
   p_authorization_id uuid,
+  p_correlation_id uuid,
+  p_request_sha256 text,
   p_attempt_state text,
   p_provider_response_id text,
   p_returned_model text,
@@ -314,6 +368,11 @@ begin
   for update;
   if not found or v_attempt.attempt_state <> 'consumed_pre_call' then
     raise exception using errcode = '55000', message = 'one-call attempt is not completable';
+  end if;
+
+  if p_correlation_id is distinct from v_attempt.correlation_id
+     or p_request_sha256 is distinct from v_attempt.request_sha256 then
+    raise exception using errcode = '22023', message = 'one-call request binding is invalid';
   end if;
 
   if p_attempt_state = 'quarantined' then
@@ -381,10 +440,10 @@ end;
 $$;
 
 revoke all on function public.m1_complete_phase4b5_one_call(
-  uuid, text, text, text, integer, integer, integer, integer, text, jsonb, text
+  uuid, uuid, text, text, text, text, integer, integer, integer, integer, text, jsonb, text
 ) from public, anon, authenticated, service_role;
 grant execute on function public.m1_complete_phase4b5_one_call(
-  uuid, text, text, text, integer, integer, integer, integer, text, jsonb, text
+  uuid, uuid, text, text, text, text, integer, integer, integer, integer, text, jsonb, text
 ) to service_role;
 
 commit;
