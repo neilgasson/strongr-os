@@ -4,7 +4,7 @@
 **Manifest version:** 1.0.0
 **Planning horizon:** 56 daily experiences across eight launch weeks
 **Companion machine-readable manifest:** [`STRONGR_DAILY_8_WEEK_LAUNCH_RESERVE_MANIFEST.json`](./STRONGR_DAILY_8_WEEK_LAUNCH_RESERVE_MANIFEST.json)
-**Governing inputs:** Strongr Daily Master Blueprint v1.0 (owner-controlled source manifest), locked Strongr Daily economic-target plan, existing content-reserve preparation, and owner-controlled canonical source inventory.
+**Governing inputs:** Strongr Daily Master Blueprint v1.1 (owner-approved governing source), locked Strongr Daily economic-target plan, existing content-reserve preparation, and owner-controlled canonical source inventory.
 
 ## Purpose and hard boundaries
 
@@ -20,7 +20,7 @@ This is the authoritative planning record for the first eight-week Strongr Daily
 
 The owner-controlled private canonical library establishes that named materials, approved exports, continuity guides, and media exist, but it does **not** blanket-authorize derivative use, provider use, quotation, publication, or narration. “Existing reference” in this manifest means a known title, package, or asset family may inform production planning only. It is not a claim that a current script is approved for release.
 
-The local governing blueprint available to this work is **Master Blueprint v1.0**, while this request names v1.1. This manifest follows the locked product principles shared in the available governing material and flags any v1.1-specific change as an owner decision before production.
+Owner approval records **Strongr Daily Master Blueprint v1.1** as the governing source for this manifest. The locally recovered v1.0 material remains a historical reference only; it does not override the approved v1.1 source or authorize production work.
 
 ## Reserve composition
 
@@ -150,12 +150,11 @@ The table is the human-readable release plan. The JSON manifest records every it
 
 ## Unresolved owner decisions before production
 
-1. Confirm the governing blueprint revision intended by “v1.1,” or approve this v1.0-backed planning record as the working baseline.
-2. Confirm the launch date that maps relative Day 1-56 to calendar dates and seasons.
-3. Confirm final entitlement boundaries, especially whether all guided prayer and Scripture-reading items are Premium after any first-session/free samples.
-4. Confirm final translation per item. The default planning direction is KJV where appropriate and rights-cleared; Quiet Trust’s previous NIV reference metadata requires an explicit item-level decision.
-5. Confirm rights/provenance for existing named packages, assets, visual art, spoken Scripture, transcript delivery, and any third-party source material.
-6. Confirm the selected 18-item Filipino pilot list, required Filipino Scripture source/rights, reviewer, narrator, and Language Quality Gate evidence.
+1. Confirm the launch date that maps relative Day 1-56 to calendar dates and seasons.
+2. Confirm final entitlement boundaries, especially whether all guided prayer and Scripture-reading items are Premium after any first-session/free samples.
+3. Confirm final translation per item. The default planning direction is KJV where appropriate and rights-cleared; Quiet Trust’s previous NIV reference metadata requires an explicit item-level decision.
+4. Confirm rights/provenance for existing named packages, assets, visual art, spoken Scripture, transcript delivery, and any third-party source material.
+5. Confirm the selected 18-item Filipino pilot list, required Filipino Scripture source/rights, reviewer, narrator, and Language Quality Gate evidence.
 7. Confirm whether seasonal timing should replace any generic week in the reserve after a launch date is known.
 8. Approve each individual governed brief before a script, provider, narration, audio, or publication activity begins.
 

@@ -4,7 +4,7 @@
   "status": "planning_only_not_production_authorized",
   "planning_horizon_days": 56,
   "governing_inputs": [
-    "Owner-designated Strongr Daily Master Blueprint v1.1; locally recovered owner-controlled governing blueprint is v1.0 and requires owner confirmation if v1.1 changes this plan.",
+    "Strongr Daily Master Blueprint v1.1 (owner-approved governing source); locally recovered v1.0 material is historical reference only.",
     "Locked Strongr Daily economic-target plan.",
     "Existing Strongr Daily content-reserve preparation.",
     "Owner-controlled private canonical source manifest; provider use and raw-source reuse remain forbidden by default."
@@ -129,7 +129,6 @@
     "recommended_first_pilot": "strongr-daily-quiet-trust-psalm-46-10"
   },
   "unresolved_owner_decisions": [
-    "Confirm the governing Master Blueprint v1.1 source or approve the locally recovered v1.0-backed plan as the working baseline.",
     "Set the launch-day date and any seasonal substitutions.",
     "Approve final Free/Premium item boundaries and first-session sample behaviour.",
     "Approve translation per item, including the Quiet Trust NIV-reference versus KJV planning decision.",
