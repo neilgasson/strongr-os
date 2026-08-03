@@ -1,6 +1,6 @@
 # Strongr Daily — Quiet Trust Pilot Package
 
-**Status:** English review-only package. Nothing in this package authorizes generation, narration, audio creation, upload, publication, billing, or a production change.
+**Status:** Written package approved for a separate narration-readiness review. Nothing in this package authorizes generation, narration, audio creation, upload, publication, billing, or a production change.
 
 ## 1. Content brief
 
@@ -19,7 +19,7 @@
 
 ### Scripture and translation decision
 
-The package intentionally contains **no Scripture quotation**. The launch manifest records `NIV_reference_only_or_KJV_pending_owner_decision`; therefore the final translation, exact quotation, and rights basis remain unresolved. The narration script includes a clearly marked Scripture insertion point only. No final audio, transcript, or public description may add Scripture wording until that decision is recorded.
+The intended translation is the **King James Version (KJV)**. The package intentionally contains **no Scripture quotation**: the exact rights basis for storing, displaying, narrating, or publishing Psalm 46:10 remains unresolved. The narration script therefore includes a clearly marked Scripture insertion point only. No final audio, transcript, or public description may add Scripture wording until that rights basis is recorded.
 
 ## 2. Master reflection
 
@@ -89,7 +89,7 @@ The later transcript must mirror the narration exactly and include: title, durat
 | Profile source | `guided_audio_reflection@1`; derived structure only |
 | Content-profile source manifest | `b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e` |
 | Golden-example use | Metadata and derived rules only; no raw prose or close copying |
-| Scripture wording | Unresolved; reference only; no quote stored |
+| Scripture wording | KJV intended; rights basis unresolved; reference only; no quote stored |
 | Artwork | Rights dependency `RIGHTS-ART` remains open |
 | Narration/audio | Rights dependency `RIGHTS-AUDIO` remains open; no narration generated |
 
@@ -117,9 +117,12 @@ The later transcript must mirror the narration exactly and include: title, durat
 
 ## 12. Owner review decisions
 
-1. Approve or revise the reflection, public prayer, Daily Practice, and journal prompt.
-2. Choose the final translation and record a rights basis before inserting any Scripture wording.
-3. Approve the artwork source and its rights record before artwork creation or use.
-4. Confirm whether the English package may advance to a separately authorized narration-readiness review.
+**Recorded decision:** The owner approved `strongr-daily-quiet-trust-psalm-46-10`, version 1, for a separate narration-readiness review. KJV is the intended translation, subject to recording the exact rights basis before any Psalm 46:10 wording is inserted, stored, narrated, or published.
+
+Remaining decisions:
+
+1. Record the KJV rights basis before inserting any Scripture wording.
+2. Approve the artwork source and its rights record before artwork creation or use.
+3. Consider any separately submitted narration-readiness proposal.
 
 No approval in this package authorizes narration, audio, upload, publication, billing, or production change.
