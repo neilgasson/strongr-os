@@ -2,7 +2,11 @@
 
 ## What this review approves
 
-This review is for the English, written, review-only pilot package: `strongr-daily-quiet-trust-psalm-46-10`, version 1. It does not approve any provider call, narration generation, audio, artwork creation, upload, publication, billing, or production change.
+This review is for the English, written pilot package: `strongr-daily-quiet-trust-psalm-46-10`, version 1. The owner has approved it for a separate narration-readiness review, with KJV as the intended Scripture translation. It does not approve any provider call, narration generation, audio, artwork creation, upload, publication, billing, or production change.
+
+## Recorded approval and remaining gate
+
+The approval permits review of narration readiness only. Psalm 46:10 remains reference-only: before any KJV wording can be inserted, stored, narrated, or published, the exact rights basis must be recorded. No Scripture text is added by this approval.
 
 ## Review checklist
 
@@ -17,10 +21,9 @@ This review is for the English, written, review-only pilot package: `strongr-dai
 
 ## Required owner decisions
 
-1. **Scripture choice:** Select the final translation and document the right to store, display, narrate, and publish any quoted text. Until then, retain the insertion point.
-2. **Editorial decision:** Approve, request targeted revision, or reject the written pilot package.
-3. **Artwork rights:** Approve an owner-controlled, commissioned, or licensed artwork source before asset creation/use.
-4. **Narration readiness:** Decide whether this approved written package may move to a separately scoped narration-readiness proposal.
+1. **Scripture rights:** Record the right to store, display, narrate, and publish any KJV quotation. Until then, retain the insertion point.
+2. **Artwork rights:** Approve an owner-controlled, commissioned, or licensed artwork source before asset creation/use.
+3. **Narration readiness scope:** Review any separately scoped proposal; this decision does not authorize narration generation.
 
 ## Exact narration-readiness approval wording
 
