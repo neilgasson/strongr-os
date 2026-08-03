@@ -16,7 +16,7 @@
     "audience_need": "stillness and trust in God when life feels unsettled",
     "primary_scripture_reference": "Psalm 46:10",
     "supporting_scripture_references": ["Isaiah 30:15"],
-    "translation_status": "NIV reference only or KJV pending owner decision",
+    "translation_status": "KJV intended; exact quotation rights basis pending",
     "scripture_text_status": "not stored; reference only",
     "theological_boundaries": [
       "Christ-centred",
@@ -53,7 +53,7 @@
     "source_manifest_sha256": "b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e",
     "raw_golden_prose": "forbidden",
     "close_copying": "forbidden",
-    "scripture_quote_rights": "unresolved",
+    "scripture_quote_rights": "KJV intended; unresolved until the exact basis to store, display, narrate, and publish Psalm 46:10 is recorded",
     "artwork_rights": "RIGHTS-ART open",
     "narration_rights": "RIGHTS-AUDIO open"
   },
@@ -74,6 +74,11 @@
     "billing": "forbidden",
     "production_change": "forbidden",
     "private_user_data": "forbidden"
+  },
+  "owner_review": {
+    "written_package_status": "approved_for_separate_narration_readiness_review",
+    "approval_scope": "written package only; no quotation insertion, provider call, narration generation, audio creation, artwork creation, upload, publication, billing, or production change",
+    "scripture_handling": "Psalm 46:10 remains reference-only until the KJV rights basis is recorded"
   },
   "validation": {
     "required_sections_present": true,
