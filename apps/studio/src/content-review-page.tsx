@@ -38,22 +38,22 @@ const seeds: readonly Item[] = [
 ];
 
 const approvedRenewalScriptHashes: Readonly<Record<string, string>> = {
-  "renewal-1": "721e9b618e140f1eccb554be8e8c4ee7579d2c738236192e3a4d364c56d064ba",
-  "renewal-2": "097bc024b199d5f2cb4f8cf5b3fcc32708659aa0bb77ffac8e4fe0254e97895f",
-  "renewal-3": "3ad6b8f338bb1099e5c3b014123eef9482018e4d57f0c832a03d5cb960f8c4ff",
+  "renewal-1": "4138096b8d2b431e48b5c1b2a687a861624389e1c2af90d43ddd0cbaa4129432",
+  "renewal-2": "ca23187fef3fb924ec9881823d67445a54c36084d293abb5c07fe6218f8a9ce1",
+  "renewal-3": "e8485d755450b39c3857b1bbbbdb5706b65bcaa749b1b94be0aef5ad241f191b",
 };
 
 const renewalPrivateAudioReviews: Readonly<Record<string, PrivateAudioReview>> = {
-  "renewal-1": { durationSeconds: 80.013006, creditsUsed: 1107, generatedAt: "2026-08-03", scriptHash: "721e9b618e140f1eccb554be8e8c4ee7579d2c738236192e3a4d364c56d064ba", qaNotes: "Generated once from the verified locked script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
-  "renewal-2": { durationSeconds: 73.273449, creditsUsed: 974, generatedAt: "2026-08-03", scriptHash: "097bc024b199d5f2cb4f8cf5b3fcc32708659aa0bb77ffac8e4fe0254e97895f", qaNotes: "Generated once from the verified locked script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
-  "renewal-3": { durationSeconds: 66.638322, creditsUsed: 987, generatedAt: "2026-08-03", scriptHash: "3ad6b8f338bb1099e5c3b014123eef9482018e4d57f0c832a03d5cb960f8c4ff", qaNotes: "Generated once from the verified locked script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
+  "renewal-1": { durationSeconds: 83.408924, creditsUsed: 1108, generatedAt: "2026-08-03", scriptHash: "4138096b8d2b431e48b5c1b2a687a861624389e1c2af90d43ddd0cbaa4129432", qaNotes: "Generated once from the verified locked Stronger Daily script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
+  "renewal-2": { durationSeconds: 71.471, creditsUsed: 975, generatedAt: "2026-08-03", scriptHash: "ca23187fef3fb924ec9881823d67445a54c36084d293abb5c07fe6218f8a9ce1", qaNotes: "Generated once from the verified locked Stronger Daily script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
+  "renewal-3": { durationSeconds: 69.22445, creditsUsed: 988, generatedAt: "2026-08-03", scriptHash: "e8485d755450b39c3857b1bbbbdb5706b65bcaa749b1b94be0aef5ad241f191b", qaNotes: "Generated once from the verified locked Stronger Daily script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
 };
 
 const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = {
   "renewal-1": {
     sourceEdition: "The King James Version of the Bible, Project Gutenberg eBook #10 (release 1 August 1989; last updated 6 April 2024).",
     quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
-    narrationRights: "Authorized only for the completed reference-only private review draft. No KJV verse wording was inserted or narrated; no publication or distribution authority is granted.",
+    narrationRights: "Authorized by Neil for this exact locked, reference-only private review draft. No KJV verse wording was inserted or narrated; no publication or distribution authority is granted.",
     appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
     publicationStatus: "Not approved for publication or distribution.",
     territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
@@ -63,7 +63,7 @@ const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = 
   "renewal-2": {
     sourceEdition: "The King James Version of the Bible, Project Gutenberg ebook #10 (release 1 August 1989; last updated 6 April 2024).",
     quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
-    narrationRights: "Authorized only for the completed reference-only private review draft. No KJV verse wording was inserted or narrated; no publication or distribution authority is granted.",
+    narrationRights: "Authorized by Neil for this exact locked, reference-only private review draft. No KJV verse wording was inserted or narrated; no publication or distribution authority is granted.",
     appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
     publicationStatus: "Not approved for publication or distribution.",
     territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
@@ -73,7 +73,7 @@ const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = 
   "renewal-3": {
     sourceEdition: "The King James Version of the Bible, Project Gutenberg ebook #10 (release 1 August 1989; last updated 6 April 2024).",
     quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
-    narrationRights: "Authorized only for the completed reference-only private review draft. No KJV verse wording was inserted or narrated; no publication or distribution authority is granted.",
+    narrationRights: "Authorized by Neil for this exact locked, reference-only private review draft. No KJV verse wording was inserted or narrated; no publication or distribution authority is granted.",
     appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
     publicationStatus: "Not approved for publication or distribution.",
     territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
@@ -84,23 +84,21 @@ const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = 
 
 const ownerApprovedSeeds: readonly Item[] = seeds.map((item) => {
   const correctedScript = item.script.replace(/^Welcome to Strongr Daily\./, "Welcome to Stronger Daily.");
-  if (correctedScript !== item.script) {
-    return {
+  const correctedItem = correctedScript !== item.script
+    ? {
       ...item,
       script: correctedScript,
-      status: "owner_editing",
-      narrationRights: false,
-      notes: "Owner changed the spoken brand to “Stronger Daily.” The prior private audio draft and its narration authorization are invalidated; wording needs a new owner approval before any new narration.",
+      notes: "",
       versions: [`Version ${item.versions.length + 1} — pronunciation wording revision`, ...item.versions],
-    };
-  }
-  const lockedHash = approvedRenewalScriptHashes[item.id];
-  const audioReview = renewalPrivateAudioReviews[item.id];
-  if (!lockedHash) return item;
-  const approvedVersion = [`Version ${item.versions.length + 1} — immutable wording approval`, ...item.versions];
+    }
+    : item;
+  const lockedHash = approvedRenewalScriptHashes[correctedItem.id];
+  const audioReview = renewalPrivateAudioReviews[correctedItem.id];
+  if (!lockedHash) return correctedItem;
+  const approvedVersion = [`Version ${correctedItem.versions.length + 1} — immutable wording approval`, ...correctedItem.versions];
   return audioReview
-    ? { ...item, status: "audio_review", narrationRights: true, lockedHash, audioReview, versions: approvedVersion }
-    : { ...item, status: "owner_approved", lockedHash, versions: approvedVersion };
+    ? { ...correctedItem, status: "audio_review", narrationRights: true, lockedHash, audioReview, versions: approvedVersion }
+    : { ...correctedItem, status: "narration_authorized", narrationRights: true, lockedHash, versions: approvedVersion };
 });
 
 const labels: Record<Status, string> = { draft: "Draft", owner_review: "Owner review", revision_requested: "Revision requested", owner_editing: "Owner editing", owner_edit_complete: "Owner edit complete", owner_approved: "Wording approved", narration_authorized: "Narration authorized", audio_generated: "Audio generated", audio_review: "Audio review", audio_accepted_private: "Private audio accepted", release_approved: "Release approved" };
