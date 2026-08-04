@@ -11,6 +11,17 @@ type Item = Readonly<{
   narrationRights: boolean; versions: readonly string[]; lockedHash?: string;
 }>;
 
+type ScriptureRightsRecord = Readonly<{
+  sourceEdition: string;
+  quotationStatus: string;
+  narrationRights: string;
+  appDisplayRights: string;
+  publicationStatus: string;
+  territoryLimitations: string;
+  attribution: string;
+  unresolvedQuestions: string;
+}>;
+
 const seeds: readonly Item[] = [
   { id: "quiet-trust", title: "Quiet Trust", type: "Guided audio reflection", scripture: "Psalm 46:10; Isaiah 30:15", status: "audio_accepted_private", reflection: "A written Quiet Trust package is approved for private narration review.", script: "Private narration-review script retained in the approved package.", prayer: "Lord Jesus, meet us with Your peace. Amen.", journal: "What concern can you bring to God?", practice: "Pause and pray.", notes: "Private narration accepted. Release remains closed.", rights: "Scripture quotation remains reference-only", narrationRights: false, versions: ["Version 3 — wording approved", "Version 2 — owner revision"], lockedHash: "Recorded in approved package" },
   { id: "renewal-1", title: "Renewal Day 1 — Return", type: "Guided audio reflection", scripture: "Psalm 51:10; 2 Corinthians 5:17", status: "owner_review", reflection: "Return begins with truth. We bring God neither a polished version of ourselves nor a promise that we will never struggle again. We come honestly, trusting that Christ meets those who turn toward Him with mercy.\n\nThe call to renewal is not a demand to earn our way back. In Jesus, repentance is a return to the One whose love has already made room for us. We can name what needs to change, receive His forgiveness, and begin again under His care.", script: "Welcome to Strongr Daily.\n\nToday we reflect on returning to God. Psalm 51:10 and 2 Corinthians 5:17 point us toward the mercy of God and the new life we receive in Christ.\n\nPerhaps there is something you have been carrying with regret: a choice, a pattern, a strained relationship, or a prayer you have avoided. You do not have to hide it from God. He already knows, and in Christ He receives those who return.\n\nReturning is not pretending the past did not matter. It is bringing the truth into the light of Jesus' mercy. He does not ask us to make ourselves worthy before we come near. He invites us to come honestly, to receive forgiveness, and to let His grace begin its work in us.\n\nTake a moment now to turn your heart toward Him. You may simply say, Lord Jesus, I return to You.\n\nWhatever has felt distant, unfinished, or ashamed in you, place it before Christ. His mercy is not reluctant. His welcome is not fragile. The One who calls us to return is the One who has opened the way for us to be received.\n\nAs you continue today, rest in this: Christ's mercy is real, and He receives those who return.", prayer: "Lord Jesus, You know the places in me that feel tired, distracted, or distant from the life You call me to live. Receive my honest return to You. Renew my heart and make my spirit steadfast in You. Give me courage to confess what is true, grace to repair what I can, and patience to continue walking with You. Thank You that Your mercy meets me here. Amen.", journal: "What do you want to bring honestly before Christ today?", practice: "Take one unhurried moment to pray: “Lord Jesus, I return to You.”", notes: "", rights: "Translation and quotation decision pending", narrationRights: false, versions: ["Version 2 — revised from owner feedback; ready for owner review", "Version 1 — ready for owner review"] },
@@ -22,6 +33,39 @@ const approvedRenewalScriptHashes: Readonly<Record<string, string>> = {
   "renewal-1": "721e9b618e140f1eccb554be8e8c4ee7579d2c738236192e3a4d364c56d064ba",
   "renewal-2": "097bc024b199d5f2cb4f8cf5b3fcc32708659aa0bb77ffac8e4fe0254e97895f",
   "renewal-3": "3ad6b8f338bb1099e5c3b014123eef9482018e4d57f0c832a03d5cb960f8c4ff",
+};
+
+const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = {
+  "renewal-1": {
+    sourceEdition: "The King James Version of the Bible, Project Gutenberg eBook #10 (release 1 August 1989; last updated 6 April 2024).",
+    quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
+    narrationRights: "Not authorized. Internal pilot source record only; a separate owner narration authorization and territory review are still required.",
+    appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
+    publicationStatus: "Not approved for publication or distribution.",
+    territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
+    attribution: "If a source credit is later shown, use: Source record: The King James Version of the Bible, Project Gutenberg eBook #10. Do not reuse Project Gutenberg branding or its ebook license without confirming the applicable terms.",
+    unresolvedQuestions: "Confirm each intended distribution territory, storefront and commercial-use context; confirm the exact quotation use; and obtain rights/legal sign-off before any verse text is displayed, narrated or distributed.",
+  },
+  "renewal-2": {
+    sourceEdition: "The King James Version of the Bible, Project Gutenberg ebook #10 (release 1 August 1989; last updated 6 April 2024).",
+    quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
+    narrationRights: "Not authorized. Internal pilot source record only; a separate owner narration authorization and territory review are still required.",
+    appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
+    publicationStatus: "Not approved for publication or distribution.",
+    territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
+    attribution: "If a source credit is later shown, use: Source record: The King James Version of the Bible, Project Gutenberg eBook #10. Do not reuse Project Gutenberg branding or its ebook license without confirming the applicable terms.",
+    unresolvedQuestions: "Confirm each intended distribution territory, storefront and commercial-use context; confirm the exact quotation use; and obtain rights/legal sign-off before any verse text is displayed, narrated or distributed.",
+  },
+  "renewal-3": {
+    sourceEdition: "The King James Version of the Bible, Project Gutenberg ebook #10 (release 1 August 1989; last updated 6 April 2024).",
+    quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
+    narrationRights: "Not authorized. Internal pilot source record only; a separate owner narration authorization and territory review are still required.",
+    appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
+    publicationStatus: "Not approved for publication or distribution.",
+    territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
+    attribution: "If a source credit is later shown, use: Source record: The King James Version of the Bible, Project Gutenberg ebook #10. Do not reuse Project Gutenberg branding or its ebook license without confirming the applicable terms.",
+    unresolvedQuestions: "Confirm each intended distribution territory, storefront and commercial-use context; confirm the exact quotation use; and obtain rights/legal sign-off before any verse text is displayed, narrated or distributed.",
+  },
 };
 
 const ownerApprovedSeeds: readonly Item[] = seeds.map((item) => {
@@ -46,6 +90,10 @@ export function ContentReviewPage({ developmentPreview = false }: { readonly dev
   const [notice, setNotice] = useState("Owner edits stay in Studio. Nothing is sent to a provider from this screen.");
   const item = items.find(({ id }) => id === selectedId) ?? items[0]!;
   const words = useMemo(() => count(item.script), [item.script]);
+  const estimatedDurationSeconds = Math.round((words / 130) * 60);
+  const estimatedDuration = `${Math.floor(estimatedDurationSeconds / 60)}m ${estimatedDurationSeconds % 60}s`;
+  const estimatedCredits = item.script.length;
+  const scriptureRights = renewalScriptureRights[item.id];
   const update = (patch: Partial<Item>) => setItems((current) => current.map((entry) => {
     if (entry.id !== item.id) return entry;
     const wordingChanged = ["reflection", "script", "prayer", "journal", "practice"].some((key) => Object.hasOwn(patch, key));
@@ -75,7 +123,7 @@ export function ContentReviewPage({ developmentPreview = false }: { readonly dev
         <div className="review-actions"><button className="secondary-button" onClick={() => setNotice("Draft saved in this review session. No wording was changed.")} type="button">Save Draft</button><button className="secondary-button" onClick={() => mutate("revision_requested", "Revision requested. The wording remains editable.")} type="button">Request Revision</button><button className="secondary-button" onClick={() => mutate("owner_edit_complete", "Owner editing marked complete. Review the exact wording before approval.")} type="button">Mark Owner Edit Complete</button><button className="primary-button" disabled={item.status !== "owner_edit_complete"} onClick={() => void approve()} type="button">Approve Wording</button><button className="secondary-button" onClick={() => mutate("owner_editing", "Reopened for owner editing. Any prior wording lock is no longer valid.")} type="button">Reopen for Editing</button><button className="primary-button" disabled={item.status !== "owner_approved" || !item.narrationRights} onClick={authorize} type="button">Authorize ElevenLabs</button><button className="danger-button" disabled={item.status !== "narration_authorized"} onClick={() => mutate("owner_approved", "Narration authorization revoked. No provider call was made.")} type="button">Revoke Narration Authorization</button></div>
         <section className="audio-review"><h3>Private audio review</h3><p>Audio is not connected in this phase. Private audio acceptance will never release content.</p><div className="audio-placeholder">Audio player placeholder</div><dl><div><dt>Duration</dt><dd>Not generated</dd></div><div><dt>Voice</dt><dd>Not selected</dd></div><div><dt>Model</dt><dd>Not connected</dd></div><div><dt>Script lock</dt><dd>{item.lockedHash ? "Approved wording locked" : "Not yet locked"}</dd></div><div><dt>Credits</dt><dd>None used</dd></div></dl><div className="review-actions"><button className="secondary-button" disabled type="button">Review Audio</button><button className="secondary-button" disabled type="button">Accept Private Audio</button><button className="danger-button" disabled type="button">Reject Audio</button><button className="secondary-button" disabled type="button">Request One Revision</button></div></section>
         <section className="status-timeline"><h3>Status timeline</h3><ol>{["draft", "owner_review", "owner_editing", "owner_edit_complete", "owner_approved", "narration_authorized", "audio_review", "audio_accepted_private", "release_approved"].map((status) => <li className={status === item.status ? "current" : ""} key={status}>{labels[status as Status]}</li>)}</ol></section>
-        <details className="advanced-details"><summary>Details and audit</summary><p>Version history: {item.versions.join(" · ")}</p><p>Script SHA-256: {item.lockedHash ?? "Created only after wording approval"}</p><p>Tenant isolation, owner permissions, MFA/AAL2, approval evidence, audit history, and service-role boundaries remain enforced by the existing governed workflow.</p></details>
+        <details className="advanced-details"><summary>Details and audit</summary><p>Version history: {item.versions.join(" · ")}</p><p>Script SHA-256: {item.lockedHash ?? "Created only after wording approval"}</p><p>Locked-script readiness: {item.script.length} characters · estimated {estimatedDuration} · estimated ElevenLabs use {estimatedCredits} credits (character-based estimate only; no provider call).</p>{scriptureRights ? <><h3>Scripture rights record</h3><dl className="evidence-list"><div><dt>References and intended translation</dt><dd>{item.scripture} · King James Version (KJV)</dd></div><div><dt>Exact source edition</dt><dd>{scriptureRights.sourceEdition}</dd></div><div><dt>Quotation status</dt><dd>{scriptureRights.quotationStatus}</dd></div><div><dt>Narration rights</dt><dd>{scriptureRights.narrationRights}</dd></div><div><dt>App-display rights</dt><dd>{scriptureRights.appDisplayRights}</dd></div><div><dt>Publication and distribution</dt><dd>{scriptureRights.publicationStatus}</dd></div><div><dt>Territory limitations</dt><dd>{scriptureRights.territoryLimitations}</dd></div><div><dt>Attribution requirements</dt><dd>{scriptureRights.attribution}</dd></div><div><dt>Unresolved rights questions</dt><dd>{scriptureRights.unresolvedQuestions}</dd></div><div><dt>Narration authorization eligibility</dt><dd>{item.narrationRights ? "Eligible after separate owner authorization." : "Not eligible: rights remain unresolved and Neil has not separately authorized ElevenLabs narration."}</dd></div></dl></> : null}<p>Tenant isolation, owner permissions, MFA/AAL2, approval evidence, audit history, and service-role boundaries remain enforced by the existing governed workflow.</p></details>
       </section>
     </div>
   </div>;
