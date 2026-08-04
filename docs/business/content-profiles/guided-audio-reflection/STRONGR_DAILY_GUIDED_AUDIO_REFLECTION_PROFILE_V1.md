@@ -111,7 +111,15 @@ analytics, and unrelated generation.
 
 ## Narration-ready standard
 
-- Provider-neutral plain text only.
+- Provider-neutral plain text only, held in one complete narration-script
+  field. This single locked field is the only spoken source sent to a
+  narration provider.
+- The complete spoken script includes the welcome, biblical narrative,
+  reflection and Christ-centred takeaway, full prayer, spoken closing
+  invitation, and any Daily Practice wording intended for the listener.
+- Reflection, prayer, journal prompt, Daily Practice, historical-context, and
+  other editorial fields remain separately managed for app display, but are
+  never separate provider inputs.
 - Spoken sections appear in the required order and include the closing
   invitation.
 - No SSML, ElevenLabs markup, bracketed stage directions, inline music
