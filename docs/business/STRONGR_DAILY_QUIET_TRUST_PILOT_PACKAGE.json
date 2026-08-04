@@ -1,0 +1,90 @@
+{
+  "schema_version": "strongr_daily_quiet_trust_pilot_package.v1",
+  "status": "review_only",
+  "identity": {
+    "content_id": "strongr-daily-quiet-trust-psalm-46-10",
+    "version": 1,
+    "title": "Quiet Trust",
+    "content_type": "guided_audio_reflection",
+    "series_status": "standalone",
+    "entitlement": "free",
+    "language": "en",
+    "target_duration_seconds": 300,
+    "launch_placements": ["Home Featured Today", "Listen Guided Audio Reflections"]
+  },
+  "brief": {
+    "audience_need": "stillness and trust in God when life feels unsettled",
+    "primary_scripture_reference": "Psalm 46:10",
+    "supporting_scripture_references": ["Isaiah 30:15"],
+    "translation_status": "KJV intended; exact quotation rights basis pending",
+    "scripture_text_status": "not stored; reference only",
+    "theological_boundaries": [
+      "Christ-centred",
+      "Scripture-rooted",
+      "no prosperity teaching",
+      "no generic self-help framing",
+      "no unsupported promises",
+      "no narration presented as God's literal voice"
+    ]
+  },
+  "editorial_content": {
+    "summary": "A gentle guided reflection that creates room to return to God with concerns without making promises about outcomes.",
+    "daily_practice": "Take one quiet minute. Breathe slowly, name one concern you are carrying, and offer it to God in a simple sentence of trust.",
+    "journal_prompt": "What is one concern you can place in God's care today, and what might one faithful next step look like?",
+    "personal_takeaway": "I can return to God before I try to carry everything alone.",
+    "public_editorial_prayer_status": "written for review; public editorial content only; not derived from private user data"
+  },
+  "narration": {
+    "script_path": "docs/business/STRONGR_DAILY_QUIET_TRUST_NARRATION_SCRIPT.txt",
+    "required_sections": ["warm_welcome", "scripture_introduction", "reflection", "prayer", "closing_invitation"],
+    "scripture_insertion": "rights-controlled placeholder only",
+    "audio_generation": "forbidden"
+  },
+  "metadata": {
+    "short_description": "A gentle guided reflection on stillness and trust in God.",
+    "keywords": ["stillness", "trust", "Psalm 46", "prayer", "peace", "reflection"],
+    "share_copy": "Take a quiet moment with Quiet Trust, a guided reflection on Psalm 46:10.",
+    "artwork_status": "brief only; asset creation and usage require approved rights"
+  },
+  "rights_and_provenance": {
+    "governing_source": "Strongr Daily Master Blueprint v1.1",
+    "launch_manifest_merge_commit": "2899a2552f083adba11fe621c0e7202a8d217ece",
+    "content_profile": "guided_audio_reflection@1",
+    "source_manifest_sha256": "b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e",
+    "raw_golden_prose": "forbidden",
+    "close_copying": "forbidden",
+    "scripture_quote_rights": "KJV intended; unresolved until the exact basis to store, display, narrate, and publish Psalm 46:10 is recorded",
+    "artwork_rights": "RIGHTS-ART open",
+    "narration_rights": "RIGHTS-AUDIO open"
+  },
+  "localization": {
+    "fil_PH": {
+      "status": "planned_unavailable_pilot",
+      "content": "metadata_only",
+      "requirements_before_available": ["editorial review", "theological review", "Scripture rights review", "narration review", "audio/transcript match", "visual and accessibility review", "owner acceptance"]
+    }
+  },
+  "boundaries": {
+    "provider_calls": "forbidden",
+    "narration_generation": "forbidden",
+    "audio_generation": "forbidden",
+    "translation_generation": "forbidden",
+    "upload": "forbidden",
+    "publication": "forbidden",
+    "billing": "forbidden",
+    "production_change": "forbidden",
+    "private_user_data": "forbidden"
+  },
+  "owner_review": {
+    "written_package_status": "approved_for_separate_narration_readiness_review",
+    "approval_scope": "written package only; no quotation insertion, provider call, narration generation, audio creation, artwork creation, upload, publication, billing, or production change",
+    "scripture_handling": "Psalm 46:10 remains reference-only until the KJV rights basis is recorded"
+  },
+  "validation": {
+    "required_sections_present": true,
+    "scripture_reference_only": true,
+    "five_part_narration_flow": true,
+    "free_entitlement": true,
+    "filipino_metadata_only": true
+  }
+}
