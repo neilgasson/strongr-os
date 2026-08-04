@@ -27,7 +27,7 @@ async function sha256(value: string) {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export function ContentReviewPage() {
+export function ContentReviewPage({ developmentPreview = false }: { readonly developmentPreview?: boolean }) {
   const [items, setItems] = useState<readonly Item[]>(seeds);
   const [selectedId, setSelectedId] = useState(seeds[1]!.id);
   const [notice, setNotice] = useState("Owner edits stay in Studio. Nothing is sent to a provider from this screen.");
@@ -49,6 +49,7 @@ export function ContentReviewPage() {
   const field = (label: string, key: keyof Pick<Item, "reflection" | "script" | "prayer" | "journal" | "practice" | "notes">, rows = 4) => <label>{label}<textarea onChange={(event) => update({ [key]: event.currentTarget.value })} rows={rows} value={item[key]} /></label>;
 
   return <div className="content-review-page">
+    {developmentPreview ? <aside className="development-preview-banner" role="status"><strong>Development review mode</strong><span>Local seeded data only. This preview is not connected to Studio authentication, tenant data, providers, or production actions.</span></aside> : null}
     <div className="page-heading"><p className="eyebrow">Strongr Daily · Owner workspace</p><h1>Content review</h1><p>Review wording in one calm place. Sensitive actions stay unavailable until their required approvals are complete.</p></div>
     <p className="workflow-notice" role="status">{notice}</p>
     <div className="review-layout">

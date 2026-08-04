@@ -597,6 +597,7 @@ button:disabled {
 }
 
 .review-layout { display:grid; grid-template-columns: 17rem minmax(0, 1fr); gap:var(--space-5); }
+.development-preview-banner { display:flex; gap:var(--space-3); align-items:baseline; margin-bottom:var(--space-5); padding:var(--space-3) var(--space-4); border:1px solid var(--color-warning-ink); border-radius:var(--radius-medium); color:var(--color-warning-ink); background:var(--color-warning-soft); }
 .review-list, .review-fields, .review-actions { display:grid; gap:var(--space-3); }
 .review-list button { display:grid; gap:var(--space-1); padding:var(--space-4); text-align:left; border:1px solid var(--color-line); border-radius:var(--radius-medium); background:var(--color-surface); }
 .review-list button.is-selected { border:2px solid var(--color-brand); background:var(--color-brand-soft); }

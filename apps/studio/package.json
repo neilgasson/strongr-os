@@ -6,6 +6,8 @@
   "scripts": {
     "build": "vite build",
     "build:hosted": "vite build --mode hosted-preview",
+    "build:content-review-preview": "vite build --mode development-review",
+    "content-review-preview": "vite --mode development-review",
     "dev": "vite",
     "preview": "vite preview",
     "test:browser": "vite build --mode browser-test && playwright test",
