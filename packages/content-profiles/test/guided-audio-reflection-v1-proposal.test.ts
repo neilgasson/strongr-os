@@ -30,6 +30,13 @@ import {
   rollbackPhase4B4DevelopmentMetadata,
   rollbackPhase4B5DevelopmentActivation,
   preparePhase4B5QuietTrustRequest,
+  prepareQuietTrustDevelopmentDispatch,
+  quietTrustDevelopmentPilotBrief,
+  quietTrustDevelopmentPilotBriefChecksum,
+  quietTrustDevelopmentPilotJob,
+  quietTrustDevelopmentPilotJobChecksum,
+  quietTrustDevelopmentPilotRequestId,
+  QuietTrustDispatchPreparationError,
   strongrDailyContentProfileRegistryV1,
   type UnsignedContentProfileRegistry,
 } from "../src/index.ts";
@@ -418,4 +425,62 @@ test("Phase 4B.5 rejects any non-approved registration and rolls back to inactiv
     (error: unknown) => error instanceof Phase4B5DevelopmentActivationError,
   );
   assert.equal(rollbackPhase4B5DevelopmentActivation().state, "inactive");
+});
+
+test("Phase 4B.6 freezes one provider-safe Quiet Trust brief and never dispatches it", () => {
+  assert.equal(quietTrustDevelopmentPilotBrief.working_title, "Quiet Trust");
+  assert.equal(quietTrustDevelopmentPilotBrief.scripture_reference.reference, "Psalm 46:10");
+  assert.equal(quietTrustDevelopmentPilotBrief.scripture_reference.translation, "NIV");
+  assert.equal(quietTrustDevelopmentPilotBrief.desired_duration_seconds, 300);
+  assert.equal(
+    quietTrustDevelopmentPilotBrief.schema_id,
+    "strongr.strongr_daily_audio_reflection_brief.v2",
+  );
+  assert.equal(
+    quietTrustDevelopmentPilotBrief.content_profile?.canonical_checksum,
+    "920189adc84698ea9502d2eb6ac48b4e95b79d022a34d3a26ae318324791238a",
+  );
+  assert.equal(Object.isFrozen(quietTrustDevelopmentPilotBrief), true);
+  assert.match(
+    quietTrustDevelopmentPilotBrief.scripture_reference.source_citation,
+    /no quotation authorized/i,
+  );
+  assert.ok(
+    quietTrustDevelopmentPilotBrief.prohibited_claims_or_wording.some((item) =>
+      /private prayer/i.test(item),
+    ),
+  );
+  assert.ok(
+    quietTrustDevelopmentPilotBrief.prohibited_claims_or_wording.some((item) =>
+      /golden-example prose/i.test(item),
+    ),
+  );
+
+  assert.equal(quietTrustDevelopmentPilotJob.request_id, quietTrustDevelopmentPilotRequestId);
+  assert.equal(quietTrustDevelopmentPilotJob.dispatch_status, "prepared_not_sent");
+  assert.equal(quietTrustDevelopmentPilotJob.future_dispatch_limit, 1);
+  assert.equal(quietTrustDevelopmentPilotJob.provider_access, false);
+  assert.equal(quietTrustDevelopmentPilotJob.runtime_generation_authority, false);
+  assert.equal(quietTrustDevelopmentPilotJob.provider_spending_cap_microunits, 0);
+  assert.match(quietTrustDevelopmentPilotBriefChecksum, /^[a-f0-9]{64}$/);
+  assert.match(quietTrustDevelopmentPilotJobChecksum, /^[a-f0-9]{64}$/);
+
+  for (const requestId of [
+    "quiet_trust_development_pilot_v2",
+    null,
+    { request_id: quietTrustDevelopmentPilotRequestId },
+  ]) {
+    assert.throws(
+      () => prepareQuietTrustDevelopmentDispatch(requestId),
+      (error: unknown) =>
+        error instanceof QuietTrustDispatchPreparationError &&
+        error.code === "phase_4b6_invalid_request",
+    );
+  }
+  assert.throws(
+    () => prepareQuietTrustDevelopmentDispatch(quietTrustDevelopmentPilotRequestId),
+    (error: unknown) =>
+      error instanceof QuietTrustDispatchPreparationError &&
+      error.code === "phase_4b6_dispatch_not_authorized",
+  );
 });

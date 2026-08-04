@@ -39,6 +39,16 @@ export type {
   Phase4B5QuietTrustRequest,
 } from "./phase-4b5-development-activation.ts";
 export {
+  prepareQuietTrustDevelopmentDispatch,
+  quietTrustDevelopmentPilotBrief,
+  quietTrustDevelopmentPilotBriefChecksum,
+  quietTrustDevelopmentPilotJob,
+  quietTrustDevelopmentPilotJobChecksum,
+  quietTrustDevelopmentPilotRequestId,
+  QuietTrustDispatchPreparationError,
+} from "./phase-4b6-quiet-trust-call-readiness.ts";
+export type { QuietTrustDispatchErrorCode } from "./phase-4b6-quiet-trust-call-readiness.ts";
+export {
   Phase4B5DevelopmentActivationError,
   activatePhase4B5DevelopmentProfile,
   phase4B5DevelopmentActivation,
