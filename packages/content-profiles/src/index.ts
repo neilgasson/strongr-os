@@ -35,6 +35,18 @@ export {
   rollbackPhase4B4DevelopmentMetadata,
 } from "./phase-4b4-development-activation.ts";
 export type {
+  Phase4B5DevelopmentActivation,
+  Phase4B5QuietTrustRequest,
+} from "./phase-4b5-development-activation.ts";
+export {
+  Phase4B5DevelopmentActivationError,
+  activatePhase4B5DevelopmentProfile,
+  phase4B5DevelopmentActivation,
+  phase4B5QuietTrustGenerationRequest,
+  preparePhase4B5QuietTrustRequest,
+  rollbackPhase4B5DevelopmentActivation,
+} from "./phase-4b5-development-activation.ts";
+export type {
   ContentProfile,
   ContentProfileRegistry,
   ContentProfileSelection,
