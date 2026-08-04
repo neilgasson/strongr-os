@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 
 import type { BrowserEnvironmentState } from "./browser-environment.ts";
 import { ContentWorkspacePage } from "./content-workspace-page.tsx";
+import { ContentReviewPage } from "./content-review-page.tsx";
 import { MediaReleasePage } from "./media-release-page.tsx";
 import {
   BoundariesPage,
@@ -49,6 +50,14 @@ export function StudioApp({ environment }: StudioAppProps) {
                 </RequireOrganization>
               }
               path="content"
+            />
+            <Route
+              element={
+                <RequireOrganization>
+                  <ContentReviewPage />
+                </RequireOrganization>
+              }
+              path="content-review"
             />
             <Route
               element={

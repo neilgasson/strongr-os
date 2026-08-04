@@ -45,7 +45,7 @@ test("guided proposal is bound to the exact checked-in source manifest v2", () =
   assert.equal(checkedIn.sources.length, 13);
   assert.equal(
     computeContentProfileSourceManifestChecksum(checkedIn),
-    "b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e",
+    "565962f24197e7e603d00aa8f8f4bf6c2fed1325dbd7f435e28aa45159aad7cc",
   );
 
   for (const source of checkedIn.sources) {
@@ -110,7 +110,7 @@ test("guided proposal defines one inactive 300-second five-part governed format"
 test("proposal and registry checksums are exact and owner approval remains unresolved", () => {
   assert.equal(
     guidedAudioReflectionV1Proposal.canonical_checksum,
-    "3fa64f05911042bd2e2f7e58d14700581ca5025adc587425fd25afb2880210d9",
+    "920189adc84698ea9502d2eb6ac48b4e95b79d022a34d3a26ae318324791238a",
   );
   assert.equal(
     computeContentProfileChecksum(guidedAudioReflectionV1Proposal),
@@ -118,7 +118,7 @@ test("proposal and registry checksums are exact and owner approval remains unres
   );
   assert.equal(
     guidedAudioReflectionV1ProposalRegistryV2.canonical_checksum,
-    "54438c7601d4125f95e6babbdd831202a23322f89af5e86ce82ed51b44fa5602",
+    "517e4abcff9af4cbc44cd6d2400b9ac9f1b99a7abb3cc1b51831a34226b2028a",
   );
   assert.equal(
     computeContentProfileRegistryChecksum(guidedAudioReflectionV1ProposalRegistryV2),
@@ -131,6 +131,15 @@ test("proposal and registry checksums are exact and owner approval remains unres
     guidedAudioReflectionV1ProposalRegistryV2.activation_policy,
     "disabled_pending_owner_review",
   );
+  const narrationRule =
+    guidedAudioReflectionV1Proposal.rules.narration_and_elevenlabs_formatting[0]?.guidance;
+  assert.match(narrationRule ?? "", /one complete, locked/i);
+  assert.match(narrationRule ?? "", /only spoken provider input/i);
+  assert.match(narrationRule ?? "", /full prayer/i);
+  const narrativeRule =
+    guidedAudioReflectionV1Proposal.rules.reflection_or_teaching_depth[0]?.guidance;
+  assert.match(narrativeRule ?? "", /biblical account.*primary vehicle/i);
+  assert.match(narrativeRule ?? "", /restrained imaginative reflection/i);
   assert.deepEqual(guidedAudioReflectionV1ProposalOwnerGate, {
     activation_authorized: false,
     eligible_for_owner_approval: true,

@@ -50,6 +50,11 @@ export function StudioShell({ environment }: StudioShellProps) {
       to: "/content",
     },
     {
+      label: "Content review",
+      show: Boolean(activeOrganization) && capabilities.status === "ready",
+      to: "/content-review",
+    },
+    {
       label: "Governed media",
       show:
         Boolean(activeOrganization) &&

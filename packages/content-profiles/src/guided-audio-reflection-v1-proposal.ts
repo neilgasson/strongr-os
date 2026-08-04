@@ -48,8 +48,8 @@ const proposalSourceManifestWithoutChecksum: UnsignedContentProfileSourceManifes
       rights_status: "repository_source",
       source_id: profileRulesSourceId,
       source_kind: "style_guidance",
-      source_revision: "sha256:a3067d5259457257aaecd6be747524dd76456cf1733ff31f200c6dc6a524ac58",
-      source_sha256: "a3067d5259457257aaecd6be747524dd76456cf1733ff31f200c6dc6a524ac58",
+      source_revision: "sha256:1a0dd7f03d95a3fbf3c65abf63fc261f364d1f42621e2c4229c4625e6679585f",
+      source_sha256: "1a0dd7f03d95a3fbf3c65abf63fc261f364d1f42621e2c4229c4625e6679585f",
       status: "approved",
       title: "Strongr Daily guided audio reflection profile v1 rules",
     },
@@ -83,7 +83,7 @@ const proposalSourceManifestWithoutChecksum: UnsignedContentProfileSourceManifes
 
 export const guidedAudioReflectionV1ProposalSourceManifestV2 = {
   ...proposalSourceManifestWithoutChecksum,
-  canonical_checksum: "b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e",
+  canonical_checksum: "565962f24197e7e603d00aa8f8f4bf6c2fed1325dbd7f435e28aa45159aad7cc",
 };
 
 const cited = (guidance: string, source_ids: string[] = [profileRulesSourceId]) => ({
@@ -122,7 +122,7 @@ const guidedAudioReflectionV1ProposalWithoutChecksum: UnsignedContentProfile = {
     ],
     narration_and_elevenlabs_formatting: [
       cited(
-        "Produce provider-neutral plain text in the five required spoken sections; exclude SSML, vendor markup, stage directions, music instructions, and pronunciation notes.",
+        "Produce one complete, locked, provider-neutral plain-text narration script as the only spoken provider input. It includes the welcome, biblical narrative, Christ-centred reflection and takeaway, full prayer, spoken closing invitation, and any spoken Daily Practice; exclude SSML, vendor markup, stage directions, music instructions, and pronunciation notes.",
       ),
     ],
     personal_takeaway_and_journal_prompts: [
@@ -145,7 +145,7 @@ const guidedAudioReflectionV1ProposalWithoutChecksum: UnsignedContentProfile = {
     ],
     reflection_or_teaching_depth: [
       cited(
-        "Give the selected Scripture and approved brief enough pastoral depth for the 300-second target without padding, repetition, unsupported certainty, or a format guessed from the title.",
+        "For story-based briefs, make the biblical account the primary vehicle: distinguish Scripture, historical context, and restrained imaginative reflection; remain Christ-centred, historically grounded, reverent, and free of invented facts or unsupported certainty.",
       ),
     ],
     scripture_placement_and_translation_handling: [
@@ -234,7 +234,7 @@ const guidedAudioReflectionV1ProposalWithoutChecksum: UnsignedContentProfile = {
 
 export const guidedAudioReflectionV1Proposal = {
   ...guidedAudioReflectionV1ProposalWithoutChecksum,
-  canonical_checksum: "3fa64f05911042bd2e2f7e58d14700581ca5025adc587425fd25afb2880210d9",
+  canonical_checksum: "920189adc84698ea9502d2eb6ac48b4e95b79d022a34d3a26ae318324791238a",
 };
 
 const proposalRegistryWithoutChecksum: UnsignedContentProfileRegistry = {
@@ -248,7 +248,7 @@ const proposalRegistryWithoutChecksum: UnsignedContentProfileRegistry = {
 
 export const guidedAudioReflectionV1ProposalRegistryV2 = {
   ...proposalRegistryWithoutChecksum,
-  canonical_checksum: "54438c7601d4125f95e6babbdd831202a23322f89af5e86ce82ed51b44fa5602",
+  canonical_checksum: "517e4abcff9af4cbc44cd6d2400b9ac9f1b99a7abb3cc1b51831a34226b2028a",
 };
 
 /**

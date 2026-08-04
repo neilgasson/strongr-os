@@ -4,7 +4,10 @@ import { defineConfig } from "vite";
 export default defineConfig(({ mode }) => ({
   build: {
     emptyOutDir: true,
-    outDir: "dist",
+    outDir: mode === "development-review" ? "dist-development-review" : "dist",
+    ...(mode === "development-review"
+      ? { rollupOptions: { input: "dev-review.html" } }
+      : { rollupOptions: { input: "index.html" } }),
     sourcemap: false,
     target: "es2022",
   },
@@ -13,12 +16,12 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()],
   preview: {
     host: "127.0.0.1",
-    port: 4173,
+    port: mode === "development-review" ? 4174 : 4173,
     strictPort: true,
   },
   server: {
     host: "127.0.0.1",
-    port: 4173,
+    port: mode === "development-review" ? 4174 : 4173,
     strictPort: true,
   },
 }));
