@@ -63,6 +63,32 @@ profile, job, or approval path:
   another brief-approved pastoral response. It must remain faithful to the
   selected Scripture reference and approved brief.
 
+## Immersive biblical narrative standard
+
+For story-based reflections, the biblical account is the primary storytelling
+vehicle, not a brief illustration added to a modern therapeutic reflection.
+
+- Open within a specific biblical scene and keep the listener close to the
+  biblical character's recorded experience.
+- Use sensory, historical, and cultural detail carefully to locate the scene:
+  landscape, weather, light, work, travel, clothing, social customs, political
+  pressures, and religious expectations only where relevant and responsibly
+  grounded.
+- Distinguish explicit Scripture, historical context, and imaginative
+  reflection. Never present speculation as biblical fact, invent divine speech,
+  doctrine, miracles, motives, or events.
+- Use restrained qualifiers such as “may have,” “perhaps,” “we are not told,
+  but,” “the scene invites us to imagine,” and “historical context suggests”
+  when imagination is appropriate.
+- Show how God meets, guides, corrects, sustains, forgives, restores, or
+  strengthens the person, and connect the account faithfully to Christ, His
+  teaching, or hope fulfilled in Him.
+- Invite reflection through the story without diagnosing or assuming the
+  listener's private struggles.
+- Keep the writing cinematic but peaceful, historically grounded, reverent,
+  Christ-centred, pastoral rather than theatrical, and never sensationalize
+  suffering.
+
 ## Scripture and rights
 
 - A brief supplies an exact reference, translation label, and source citation.
@@ -94,6 +120,11 @@ analytics, and unrelated generation.
   never embedded in the narration.
 - No Scripture wording is spoken unless its exact rights record permits spoken
   use.
+- Spoken welcomes, spoken closings, and all other text intended for audio must
+  write “Stronger Daily” in full for pronunciation. Official non-spoken product
+  naming remains “Strongr Daily,” including app titles, metadata, filenames,
+  content IDs, screen labels, artwork, transcripts, documentation, and
+  publishing records.
 
 ## Supporting-output standard
 
