@@ -25,9 +25,12 @@ export type {
   OpenAiResponse,
   OpenAiStrongrDailyV2AdapterOptions,
   OpenAiStrongrDailyV2CostEstimate,
+  OpenAiStrongrDailyV2RequestFingerprint,
 } from "./openai-strongr-daily-v2-adapter.ts";
 export {
   createOpenAiStrongrDailyV2Adapter,
+  createOpenAiStrongrDailyV2RequestFingerprint,
   estimateOpenAiStrongrDailyV2Generation,
+  openAiStrongrDailyPhase4b5OneCallProviderConfig,
   openAiStrongrDailyV2ProviderConfig,
 } from "./openai-strongr-daily-v2-adapter.ts";

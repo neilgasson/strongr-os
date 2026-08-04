@@ -302,6 +302,14 @@ function commandBody<Name extends BrowserCommandName>(
         p_title: input.title,
       };
     }
+    case "m1_prepare_phase4b5_guided_audio_reflection_brief": {
+      const input =
+        arguments_ as BrowserCommandArguments["m1_prepare_phase4b5_guided_audio_reflection_brief"];
+      return {
+        p_correlation_id: input.correlationId,
+        p_organization_id: input.organizationId,
+      };
+    }
     case "m1_create_manual_version": {
       const input = arguments_ as BrowserCommandArguments["m1_create_manual_version"];
       return {
@@ -444,7 +452,10 @@ function parseCommandResult<Name extends BrowserCommandName>(
   command: Name,
   value: unknown,
 ): BrowserCommandResult<Name> {
-  if (command === "m1_create_audio_brief") {
+  if (
+    command === "m1_create_audio_brief" ||
+    command === "m1_prepare_phase4b5_guided_audio_reflection_brief"
+  ) {
     if (!Array.isArray(value) || value.length !== 1) {
       throw new Error("Invalid create audio brief response");
     }

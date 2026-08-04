@@ -10,9 +10,18 @@ select ok(
   'the private content-profile registry exists'
 );
 select is(
-  (select count(*) from app_private.strongr_daily_content_profiles),
+  (
+    select count(*)
+    from app_private.strongr_daily_content_profiles
+    where not (
+      profile_id = 'guided_audio_reflection'
+      and profile_version = 1
+      and profile_checksum = '3fa64f05911042bd2e2f7e58d14700581ca5025adc587425fd25afb2880210d9'
+      and lifecycle_state = 'owner_approved_inactive'
+    )
+  ),
   0::bigint,
-  'the migration registers or activates no content profile'
+  'the registry contains no unexpected profile beyond the later approved inactive one-call authority'
 );
 select ok(
   (

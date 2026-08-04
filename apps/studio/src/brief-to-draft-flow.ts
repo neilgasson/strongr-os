@@ -194,6 +194,20 @@ export class BriefToDraftOperatorFlow {
     });
   }
 
+  /**
+   * Prepares the sole owner-authorized Phase 4B.5 brief. The RPC has no
+   * caller-controlled title or payload and does not start a provider request.
+   */
+  async preparePhase4b5GuidedAudioReflectionBrief(input: {
+    readonly organizationId: Uuid;
+    readonly correlationId: Uuid;
+  }): Promise<CreateAudioBriefResult> {
+    return this.#foundation.commands.invoke("m1_prepare_phase4b5_guided_audio_reflection_brief", {
+      correlationId: requireUuid(input.correlationId, "correlation id"),
+      organizationId: requireUuid(input.organizationId, "organization id"),
+    });
+  }
+
   async requestGeneration(input: RequestGenerationInput): Promise<StartGenerationResult> {
     const organizationId = requireUuid(input.organizationId, "organization id");
     const briefId = requireUuid(input.briefId, "brief id");

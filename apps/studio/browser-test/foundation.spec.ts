@@ -1099,7 +1099,9 @@ test("Phase 4B.1 shows exact profiles for review while save and generation stay 
   await expect(briefForm.getByLabel("Working title")).toBeVisible();
   await expect(briefForm.getByText("Source material required", { exact: true })).toBeVisible();
   await expect(
-    briefForm.getByText(/Phase 4B\.1 is review-only.*cannot save a new brief/is),
+    briefForm.getByText(
+      /This selection cannot save a new brief or contact the provider until this exact profile version is explicitly activated later\./i,
+    ),
   ).toBeVisible();
   await expect(save).toBeDisabled();
   await expect(

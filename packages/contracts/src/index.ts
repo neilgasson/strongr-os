@@ -15,6 +15,7 @@ export interface ContentProfileBinding {
 export const browserCommands = Object.freeze({
   approveVersion: "m1_approve_version",
   createAudioBrief: "m1_create_audio_brief",
+  preparePhase4b5GuidedAudioReflectionBrief: "m1_prepare_phase4b5_guided_audio_reflection_brief",
   createManualVersion: "m1_create_manual_version",
   createProductionPackage: "m1_create_production_package",
   createReviewPolicy: "m1_create_review_policy",
@@ -52,6 +53,15 @@ export interface CreateAudioBriefArguments {
   readonly organizationId: Uuid;
   readonly title: string;
   readonly payload: JsonValue;
+  readonly correlationId: Uuid;
+}
+
+/**
+ * Narrow Phase 4B.5 owner action. The database, not the browser, supplies the
+ * exact approved provider-safe brief and refuses every other profile or input.
+ */
+export interface PreparePhase4b5GuidedAudioReflectionBriefArguments {
+  readonly organizationId: Uuid;
   readonly correlationId: Uuid;
 }
 
@@ -188,6 +198,7 @@ export interface RevokeStagedReleaseArguments {
 export interface BrowserCommandArguments {
   readonly m1_approve_version: ApproveVersionArguments;
   readonly m1_create_audio_brief: CreateAudioBriefArguments;
+  readonly m1_prepare_phase4b5_guided_audio_reflection_brief: PreparePhase4b5GuidedAudioReflectionBriefArguments;
   readonly m1_create_manual_version: CreateManualVersionArguments;
   readonly m1_create_production_package: CreateProductionPackageArguments;
   readonly m1_create_review_policy: CreateReviewPolicyArguments;
@@ -211,6 +222,7 @@ export interface CreateAudioBriefResult {
 export interface BrowserCommandResults {
   readonly m1_approve_version: Uuid;
   readonly m1_create_audio_brief: CreateAudioBriefResult;
+  readonly m1_prepare_phase4b5_guided_audio_reflection_brief: CreateAudioBriefResult;
   readonly m1_create_manual_version: Uuid;
   readonly m1_create_production_package: Uuid;
   readonly m1_create_review_policy: Uuid;

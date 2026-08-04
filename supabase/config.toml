@@ -44,3 +44,6 @@ verify_enabled = true
 
 [functions.strongr-daily-generate]
 verify_jwt = true
+
+[functions.strongr-daily-phase4b5-once]
+verify_jwt = true

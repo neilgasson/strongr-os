@@ -180,7 +180,7 @@ test("operator flow accepts the governed Strongr Daily v2 brief contract", async
   assert.deepEqual(calls, ["m1_create_audio_brief", "m1_request_generation"]);
 });
 
-test("saving a brief does not request or invoke billable generation", async () => {
+test("normal Studio brief creation remains on the governed brief command and does not request or invoke billable generation", async () => {
   const commands: BrowserCommandName[] = [];
   let runtimeCalls = 0;
   const flow = new BriefToDraftOperatorFlow({
@@ -212,6 +212,39 @@ test("saving a brief does not request or invoke billable generation", async () =
     { briefId, contentItemId },
   );
   assert.deepEqual(commands, ["m1_create_audio_brief"]);
+  assert.equal(runtimeCalls, 0);
+});
+
+test("Phase 4B.5 preparation is a single non-billable RPC and never starts generation", async () => {
+  const commands: BrowserCommandName[] = [];
+  let runtimeCalls = 0;
+  const flow = new BriefToDraftOperatorFlow({
+    commands: {
+      invoke<Name extends BrowserCommandName>(
+        command: Name,
+        _arguments: BrowserCommandArguments[Name],
+      ): Promise<BrowserCommandResult<Name>> {
+        commands.push(command);
+        return Promise.resolve({ briefId, contentItemId } as BrowserCommandResult<Name>);
+      },
+    },
+    generation: {
+      startGeneration() {
+        runtimeCalls += 1;
+        return Promise.reject(new Error("Phase 4B.5 preparation must not start generation"));
+      },
+    },
+    reads: createReads(),
+  });
+
+  assert.deepEqual(
+    await flow.preparePhase4b5GuidedAudioReflectionBrief({
+      correlationId: fixtureIds.correlationId,
+      organizationId: fixtureIds.organizationAlphaId,
+    }),
+    { briefId, contentItemId },
+  );
+  assert.deepEqual(commands, ["m1_prepare_phase4b5_guided_audio_reflection_brief"]);
   assert.equal(runtimeCalls, 0);
 });
 

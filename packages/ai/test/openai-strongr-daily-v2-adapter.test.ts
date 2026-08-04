@@ -8,6 +8,7 @@ import {
 } from "../../testing/src/index.ts";
 import {
   createOpenAiStrongrDailyV2Adapter as createAdapterUnderTest,
+  createOpenAiStrongrDailyV2RequestFingerprint,
   createStrongrDailyV2FixtureOutput,
   estimateOpenAiStrongrDailyV2Generation,
   GenerationProviderError,
@@ -15,6 +16,7 @@ import {
   type OpenAiResponse,
   type OpenAiStrongrDailyV2AdapterOptions,
   openAiStrongrDailyV2ProviderConfig,
+  openAiStrongrDailyPhase4b5OneCallProviderConfig,
 } from "../src/index.ts";
 
 const providerKeyFixture = "sk_provider_fixture_12345678901234567890";
@@ -51,6 +53,7 @@ function successResponse(overrides: Readonly<Record<string, unknown>> = {}): Ope
     status: 200,
     json: async () => ({
       id: "resp_provider_fixture_1",
+      model: openAiStrongrDailyV2ProviderConfig.model,
       output_text: JSON.stringify(providerOutput()),
       usage: { input_tokens: 10, output_tokens: 20, total_tokens: 30 },
       ...overrides,
@@ -112,6 +115,89 @@ test("OpenAI adapter sends one fixed, non-stored, tool-free structured draft req
   assert.equal(estimate.inputTokenUpperBound, new TextEncoder().encode(capturedBody).byteLength);
   assert.equal(estimate.maxOutputTokens, 5_000);
   assert.ok(estimate.worstCaseCostMicrounits <= 100_000);
+});
+
+test("OpenAI request fingerprints are deterministic and bind every billable request field", () => {
+  const options = {
+    promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
+    sourceManifestChecksum: "b".repeat(64),
+  } as const;
+  const first = createOpenAiStrongrDailyV2RequestFingerprint(
+    strongrDailyAudioReflectionV2BriefFixture,
+    options,
+  );
+  const second = createOpenAiStrongrDailyV2RequestFingerprint(
+    JSON.parse(JSON.stringify(strongrDailyAudioReflectionV2BriefFixture)),
+    options,
+  );
+  const changedBrief = createOpenAiStrongrDailyV2RequestFingerprint(
+    { ...strongrDailyAudioReflectionV2BriefFixture, theme: "A different governed theme" },
+    options,
+  );
+  const changedPrompt = createOpenAiStrongrDailyV2RequestFingerprint(
+    strongrDailyAudioReflectionV2BriefFixture,
+    { ...options, promptKey: openAiStrongrDailyV2ProviderConfig.promptKey },
+  );
+  const changedModel = createOpenAiStrongrDailyV2RequestFingerprint(
+    strongrDailyAudioReflectionV2BriefFixture,
+    {
+      ...options,
+      configuration: { ...openAiStrongrDailyV2ProviderConfig, model: "gpt-5.6-terra-revision" },
+    },
+  );
+  const changedTokenLimit = createOpenAiStrongrDailyV2RequestFingerprint(
+    strongrDailyAudioReflectionV2BriefFixture,
+    {
+      ...options,
+      configuration: { ...openAiStrongrDailyV2ProviderConfig, maxOutputTokens: 4_999 },
+    },
+  );
+
+  assert.equal(first.requestSha256, second.requestSha256);
+  assert.equal(first.canonicalRequest, second.canonicalRequest);
+  assert.equal(
+    first.canonicalRequestByteCount,
+    new TextEncoder().encode(first.canonicalRequest).byteLength,
+  );
+  assert.notEqual(first.requestSha256, changedBrief.requestSha256);
+  assert.notEqual(first.requestSha256, changedPrompt.requestSha256);
+  assert.notEqual(first.requestSha256, changedModel.requestSha256);
+  assert.notEqual(first.requestSha256, changedTokenLimit.requestSha256);
+  const request = JSON.parse(first.canonicalRequest) as { readonly input: string };
+  assert.match(request.input, /content_profile_source_manifest_checksum/);
+  assert.match(request.input, /"prompt_key"/);
+  assert.doesNotMatch(first.canonicalRequest, /sk_provider_fixture_|authorization|bearer/i);
+  assert.throws(
+    () =>
+      createOpenAiStrongrDailyV2RequestFingerprint(strongrDailyAudioReflectionV2BriefFixture, {
+        ...options,
+        configuration: {
+          ...openAiStrongrDailyV2ProviderConfig,
+          priceScheduleVersion: "unapproved-price-schedule",
+        },
+      }),
+    (error: unknown) =>
+      error instanceof GenerationProviderError &&
+      error.safeCode === "generation.provider_pricing_unavailable",
+  );
+});
+
+test("OpenAI adapter blocks a mismatched persisted request hash before fetch", async () => {
+  let calls = 0;
+  const adapter = createOpenAiStrongrDailyV2Adapter({
+    apiKey: providerKeyFixture,
+    expectedRequestSha256: "f".repeat(64),
+    fetch: async () => {
+      calls += 1;
+      return successResponse();
+    },
+  });
+
+  await expectSafeCode(
+    () => adapter.generate(requestFixture()),
+    "generation.provider_request_hash_mismatch",
+  );
+  assert.equal(calls, 0);
 });
 
 test("OpenAI adapter prices every input token at the cache-write worst case", async () => {
@@ -297,6 +383,20 @@ test("OpenAI adapter rejects an output rebound to a different governed brief", a
   );
 });
 
+test("OpenAI adapter rejects a missing or substituted returned model before accepting output", async () => {
+  for (const model of [undefined, "gpt-5.6-other"] as const) {
+    const adapter = createOpenAiStrongrDailyV2Adapter({
+      apiKey: providerKeyFixture,
+      fetch: async () => successResponse({ model }),
+    });
+
+    await expectSafeCode(
+      () => adapter.generate(requestFixture()),
+      "generation.provider_invalid_response",
+    );
+  }
+});
+
 test("OpenAI adapter rejects unsupported brief and prompt contracts before fetch", async () => {
   let calls = 0;
   const adapter = createOpenAiStrongrDailyV2Adapter({
@@ -316,6 +416,28 @@ test("OpenAI adapter rejects unsupported brief and prompt contracts before fetch
     "generation.provider_unsupported_prompt",
   );
   assert.equal(calls, 0);
+});
+
+test("OpenAI adapter permits only the separately authorized Phase 4B.5 prompt identity", async () => {
+  let calls = 0;
+  const adapter = createOpenAiStrongrDailyV2Adapter({
+    apiKey: providerKeyFixture,
+    fetch: async () => {
+      calls += 1;
+      return successResponse();
+    },
+    promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
+  });
+
+  await adapter.generate({
+    ...requestFixture(),
+    promptKey: openAiStrongrDailyPhase4b5OneCallProviderConfig.promptKey,
+  });
+  await expectSafeCode(
+    () => adapter.generate(requestFixture()),
+    "generation.provider_unsupported_prompt",
+  );
+  assert.equal(calls, 1);
 });
 
 test("OpenAI adapter fails closed before fetch when no exact profile is active", async () => {

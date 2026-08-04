@@ -67,6 +67,37 @@ test("authenticated commands use the publishable key, user bearer token, and exa
   });
 });
 
+test("the Phase 4B.5 preparation command carries identifiers only and never sends a brief or provider input", async () => {
+  const requests: { readonly input: string; readonly init?: RequestInit }[] = [];
+  const gateway = createStudioSupabaseGateway({
+    accessToken: "authenticated-user-jwt",
+    environment,
+    fetch(input, init) {
+      requests.push({ input: String(input), ...(init ? { init } : {}) });
+      return Promise.resolve(
+        Response.json([{ brief_id: briefId, content_item_id: contentItemId }]),
+      );
+    },
+  });
+
+  assert.deepEqual(
+    await gateway.invoke("m1_prepare_phase4b5_guided_audio_reflection_brief", {
+      correlationId,
+      organizationId,
+    }),
+    { briefId, contentItemId },
+  );
+  assert.equal(
+    requests[0]?.input,
+    "https://example.supabase.co/rest/v1/rpc/m1_prepare_phase4b5_guided_audio_reflection_brief",
+  );
+  assert.deepEqual(JSON.parse(String(requests[0]?.init?.body)), {
+    p_correlation_id: correlationId,
+    p_organization_id: organizationId,
+  });
+  assert.doesNotMatch(JSON.stringify(requests[0]), /payload|prompt|model|openai|api.key|secret/i);
+});
+
 test("generation runtime sends only governed identifiers with the existing user session", async () => {
   const requests: { readonly input: string; readonly init?: RequestInit }[] = [];
   const gateway = createStudioSupabaseGateway({
