@@ -18,6 +18,19 @@ const seeds: readonly Item[] = [
   { id: "renewal-3", title: "Renewal Day 3 — Be Still", type: "Guided Scripture reflection", scripture: "Psalm 46:10; Isaiah 30:15", status: "owner_review", reflection: "Christian stillness is not empty attention. It is a quiet turning of the heart toward the God who is present and faithful.\n\nPsalm 46:10 and Isaiah 30:15 call us to remember who God is before we are consumed by what is urgent. In Christ, quiet becomes a place to receive His care and to attend to His Word.", script: "Welcome to Strongr Daily.\n\nThis is a guided Scripture reflection on Psalm 46:10 and Isaiah 30:15. We will not add Scripture wording here while its translation and quotation decision remains open. Instead, let these references direct your attention toward God.\n\nAs you breathe, receive each breath as a gift from the Lord. Let the quiet make room for this simple truth: Jesus Christ is near, and His care is steady.\n\nYou may have brought hurry, questions, or weariness into this moment. You do not need to force them away. Turn them toward God. Ask Him to gather your attention and to make you receptive to His presence.\n\nStillness before God is not withdrawal from life. It is a way of remembering that the Lord is God and that we belong to Him.\n\nRemain for a brief moment in prayer. Lord Jesus, keep my heart turned toward You.\n\nAs you return to your day, carry this quiet confidence: Christ is with you, and His faithfulness does not depend on your ability to hold everything together.", prayer: "God of peace, meet me in the noise and unfinished places of this day. Teach me to become still before You—not to escape my responsibilities, but to receive wisdom and strength from Your presence. Quiet the urgency that keeps me from listening. Give me clarity for what You are asking of me and grace to entrust the rest to You. Help me walk forward in faithful obedience. Amen.", journal: "Where do you need to turn your attention toward God today?", practice: "Set aside three minutes to sit before God and pray, “Lord Jesus, keep my heart turned toward You.”", notes: "", rights: "Translation and quotation decision pending", narrationRights: false, versions: ["Version 2 — revised from owner feedback; ready for owner review", "Version 1 — ready for owner review"] },
 ];
 
+const approvedRenewalScriptHashes: Readonly<Record<string, string>> = {
+  "renewal-1": "721e9b618e140f1eccb554be8e8c4ee7579d2c738236192e3a4d364c56d064ba",
+  "renewal-2": "097bc024b199d5f2cb4f8cf5b3fcc32708659aa0bb77ffac8e4fe0254e97895f",
+  "renewal-3": "3ad6b8f338bb1099e5c3b014123eef9482018e4d57f0c832a03d5cb960f8c4ff",
+};
+
+const ownerApprovedSeeds: readonly Item[] = seeds.map((item) => {
+  const lockedHash = approvedRenewalScriptHashes[item.id];
+  return lockedHash
+    ? { ...item, status: "owner_approved", lockedHash, versions: [`Version ${item.versions.length + 1} — immutable wording approval`, ...item.versions] }
+    : item;
+});
+
 const labels: Record<Status, string> = { draft: "Draft", owner_review: "Owner review", revision_requested: "Revision requested", owner_editing: "Owner editing", owner_edit_complete: "Owner edit complete", owner_approved: "Wording approved", narration_authorized: "Narration authorized", audio_generated: "Audio generated", audio_review: "Audio review", audio_accepted_private: "Private audio accepted", release_approved: "Release approved" };
 const count = (value: string) => value.trim() ? value.trim().split(/\s+/).length : 0;
 
@@ -28,16 +41,17 @@ async function sha256(value: string) {
 }
 
 export function ContentReviewPage({ developmentPreview = false }: { readonly developmentPreview?: boolean }) {
-  const [items, setItems] = useState<readonly Item[]>(seeds);
-  const [selectedId, setSelectedId] = useState(seeds[1]!.id);
+  const [items, setItems] = useState<readonly Item[]>(ownerApprovedSeeds);
+  const [selectedId, setSelectedId] = useState(ownerApprovedSeeds[1]!.id);
   const [notice, setNotice] = useState("Owner edits stay in Studio. Nothing is sent to a provider from this screen.");
   const item = items.find(({ id }) => id === selectedId) ?? items[0]!;
   const words = useMemo(() => count(item.script), [item.script]);
   const update = (patch: Partial<Item>) => setItems((current) => current.map((entry) => {
     if (entry.id !== item.id) return entry;
-    const status = patch.status ?? (Object.hasOwn(patch, "script") && (entry.status === "owner_approved" || entry.status === "narration_authorized") ? "owner_editing" : entry.status);
+    const wordingChanged = ["reflection", "script", "prayer", "journal", "practice"].some((key) => Object.hasOwn(patch, key));
+    const status = patch.status ?? (wordingChanged && (entry.status === "owner_approved" || entry.status === "narration_authorized") ? "owner_editing" : entry.status);
     const next = { ...entry, ...patch, status } as Item;
-    if (Object.hasOwn(patch, "script")) {
+    if (wordingChanged) {
       const { lockedHash: _discarded, ...withoutLock } = next;
       return withoutLock;
     }
@@ -46,7 +60,7 @@ export function ContentReviewPage({ developmentPreview = false }: { readonly dev
   const mutate = (status: Status, message: string) => { update({ status }); setNotice(message); };
   const approve = async () => { const hash = await sha256(item.script); update({ status: "owner_approved", lockedHash: hash, versions: [`Version ${item.versions.length + 1} — immutable wording approval`, ...item.versions] }); setNotice("Wording approved for this exact version. The locked script is recorded in the Audit details."); };
   const authorize = () => mutate("narration_authorized", "Narration authorization is recorded for the locked wording only. No provider call was made.");
-  const field = (label: string, key: keyof Pick<Item, "reflection" | "script" | "prayer" | "journal" | "practice" | "notes">, rows = 4) => <label>{label}<textarea onChange={(event) => update({ [key]: event.currentTarget.value })} rows={rows} value={item[key]} /></label>;
+  const field = (label: string, key: keyof Pick<Item, "reflection" | "script" | "prayer" | "journal" | "practice" | "notes">, rows = 4) => <label>{label}<textarea disabled={item.status === "owner_approved" || item.status === "narration_authorized"} onChange={(event) => update({ [key]: event.currentTarget.value })} rows={rows} value={item[key]} /></label>;
 
   return <div className="content-review-page">
     {developmentPreview ? <aside className="development-preview-banner" role="status"><strong>Development review mode</strong><span>Local seeded data only. This preview is not connected to Studio authentication, tenant data, providers, or production actions.</span></aside> : null}
