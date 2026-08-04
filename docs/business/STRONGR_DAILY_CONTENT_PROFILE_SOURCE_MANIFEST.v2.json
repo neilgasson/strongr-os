@@ -1,5 +1,5 @@
 {
-  "canonical_checksum": "b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e",
+  "canonical_checksum": "565962f24197e7e603d00aa8f8f4bf6c2fed1325dbd7f435e28aa45159aad7cc",
   "manifest_version": 2,
   "schema_id": "strongr.strongr_daily_content_profile_source_manifest.v1",
   "sources": [
@@ -129,8 +129,8 @@
       "rights_status": "repository_source",
       "source_id": "guided-audio-reflection-v1-rules",
       "source_kind": "style_guidance",
-      "source_revision": "sha256:a3067d5259457257aaecd6be747524dd76456cf1733ff31f200c6dc6a524ac58",
-      "source_sha256": "a3067d5259457257aaecd6be747524dd76456cf1733ff31f200c6dc6a524ac58",
+      "source_revision": "sha256:1a0dd7f03d95a3fbf3c65abf63fc261f364d1f42621e2c4229c4625e6679585f",
+      "source_sha256": "1a0dd7f03d95a3fbf3c65abf63fc261f364d1f42621e2c4229c4625e6679585f",
       "status": "approved",
       "title": "Strongr Daily guided audio reflection profile v1 rules"
     },

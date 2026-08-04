@@ -13,9 +13,9 @@
     "response_schema_id": "strongr.strongr_daily_audio_reflection.v2",
     "lifecycle": "owner_review",
     "activation_status": "inactive",
-    "profile_checksum": "3fa64f05911042bd2e2f7e58d14700581ca5025adc587425fd25afb2880210d9",
-    "registry_checksum": "54438c7601d4125f95e6babbdd831202a23322f89af5e86ce82ed51b44fa5602",
-    "source_manifest_checksum": "b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e",
+    "profile_checksum": "920189adc84698ea9502d2eb6ac48b4e95b79d022a34d3a26ae318324791238a",
+    "registry_checksum": "517e4abcff9af4cbc44cd6d2400b9ac9f1b99a7abb3cc1b51831a34226b2028a",
+    "source_manifest_checksum": "565962f24197e7e603d00aa8f8f4bf6c2fed1325dbd7f435e28aa45159aad7cc",
     "database_registration_performed": false,
     "runtime_authorization_present": false
   },
@@ -26,7 +26,7 @@
     },
     "profile_rules": {
       "path": "docs/business/content-profiles/guided-audio-reflection/STRONGR_DAILY_GUIDED_AUDIO_REFLECTION_PROFILE_V1.md",
-      "file_sha256": "a3067d5259457257aaecd6be747524dd76456cf1733ff31f200c6dc6a524ac58"
+      "file_sha256": "1a0dd7f03d95a3fbf3c65abf63fc261f364d1f42621e2c4229c4625e6679585f"
     },
     "golden_example": {
       "path": "docs/business/content-profiles/guided-audio-reflection/quiet-trust-golden-example.v1.json",
@@ -60,7 +60,7 @@
     "source_manifest": {
       "path": "docs/business/STRONGR_DAILY_CONTENT_PROFILE_SOURCE_MANIFEST.v2.json",
       "manifest_version": 2,
-      "canonical_checksum": "b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e",
+      "canonical_checksum": "565962f24197e7e603d00aa8f8f4bf6c2fed1325dbd7f435e28aa45159aad7cc",
       "file_sha256": "03bec0cf4996d454d6852873673ceba5416f6177bc38002397b36086f24c0199",
       "status": "checksum_finalized_owner_activation_approval_pending"
     }
@@ -172,7 +172,7 @@
       "rights_record_file_sha256",
       "exact_authority_and_exclusion_scopes"
     ],
-    "approval_wording_template": "I approve guided_audio_reflection@1, profile checksum 3fa64f05911042bd2e2f7e58d14700581ca5025adc587425fd25afb2880210d9, source-manifest checksum b3b3b75f8ce50cd9d10190fd56ae318913e12b77ff01c4ddab209e9297b40f9e, golden descriptor SHA-256 fffa3521b410a614bd3c9cc3b5485d75ffa2510a378ec8b46bc38e543ca45882, and rights record SHA-256 effe9ead79efc9661fa2bdebcdcef86543708a7a9e76bacc245a0607cf35ca68 for the exact scoped authority and exclusions recorded in this proposal. I authorize a separately reviewed development-only activation of this exact version and metadata-only golden projection. Raw example prose, Scripture text, private prayer or journal content, provider calls or spending, generation, narration, audio, upload, publication, distribution, and production changes remain unauthorized."
+    "approval_wording_template": "I approve guided_audio_reflection@1, profile checksum 920189adc84698ea9502d2eb6ac48b4e95b79d022a34d3a26ae318324791238a, source-manifest checksum 565962f24197e7e603d00aa8f8f4bf6c2fed1325dbd7f435e28aa45159aad7cc, golden descriptor SHA-256 fffa3521b410a614bd3c9cc3b5485d75ffa2510a378ec8b46bc38e543ca45882, and rights record SHA-256 effe9ead79efc9661fa2bdebcdcef86543708a7a9e76bacc245a0607cf35ca68 for the exact scoped authority and exclusions recorded in this proposal. I authorize a separately reviewed development-only activation of this exact version and metadata-only golden projection. Raw example prose, Scripture text, private prayer or journal content, provider calls or spending, generation, narration, audio, upload, publication, distribution, and production changes remain unauthorized."
   },
   "outcomes": {
     "provider_calls": 0,

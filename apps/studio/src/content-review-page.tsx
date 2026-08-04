@@ -1,14 +1,35 @@
 import { useMemo, useState } from "react";
 
 type Status =
-  | "draft" | "owner_review" | "revision_requested" | "owner_editing" | "owner_edit_complete"
-  | "owner_approved" | "narration_authorized" | "audio_generated" | "audio_review"
-  | "audio_accepted_private" | "release_approved";
+  | "draft"
+  | "owner_review"
+  | "revision_requested"
+  | "owner_editing"
+  | "owner_edit_complete"
+  | "owner_approved"
+  | "narration_authorized"
+  | "audio_generated"
+  | "audio_review"
+  | "audio_accepted_private"
+  | "release_approved";
 
 type Item = Readonly<{
-  id: string; title: string; type: string; scripture: string; status: Status; reflection: string;
-  script: string; prayer: string; journal: string; practice: string; notes: string; rights: string;
-  narrationRights: boolean; versions: readonly string[]; lockedHash?: string; audioReview?: PrivateAudioReview;
+  id: string;
+  title: string;
+  type: string;
+  scripture: string;
+  status: Status;
+  reflection: string;
+  script: string;
+  prayer: string;
+  journal: string;
+  practice: string;
+  notes: string;
+  rights: string;
+  narrationRights: boolean;
+  versions: readonly string[];
+  lockedHash?: string;
+  audioReview?: PrivateAudioReview;
 }>;
 
 type ScriptureRightsRecord = Readonly<{
@@ -32,54 +53,211 @@ type PrivateAudioReview = Readonly<{
 }>;
 
 const seeds: readonly Item[] = [
-  { id: "quiet-trust", title: "Quiet Trust", type: "Guided audio reflection", scripture: "Psalm 46:10; Isaiah 30:15", status: "audio_accepted_private", reflection: "A written Quiet Trust package is approved for private narration review.", script: "Private narration-review script retained in the approved package.", prayer: "Lord Jesus, meet us with Your peace. Amen.", journal: "What concern can you bring to God?", practice: "Pause and pray.", notes: "Private narration accepted. Release remains closed.", rights: "Scripture quotation remains reference-only", narrationRights: false, versions: ["Version 3 — wording approved", "Version 2 — owner revision"], lockedHash: "Recorded in approved package" },
-  { id: "renewal-1", title: "Renewal Day 1 — Return", type: "Guided biblical narrative reflection", scripture: "John 21:1–19; Luke 22:54–62", status: "owner_review", reflection: "At daybreak beside the Sea of Galilee, the risen Jesus meets Peter after a night of fruitless work. The shoreline, the charcoal fire, and the shared meal form the setting for a restoration that is both tender and searching. John records Christ’s questions and Peter’s replies; the Gospel does not tell us Peter’s private thoughts, but it lets us see that failure is not the end of Peter’s calling.\n\nJesus restores Peter in the presence of the disciples and entrusts him with the care of His people. Return to Christ is not a way of denying what happened. It is a way of coming into the mercy of the One who already knows, forgives, and calls His people forward.", script: "Welcome to Stronger Daily.\n\nJohn 21 takes us to the shore of the Sea of Galilee at early morning. The disciples have been out in a fishing boat through the night. By the time they come toward land, the water has given them nothing, the nets are heavy in their hands, and their bodies are tired from the work.\n\nThen Jesus stands on the shore. John tells us that there is a charcoal fire, food prepared, and a meal shared with the disciples. The charcoal fire may quietly recall another fire in Peter’s recent memory: the fire beside which he denied knowing Jesus. Scripture does not tell us Peter’s private thoughts in that moment. But it shows us what Christ does next.\n\nAfter the meal, Jesus turns toward Peter. He asks him searching questions of love, and Peter answers. The questions are not a public humiliation. They are part of a restoration. The same Lord Peter had denied now receives him, speaks with him, and gives him responsibility again: to care for Christ’s people and to follow Him.\n\nPeter’s failure was real. So was the mercy of Jesus. Christ does not discard him after the night of denial. He meets Peter in the ordinary weariness of a morning by the water, tells the truth with him, and restores him for service.\n\nPerhaps this shoreline invites you to bring your own unfinished places before Christ. We are not told every detail of Peter’s heart, and we do not need to manufacture details of our own. We can simply come to Jesus as Peter did: known, questioned in love, forgiven, and called forward.\n\nAs this reflection closes, remember the risen Christ on the shore. His mercy is not distant from failure. He receives those who return, and His call to follow is still a call marked by grace.", prayer: "Lord Jesus, You know the places in me that feel tired, distracted, or distant from the life You call me to live. Receive my honest return to You. Renew my heart and make my spirit steadfast in You. Give me courage to confess what is true, grace to repair what I can, and patience to continue walking with You. Thank You that Your mercy meets me here. Amen.", journal: "Where do you need to receive Christ’s mercy and return to His call today?", practice: "Read John 21:1–19. Sit with the image of the risen Christ meeting Peter by the shore, then pray: “Lord Jesus, receive my honest return.”", notes: "Historical context: John 21 places the disciples beside the Sea of Galilee after the resurrection; fishing boats and nets were part of ordinary Galilean work.\n\nImaginative details: “early morning,” tired bodies, and the weight of the nets are used to help locate the recorded scene. The charcoal fire, meal, Peter’s earlier denial, Christ’s questions, and renewed call are explicit in John 21; Peter’s private thoughts are not asserted as fact.", rights: "Reference-only Scripture handling; quotation rights unresolved", narrationRights: false, versions: ["Version 5 — immersive biblical narrative rewrite prepared for owner review", "Version 4 — prior narration authorization and private audio evidence superseded", "Version 3 — pronunciation wording revision", "Version 2 — revised from owner feedback"] },
-  { id: "renewal-2", title: "Renewal Day 2 — Release", type: "Guided biblical narrative reflection", scripture: "1 Samuel 1:9–20; 1 Samuel 1:24–28", status: "owner_review", reflection: "Hannah’s story offers a gentle, truthful picture of release. Her prayer begins in deep distress and is carried out within the rhythms of family, worship, and waiting. After God gives her Samuel, Hannah fulfils the promise she made and entrusts her child to the Lord’s service at Shiloh.\n\nThis account does not make letting go easy or small. It shows trust as an act of worship in a costly relationship. In Christ, we are not asked to release into emptiness, but into the faithful care of the Father He makes known.", script: "Welcome to Stronger Daily.\n\nToday we enter the story of Hannah in 1 Samuel. The scene is Shiloh, where Israel came to worship before the Lord. Hannah has carried a long sorrow. Scripture shows her weeping and praying with such intensity that Eli the priest first misunderstands what he sees.\n\nThe biblical account does not give us every thought in Hannah’s heart. But it shows us a woman who brings her pain honestly before God. In time, God gives her a son, Samuel. Then comes the costly part of her promise: after the child is weaned, Hannah brings him to Shiloh and entrusts him to the Lord’s service.\n\nThis is not a story about pretending that love makes sacrifice easy. Samuel is Hannah’s son, long hoped for and dearly received. The scene invites us to imagine the weight of that journey back to Shiloh: a mother, a child, a remembered prayer, and a promise now kept. Scripture records Hannah’s worship and her act of entrusting.\n\nHannah does not release Samuel because he matters less. She entrusts what matters deeply to the God who gave him. Her obedience is not control dressed in religious language. It is trust offered in the presence of real cost.\n\nIn Christ, we see that God’s care is not distant from costly love. Jesus teaches us to bring our needs to the Father, and He Himself lives in faithful obedience. Release, then, is not an empty-handed denial of what we love. It is a prayerful placing of what is precious into God’s care.\n\nIf a concern returns after this moment, you have not failed. Return to prayer. Like Hannah’s story, that return can be an act of trust before the God who sees, receives, and sustains His people.", prayer: "Faithful God, hold what is too heavy for me. Teach me to bring what I love and fear before You without pretending it does not matter. Give me Hannah’s honesty in prayer and grace to entrust to You what I cannot control. In Christ, teach me to release with trust and to obey with a willing heart. Amen.", journal: "What do you need to entrust to God because it matters deeply, not because it matters less?", practice: "Read 1 Samuel 1:9–20 and 1 Samuel 1:24–28. Name one concern before God, then pray: “Faithful God, I entrust this to Your care.”", notes: "Chosen story and pastoral rationale: Hannah entrusting Samuel communicates release through a real, loving, and costly act of obedience without minimizing suffering. It offers a gentle Strongr Daily tone while keeping trust rooted in worship and God’s faithfulness.\n\nHistorical context: Shiloh was an important Israelite worship site before the temple in Jerusalem; families travelled there for worship.\n\nImaginative details: the emotional weight of the journey and remembered prayer are invitations to imagine, not biblical facts. Hannah’s prayer, Samuel’s birth, his being brought to Shiloh after weaning, and Hannah’s entrusting act are recorded in 1 Samuel.", rights: "Reference-only Scripture handling; quotation rights unresolved", narrationRights: false, versions: ["Version 5 — immersive biblical narrative rewrite prepared for owner review", "Version 4 — prior narration authorization and private audio evidence superseded", "Version 3 — pronunciation wording revision", "Version 2 — revised from owner feedback"] },
-  { id: "renewal-3", title: "Renewal Day 3 — Be Still", type: "Guided biblical narrative reflection", scripture: "Mark 4:35–41", status: "owner_review", reflection: "Mark 4:35–41 places Jesus and His disciples in a small boat as evening gives way to a violent storm on the Sea of Galilee. The disciples work against wind and water while Jesus rests. Their fear is not mocked; it becomes the setting in which Christ reveals His authority over creation.\n\nJesus is present even when the disciples do not understand His silence. The stillness that follows is not merely calm weather. It opens a deeper question about who is with them in the boat. For Christian prayer, that question remains central: Christ is present, powerful, and worthy of trust.", script: "Welcome to Stronger Daily.\n\nMark 4 takes us onto the Sea of Galilee as evening fades. Jesus and His disciples are crossing in a boat when the wind rises and the water turns rough. The boat is small, wooden, and exposed to the storm. Mark tells us that waves are breaking into it and that the disciples fear it may fill.\n\nAround them, the shoreline would be disappearing into darkness. The disciples know these waters and they know the work of a boat, yet the storm has grown beyond what their effort can master. They are trying to keep control of a vessel that is taking on water.\n\nJesus is in the boat with them, asleep. The Gospel records their fear and confusion as they wake Him. We are not told every thought that ran through their minds, but their words reveal that they cannot understand how He can remain at rest while the storm threatens them.\n\nThen Jesus rises. He speaks to the wind and the sea, and the storm becomes calm. The disciples are left with a deeper awe: who is this, that even the wind and the waves obey Him?\n\nThis is not a promise that every difficult circumstance will immediately become quiet. It is a revelation of Jesus Christ. He is present in the boat before the storm ends. He is not overcome by creation; He has authority over it.\n\nAs you pause before God, let the scene turn your attention toward the One who is with His people. Bring the noise of this day honestly to Christ. The disciples did not yet fully understand who was with them, but Jesus was there. He is worthy of your trust, even in the moments when His care seems quiet.", prayer: "God of peace, meet me in the noise and unfinished places of this day. Teach me to become still before You—not to escape my responsibilities, but to receive wisdom and strength from Your presence. Quiet the urgency that keeps me from listening. Give me clarity for what You are asking of me and grace to entrust the rest to You. Help me walk forward in faithful obedience. Amen.", journal: "Where do you need to remember Christ’s presence and authority today?", practice: "Read Mark 4:35–41. In a quiet moment, bring one unsettled concern to Jesus and pray: “Lord, turn my attention toward You.”", notes: "Historical context: the Sea of Galilee was central to fishing and travel in first-century Galilee; small boats were exposed to sudden wind and waves.\n\nImaginative details: fading light, a confined wooden boat, and the disappearing shoreline help locate the scene but are not supplied as exact details by Mark. The storm, waves entering the boat, Jesus resting, the disciples’ fear, Christ speaking, and the calm are explicit in Mark 4:35–41.", rights: "Reference-only Scripture handling; quotation rights unresolved", narrationRights: false, versions: ["Version 5 — immersive biblical narrative rewrite prepared for owner review", "Version 4 — prior narration authorization and private audio evidence superseded", "Version 3 — pronunciation wording revision", "Version 2 — revised from owner feedback"] },
+  {
+    id: "quiet-trust",
+    title: "Quiet Trust",
+    type: "Guided audio reflection",
+    scripture: "Psalm 46:10; Isaiah 30:15",
+    status: "audio_accepted_private",
+    reflection: "A written Quiet Trust package is approved for private narration review.",
+    script: "Private narration-review script retained in the approved package.",
+    prayer: "Lord Jesus, meet us with Your peace. Amen.",
+    journal: "What concern can you bring to God?",
+    practice: "Pause and pray.",
+    notes: "Private narration accepted. Release remains closed.",
+    rights: "Scripture quotation remains reference-only",
+    narrationRights: false,
+    versions: ["Version 3 — wording approved", "Version 2 — owner revision"],
+    lockedHash: "Recorded in approved package",
+  },
+  {
+    id: "renewal-1",
+    title: "Renewal Day 1 — Return",
+    type: "Guided biblical narrative reflection",
+    scripture: "John 21:1–19; Luke 22:54–62",
+    status: "owner_review",
+    reflection:
+      "At daybreak beside the Sea of Galilee, the risen Jesus meets Peter after a night of fruitless work. The shoreline, the charcoal fire, and the shared meal form the setting for a restoration that is both tender and searching. John records Christ’s questions and Peter’s replies; the Gospel does not tell us Peter’s private thoughts, but it lets us see that failure is not the end of Peter’s calling.\n\nJesus restores Peter in the presence of the disciples and entrusts him with the care of His people. Return to Christ is not a way of denying what happened. It is a way of coming into the mercy of the One who already knows, forgives, and calls His people forward.",
+    script:
+      "Welcome to Stronger Daily.\n\nJohn 21 takes us to the shore of the Sea of Galilee at early morning. The disciples have been out in a fishing boat through the night. By the time they come toward land, the water has given them nothing, the nets are heavy in their hands, and their bodies are tired from the work.\n\nThen Jesus stands on the shore. John tells us that there is a charcoal fire, food prepared, and a meal shared with the disciples. The charcoal fire may quietly recall another fire in Peter’s recent memory: the fire beside which he denied knowing Jesus. Scripture does not tell us Peter’s private thoughts in that moment. But it shows us what Christ does next.\n\nAfter the meal, Jesus turns toward Peter. He asks him searching questions of love, and Peter answers. The questions are not a public humiliation. They are part of a restoration. The same Lord Peter had denied now receives him, speaks with him, and gives him responsibility again: to care for Christ’s people and to follow Him.\n\nPeter’s failure was real. So was the mercy of Jesus. Christ does not discard him after the night of denial. He meets Peter in the ordinary weariness of a morning by the water, tells the truth with him, and restores him for service.\n\nPerhaps this shoreline invites you to bring your own unfinished places before Christ. We are not told every detail of Peter’s heart, and we do not need to manufacture details of our own. We can simply come to Jesus as Peter did: known, questioned in love, forgiven, and called forward.\n\nAs this reflection closes, remember the risen Christ on the shore. His mercy is not distant from failure. He receives those who return, and His call to follow is still a call marked by grace.",
+    prayer:
+      "Lord Jesus, You know the places in me that feel tired, distracted, or distant from the life You call me to live. Receive my honest return to You. Renew my heart and make my spirit steadfast in You. Give me courage to confess what is true, grace to repair what I can, and patience to continue walking with You. Thank You that Your mercy meets me here. Amen.",
+    journal: "Where do you need to receive Christ’s mercy and return to His call today?",
+    practice:
+      "Read John 21:1–19. Sit with the image of the risen Christ meeting Peter by the shore, then pray: “Lord Jesus, receive my honest return.”",
+    notes:
+      "Historical context: John 21 places the disciples beside the Sea of Galilee after the resurrection; fishing boats and nets were part of ordinary Galilean work.\n\nImaginative details: “early morning,” tired bodies, and the weight of the nets are used to help locate the recorded scene. The charcoal fire, meal, Peter’s earlier denial, Christ’s questions, and renewed call are explicit in John 21; Peter’s private thoughts are not asserted as fact.",
+    rights: "Reference-only Scripture handling; quotation rights unresolved",
+    narrationRights: false,
+    versions: [
+      "Version 5 — immersive biblical narrative rewrite prepared for owner review",
+      "Version 4 — prior narration authorization and private audio evidence superseded",
+      "Version 3 — pronunciation wording revision",
+      "Version 2 — revised from owner feedback",
+    ],
+  },
+  {
+    id: "renewal-2",
+    title: "Renewal Day 2 — Release",
+    type: "Guided biblical narrative reflection",
+    scripture: "1 Samuel 1:9–20; 1 Samuel 1:24–28",
+    status: "owner_review",
+    reflection:
+      "Hannah’s story offers a gentle, truthful picture of release. Her prayer begins in deep distress and is carried out within the rhythms of family, worship, and waiting. After God gives her Samuel, Hannah fulfils the promise she made and entrusts her child to the Lord’s service at Shiloh.\n\nThis account does not make letting go easy or small. It shows trust as an act of worship in a costly relationship. In Christ, we are not asked to release into emptiness, but into the faithful care of the Father He makes known.",
+    script:
+      "Welcome to Stronger Daily.\n\nToday we enter the story of Hannah in 1 Samuel. The scene is Shiloh, where Israel came to worship before the Lord. Hannah has carried a long sorrow. Scripture shows her weeping and praying with such intensity that Eli the priest first misunderstands what he sees.\n\nThe biblical account does not give us every thought in Hannah’s heart. But it shows us a woman who brings her pain honestly before God. In time, God gives her a son, Samuel. Then comes the costly part of her promise: after the child is weaned, Hannah brings him to Shiloh and entrusts him to the Lord’s service.\n\nThis is not a story about pretending that love makes sacrifice easy. Samuel is Hannah’s son, long hoped for and dearly received. The scene invites us to imagine the weight of that journey back to Shiloh: a mother, a child, a remembered prayer, and a promise now kept. Scripture records Hannah’s worship and her act of entrusting.\n\nHannah does not release Samuel because he matters less. She entrusts what matters deeply to the God who gave him. Her obedience is not control dressed in religious language. It is trust offered in the presence of real cost.\n\nIn Christ, we see that God’s care is not distant from costly love. Jesus teaches us to bring our needs to the Father, and He Himself lives in faithful obedience. Release, then, is not an empty-handed denial of what we love. It is a prayerful placing of what is precious into God’s care.\n\nIf a concern returns after this moment, you have not failed. Return to prayer. Like Hannah’s story, that return can be an act of trust before the God who sees, receives, and sustains His people.",
+    prayer:
+      "Faithful God, hold what is too heavy for me. Teach me to bring what I love and fear before You without pretending it does not matter. Give me Hannah’s honesty in prayer and grace to entrust to You what I cannot control. In Christ, teach me to release with trust and to obey with a willing heart. Amen.",
+    journal:
+      "What do you need to entrust to God because it matters deeply, not because it matters less?",
+    practice:
+      "Read 1 Samuel 1:9–20 and 1 Samuel 1:24–28. Name one concern before God, then pray: “Faithful God, I entrust this to Your care.”",
+    notes:
+      "Chosen story and pastoral rationale: Hannah entrusting Samuel communicates release through a real, loving, and costly act of obedience without minimizing suffering. It offers a gentle Strongr Daily tone while keeping trust rooted in worship and God’s faithfulness.\n\nHistorical context: Shiloh was an important Israelite worship site before the temple in Jerusalem; families travelled there for worship.\n\nImaginative details: the emotional weight of the journey and remembered prayer are invitations to imagine, not biblical facts. Hannah’s prayer, Samuel’s birth, his being brought to Shiloh after weaning, and Hannah’s entrusting act are recorded in 1 Samuel.",
+    rights: "Reference-only Scripture handling; quotation rights unresolved",
+    narrationRights: false,
+    versions: [
+      "Version 5 — immersive biblical narrative rewrite prepared for owner review",
+      "Version 4 — prior narration authorization and private audio evidence superseded",
+      "Version 3 — pronunciation wording revision",
+      "Version 2 — revised from owner feedback",
+    ],
+  },
+  {
+    id: "renewal-3",
+    title: "Renewal Day 3 — Be Still",
+    type: "Guided biblical narrative reflection",
+    scripture: "Mark 4:35–41",
+    status: "owner_review",
+    reflection:
+      "Mark 4:35–41 places Jesus and His disciples in a small boat as evening gives way to a violent storm on the Sea of Galilee. The disciples work against wind and water while Jesus rests. Their fear is not mocked; it becomes the setting in which Christ reveals His authority over creation.\n\nJesus is present even when the disciples do not understand His silence. The stillness that follows is not merely calm weather. It opens a deeper question about who is with them in the boat. For Christian prayer, that question remains central: Christ is present, powerful, and worthy of trust.",
+    script:
+      "Welcome to Stronger Daily.\n\nMark 4 takes us onto the Sea of Galilee as evening fades. Jesus and His disciples are crossing in a boat when the wind rises and the water turns rough. The boat is small, wooden, and exposed to the storm. Mark tells us that waves are breaking into it and that the disciples fear it may fill.\n\nAround them, the shoreline would be disappearing into darkness. The disciples know these waters and they know the work of a boat, yet the storm has grown beyond what their effort can master. They are trying to keep control of a vessel that is taking on water.\n\nJesus is in the boat with them, asleep. The Gospel records their fear and confusion as they wake Him. We are not told every thought that ran through their minds, but their words reveal that they cannot understand how He can remain at rest while the storm threatens them.\n\nThen Jesus rises. He speaks to the wind and the sea, and the storm becomes calm. The disciples are left with a deeper awe: who is this, that even the wind and the waves obey Him?\n\nThis is not a promise that every difficult circumstance will immediately become quiet. It is a revelation of Jesus Christ. He is present in the boat before the storm ends. He is not overcome by creation; He has authority over it.\n\nAs you pause before God, let the scene turn your attention toward the One who is with His people. Bring the noise of this day honestly to Christ. The disciples did not yet fully understand who was with them, but Jesus was there. He is worthy of your trust, even in the moments when His care seems quiet.",
+    prayer:
+      "God of peace, meet me in the noise and unfinished places of this day. Teach me to become still before You—not to escape my responsibilities, but to receive wisdom and strength from Your presence. Quiet the urgency that keeps me from listening. Give me clarity for what You are asking of me and grace to entrust the rest to You. Help me walk forward in faithful obedience. Amen.",
+    journal: "Where do you need to remember Christ’s presence and authority today?",
+    practice:
+      "Read Mark 4:35–41. In a quiet moment, bring one unsettled concern to Jesus and pray: “Lord, turn my attention toward You.”",
+    notes:
+      "Historical context: the Sea of Galilee was central to fishing and travel in first-century Galilee; small boats were exposed to sudden wind and waves.\n\nImaginative details: fading light, a confined wooden boat, and the disappearing shoreline help locate the scene but are not supplied as exact details by Mark. The storm, waves entering the boat, Jesus resting, the disciples’ fear, Christ speaking, and the calm are explicit in Mark 4:35–41.",
+    rights: "Reference-only Scripture handling; quotation rights unresolved",
+    narrationRights: false,
+    versions: [
+      "Version 5 — immersive biblical narrative rewrite prepared for owner review",
+      "Version 4 — prior narration authorization and private audio evidence superseded",
+      "Version 3 — pronunciation wording revision",
+      "Version 2 — revised from owner feedback",
+    ],
+  },
 ];
 
 const priorSupersededRenewalPrivateAudioReviews: Readonly<Record<string, PrivateAudioReview>> = {
-  "renewal-1": { durationSeconds: 83.408924, creditsUsed: 1108, generatedAt: "2026-08-03", scriptHash: "4138096b8d2b431e48b5c1b2a687a861624389e1c2af90d43ddd0cbaa4129432", qaNotes: "Generated once from the verified locked Stronger Daily script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
-  "renewal-2": { durationSeconds: 71.471, creditsUsed: 975, generatedAt: "2026-08-03", scriptHash: "ca23187fef3fb924ec9881823d67445a54c36084d293abb5c07fe6218f8a9ce1", qaNotes: "Generated once from the verified locked Stronger Daily script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
-  "renewal-3": { durationSeconds: 69.22445, creditsUsed: 988, generatedAt: "2026-08-03", scriptHash: "e8485d755450b39c3857b1bbbbdb5706b65bcaa749b1b94be0aef5ad241f191b", qaNotes: "Generated once from the verified locked Stronger Daily script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
+  "renewal-1": {
+    durationSeconds: 83.408924,
+    creditsUsed: 1108,
+    generatedAt: "2026-08-03",
+    scriptHash: "4138096b8d2b431e48b5c1b2a687a861624389e1c2af90d43ddd0cbaa4129432",
+    qaNotes:
+      "Generated once from the verified locked Stronger Daily script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review.",
+  },
+  "renewal-2": {
+    durationSeconds: 71.471,
+    creditsUsed: 975,
+    generatedAt: "2026-08-03",
+    scriptHash: "ca23187fef3fb924ec9881823d67445a54c36084d293abb5c07fe6218f8a9ce1",
+    qaNotes:
+      "Generated once from the verified locked Stronger Daily script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review.",
+  },
+  "renewal-3": {
+    durationSeconds: 69.22445,
+    creditsUsed: 988,
+    generatedAt: "2026-08-03",
+    scriptHash: "e8485d755450b39c3857b1bbbbdb5706b65bcaa749b1b94be0aef5ad241f191b",
+    qaNotes:
+      "Generated once from the verified locked Stronger Daily script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review.",
+  },
 };
 
 const supersededRenewalPrivateAudioReviews: Readonly<Record<string, PrivateAudioReview>> = {
-  "renewal-1": { durationSeconds: 123.559157, creditsUsed: 1710, estimatedCredits: 1710, generatedAt: "2026-08-04T04:59:56.930Z", scriptHash: "42e741782e5dab48abdb02f95368b4ab4c682da9e4aff0b4e17819d2424855bb", qaNotes: "Generated once from the verified locked script. No KJV verse wording, music, or sound effects. No generation error surfaced; human listening review is still required for pronunciation, pacing, clipping, and emphasis." },
-  "renewal-2": { durationSeconds: 114.781987, creditsUsed: 1644, estimatedCredits: 1644, generatedAt: "2026-08-04T04:59:56.930Z", scriptHash: "949fb3fddbc261b6cf901c4833ea0aec142aefc4ee0723238bdd75d777f3a2da", qaNotes: "Generated once from the verified locked script. No KJV verse wording, music, or sound effects. No generation error surfaced; human listening review is still required for pronunciation, pacing, clipping, and emphasis." },
-  "renewal-3": { durationSeconds: 107.258732, estimatedCredits: 1568, generatedAt: "2026-08-04T04:59:56.930Z", scriptHash: "cd48f35226a90a6ce7131c2dac971d9e90ae326048a90ee3e2e16248db998e42", qaNotes: "Generated once from the verified locked script. No KJV verse wording, music, or sound effects. No generation error surfaced; human listening review is still required for pronunciation, pacing, clipping, and emphasis. Provider aggregate credit display had not yet exposed this item’s charge when recorded." },
+  "renewal-1": {
+    durationSeconds: 123.559157,
+    creditsUsed: 1710,
+    estimatedCredits: 1710,
+    generatedAt: "2026-08-04T04:59:56.930Z",
+    scriptHash: "42e741782e5dab48abdb02f95368b4ab4c682da9e4aff0b4e17819d2424855bb",
+    qaNotes:
+      "Generated once from the verified locked script. No KJV verse wording, music, or sound effects. No generation error surfaced; human listening review is still required for pronunciation, pacing, clipping, and emphasis.",
+  },
+  "renewal-2": {
+    durationSeconds: 114.781987,
+    creditsUsed: 1644,
+    estimatedCredits: 1644,
+    generatedAt: "2026-08-04T04:59:56.930Z",
+    scriptHash: "949fb3fddbc261b6cf901c4833ea0aec142aefc4ee0723238bdd75d777f3a2da",
+    qaNotes:
+      "Generated once from the verified locked script. No KJV verse wording, music, or sound effects. No generation error surfaced; human listening review is still required for pronunciation, pacing, clipping, and emphasis.",
+  },
+  "renewal-3": {
+    durationSeconds: 107.258732,
+    estimatedCredits: 1568,
+    generatedAt: "2026-08-04T04:59:56.930Z",
+    scriptHash: "cd48f35226a90a6ce7131c2dac971d9e90ae326048a90ee3e2e16248db998e42",
+    qaNotes:
+      "Generated once from the verified locked script. No KJV verse wording, music, or sound effects. No generation error surfaced; human listening review is still required for pronunciation, pacing, clipping, and emphasis. Provider aggregate credit display had not yet exposed this item’s charge when recorded.",
+  },
 };
 
 const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = {
   "renewal-1": {
-    sourceEdition: "The King James Version of the Bible, Project Gutenberg eBook #10 (release 1 August 1989; last updated 6 April 2024).",
-    quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
-    narrationRights: "Superseded. Prior authorization and private-review audio are retained only as audit evidence. No current narration authorization exists.",
-    appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
+    sourceEdition:
+      "The King James Version of the Bible, Project Gutenberg eBook #10 (release 1 August 1989; last updated 6 April 2024).",
+    quotationStatus:
+      "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
+    narrationRights:
+      "Superseded. Prior authorization and private-review audio are retained only as audit evidence. No current narration authorization exists.",
+    appDisplayRights:
+      "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
     publicationStatus: "Not approved for publication or distribution.",
-    territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
-    attribution: "If a source credit is later shown, use: Source record: The King James Version of the Bible, Project Gutenberg eBook #10. Do not reuse Project Gutenberg branding or its ebook license without confirming the applicable terms.",
-    unresolvedQuestions: "Confirm each intended distribution territory, storefront and commercial-use context; confirm the exact quotation use; and obtain rights/legal sign-off before any verse text is displayed, narrated or distributed.",
+    territoryLimitations:
+      "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
+    attribution:
+      "If a source credit is later shown, use: Source record: The King James Version of the Bible, Project Gutenberg eBook #10. Do not reuse Project Gutenberg branding or its ebook license without confirming the applicable terms.",
+    unresolvedQuestions:
+      "Confirm each intended distribution territory, storefront and commercial-use context; confirm the exact quotation use; and obtain rights/legal sign-off before any verse text is displayed, narrated or distributed.",
   },
   "renewal-2": {
-    sourceEdition: "The King James Version of the Bible, Project Gutenberg ebook #10 (release 1 August 1989; last updated 6 April 2024).",
-    quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
-    narrationRights: "Superseded. Prior authorization and private-review audio are retained only as audit evidence. No current narration authorization exists.",
-    appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
+    sourceEdition:
+      "The King James Version of the Bible, Project Gutenberg ebook #10 (release 1 August 1989; last updated 6 April 2024).",
+    quotationStatus:
+      "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
+    narrationRights:
+      "Superseded. Prior authorization and private-review audio are retained only as audit evidence. No current narration authorization exists.",
+    appDisplayRights:
+      "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
     publicationStatus: "Not approved for publication or distribution.",
-    territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
-    attribution: "If a source credit is later shown, use: Source record: The King James Version of the Bible, Project Gutenberg eBook #10. Do not reuse Project Gutenberg branding or its ebook license without confirming the applicable terms.",
-    unresolvedQuestions: "Confirm each intended distribution territory, storefront and commercial-use context; confirm the exact quotation use; and obtain rights/legal sign-off before any verse text is displayed, narrated or distributed.",
+    territoryLimitations:
+      "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
+    attribution:
+      "If a source credit is later shown, use: Source record: The King James Version of the Bible, Project Gutenberg eBook #10. Do not reuse Project Gutenberg branding or its ebook license without confirming the applicable terms.",
+    unresolvedQuestions:
+      "Confirm each intended distribution territory, storefront and commercial-use context; confirm the exact quotation use; and obtain rights/legal sign-off before any verse text is displayed, narrated or distributed.",
   },
   "renewal-3": {
-    sourceEdition: "The King James Version of the Bible, Project Gutenberg ebook #10 (release 1 August 1989; last updated 6 April 2024).",
-    quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
-    narrationRights: "Superseded. Prior authorization and private-review audio are retained only as audit evidence. No current narration authorization exists.",
-    appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
+    sourceEdition:
+      "The King James Version of the Bible, Project Gutenberg ebook #10 (release 1 August 1989; last updated 6 April 2024).",
+    quotationStatus:
+      "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
+    narrationRights:
+      "Superseded. Prior authorization and private-review audio are retained only as audit evidence. No current narration authorization exists.",
+    appDisplayRights:
+      "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
     publicationStatus: "Not approved for publication or distribution.",
-    territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
-    attribution: "If a source credit is later shown, use: Source record: The King James Version of the Bible, Project Gutenberg ebook #10. Do not reuse Project Gutenberg branding or its ebook license without confirming the applicable terms.",
-    unresolvedQuestions: "Confirm each intended distribution territory, storefront and commercial-use context; confirm the exact quotation use; and obtain rights/legal sign-off before any verse text is displayed, narrated or distributed.",
+    territoryLimitations:
+      "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
+    attribution:
+      "If a source credit is later shown, use: Source record: The King James Version of the Bible, Project Gutenberg ebook #10. Do not reuse Project Gutenberg branding or its ebook license without confirming the applicable terms.",
+    unresolvedQuestions:
+      "Confirm each intended distribution territory, storefront and commercial-use context; confirm the exact quotation use; and obtain rights/legal sign-off before any verse text is displayed, narrated or distributed.",
   },
 };
 
@@ -99,8 +277,26 @@ const ownerReviewSeeds: readonly Item[] = seeds.map((item) => {
   };
 });
 
-const labels: Record<Status, string> = { draft: "Draft", owner_review: "Owner review", revision_requested: "Revision requested", owner_editing: "Owner editing", owner_edit_complete: "Owner edit complete", owner_approved: "Wording approved", narration_authorized: "Narration authorized", audio_generated: "Audio generated", audio_review: "Audio review", audio_accepted_private: "Private audio accepted", release_approved: "Release approved" };
-const count = (value: string) => value.trim() ? value.trim().split(/\s+/).length : 0;
+const labels: Record<Status, string> = {
+  draft: "Draft",
+  owner_review: "Owner review",
+  revision_requested: "Revision requested",
+  owner_editing: "Owner editing",
+  owner_edit_complete: "Owner edit complete",
+  owner_approved: "Wording approved",
+  narration_authorized: "Narration authorized",
+  audio_generated: "Audio generated",
+  audio_review: "Audio review",
+  audio_accepted_private: "Private audio accepted",
+  release_approved: "Release approved",
+};
+const count = (value: string) => (value.trim() ? value.trim().split(/\s+/).length : 0);
+function requireInitialReviewItem(): Item {
+  const item = ownerReviewSeeds[1] ?? ownerReviewSeeds[0];
+  if (!item) throw new Error("content_review_seed_missing");
+  return item;
+}
+const initialReviewItem = requireInitialReviewItem();
 
 async function sha256(value: string) {
   const bytes = new TextEncoder().encode(value);
@@ -108,48 +304,433 @@ async function sha256(value: string) {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export function ContentReviewPage({ developmentPreview = false }: { readonly developmentPreview?: boolean }) {
+export function ContentReviewPage({
+  developmentPreview = false,
+}: {
+  readonly developmentPreview?: boolean;
+}) {
   const [items, setItems] = useState<readonly Item[]>(ownerReviewSeeds);
-  const [selectedId, setSelectedId] = useState(ownerReviewSeeds[1]!.id);
-  const [notice, setNotice] = useState("Owner edits stay in Studio. Nothing is sent to a provider from this screen.");
-  const item = items.find(({ id }) => id === selectedId) ?? items[0]!;
+  const [selectedId, setSelectedId] = useState(initialReviewItem.id);
+  const [notice, setNotice] = useState(
+    "Owner edits stay in Studio. Nothing is sent to a provider from this screen.",
+  );
+  const item = items.find(({ id }) => id === selectedId) ?? initialReviewItem;
   const words = useMemo(() => count(item.script), [item.script]);
   const estimatedDurationSeconds = Math.round((words / 130) * 60);
   const estimatedDuration = `${Math.floor(estimatedDurationSeconds / 60)}m ${estimatedDurationSeconds % 60}s`;
   const estimatedCredits = item.script.length;
   const scriptureRights = renewalScriptureRights[item.id];
   const privateAudio = item.audioReview;
-  const update = (patch: Partial<Item>) => setItems((current) => current.map((entry) => {
-    if (entry.id !== item.id) return entry;
-    const wordingChanged = ["reflection", "script", "prayer", "journal", "practice"].some((key) => Object.hasOwn(patch, key));
-    const status = patch.status ?? (wordingChanged && (entry.status === "owner_approved" || entry.status === "narration_authorized") ? "owner_editing" : entry.status);
-    const next = { ...entry, ...patch, status } as Item;
-    if (wordingChanged) {
-      const { lockedHash: _discarded, audioReview: _priorAudio, ...withoutLock } = next;
-      return { ...withoutLock, narrationRights: false };
-    }
-    return next;
-  }));
-  const mutate = (status: Status, message: string) => { update({ status }); setNotice(message); };
-  const approve = async () => { const hash = await sha256(item.script); update({ status: "owner_approved", lockedHash: hash, versions: [`Version ${item.versions.length + 1} — immutable wording approval`, ...item.versions] }); setNotice("Wording approved for this exact version. The locked script is recorded in the Audit details."); };
-  const authorize = () => mutate("narration_authorized", "Narration authorization is recorded for the locked wording only. No provider call was made.");
-  const field = (label: string, key: keyof Pick<Item, "reflection" | "script" | "prayer" | "journal" | "practice" | "notes">, rows = 4) => <label>{label}<textarea disabled={Boolean(item.lockedHash) && item.status !== "owner_editing"} onChange={(event) => update({ [key]: event.currentTarget.value })} rows={rows} value={item[key]} /></label>;
+  const update = (patch: Partial<Item>) =>
+    setItems((current) =>
+      current.map((entry) => {
+        if (entry.id !== item.id) return entry;
+        const wordingChanged = ["reflection", "script", "prayer", "journal", "practice"].some(
+          (key) => Object.hasOwn(patch, key),
+        );
+        const status =
+          patch.status ??
+          (wordingChanged &&
+          (entry.status === "owner_approved" || entry.status === "narration_authorized")
+            ? "owner_editing"
+            : entry.status);
+        const next = { ...entry, ...patch, status } as Item;
+        if (wordingChanged) {
+          const { lockedHash: _discarded, audioReview: _priorAudio, ...withoutLock } = next;
+          return { ...withoutLock, narrationRights: false };
+        }
+        return next;
+      }),
+    );
+  const mutate = (status: Status, message: string) => {
+    update({ status });
+    setNotice(message);
+  };
+  const approve = async () => {
+    const hash = await sha256(item.script);
+    update({
+      status: "owner_approved",
+      lockedHash: hash,
+      versions: [
+        `Version ${item.versions.length + 1} — immutable wording approval`,
+        ...item.versions,
+      ],
+    });
+    setNotice(
+      "Wording approved for this exact version. The locked script is recorded in the Audit details.",
+    );
+  };
+  const authorize = () =>
+    mutate(
+      "narration_authorized",
+      "Narration authorization is recorded for the locked wording only. No provider call was made.",
+    );
+  const field = (
+    label: string,
+    key: keyof Pick<Item, "reflection" | "script" | "prayer" | "journal" | "practice" | "notes">,
+    rows = 4,
+  ) => (
+    <label>
+      {label}
+      <textarea
+        disabled={Boolean(item.lockedHash) && item.status !== "owner_editing"}
+        onChange={(event) => update({ [key]: event.currentTarget.value })}
+        rows={rows}
+        value={item[key]}
+      />
+    </label>
+  );
 
-  return <div className="content-review-page">
-    {developmentPreview ? <aside className="development-preview-banner" role="status"><strong>Development review mode</strong><span>Local seeded data only. This preview is not connected to Studio authentication, tenant data, providers, or production actions.</span></aside> : null}
-    <div className="page-heading"><p className="eyebrow">Strongr Daily · Owner workspace</p><h1>Content review</h1><p>Review wording in one calm place. Sensitive actions stay unavailable until their required approvals are complete.</p></div>
-    <p className="workflow-notice" role="status">{notice}</p>
-    <div className="review-layout">
-      <aside className="review-list" aria-label="Content items">{items.map((entry) => <button className={entry.id === item.id ? "is-selected" : ""} key={entry.id} onClick={() => setSelectedId(entry.id)} type="button"><strong>{entry.title}</strong><span>{labels[entry.status]}</span></button>)}</aside>
-      <section className="review-editor">
-        <header className="review-heading"><div><p className="eyebrow">{labels[item.status]}</p><h2>{item.title}</h2><p>{item.type} · {item.scripture}</p></div><span className="status-pill status-pill--warning">{item.rights}</span></header>
-        <div className="review-metadata"><span>Last edited by Neil</span><span>Last edited today</span><span>{words} words · {item.script.length} characters · about {Math.max(1, Math.round(words / 130))} minutes</span></div>
-        <div className="review-fields">{field("Written reflection", "reflection", 6)}{field("Narration script", "script", 12)}{field("Prayer", "prayer", 4)}{field("Journal prompt", "journal", 3)}{field("Daily Practice", "practice", 3)}{field("Historical context and imaginative details", "notes", 6)}</div>
-        <div className="review-actions"><button className="secondary-button" onClick={() => setNotice("Draft saved in this review session. No wording was changed.")} type="button">Save Draft</button><button className="secondary-button" onClick={() => mutate("revision_requested", "Revision requested. The wording remains editable.")} type="button">Request Revision</button><button className="secondary-button" onClick={() => mutate("owner_edit_complete", "Owner editing marked complete. Review the exact wording before approval.")} type="button">Mark Owner Edit Complete</button><button className="primary-button" disabled={item.status !== "owner_edit_complete"} onClick={() => void approve()} type="button">Approve Wording</button><button className="secondary-button" onClick={() => mutate("owner_editing", "Reopened for owner editing. Any prior wording lock is no longer valid.")} type="button">Reopen for Editing</button><button className="primary-button" disabled={item.status !== "owner_approved" || !item.narrationRights} onClick={authorize} type="button">Authorize ElevenLabs</button><button className="danger-button" disabled={item.status !== "narration_authorized"} onClick={() => mutate("owner_approved", "Narration authorization revoked. No provider call was made.")} type="button">Revoke Narration Authorization</button></div>
-        <section className="audio-review"><h3>Private audio review</h3><p>Private audio acceptance will never release content.</p><div className="audio-placeholder">{privateAudio ? "Private review draft available in ElevenLabs History" : "No active audio draft. Prior Renewal narration evidence is superseded and preserved only in the audit record."}</div><dl><div><dt>Duration</dt><dd>{privateAudio ? `${privateAudio.durationSeconds.toFixed(1)} seconds` : "Not generated"}</dd></div><div><dt>Voice</dt><dd>{privateAudio ? "Donovan — Articulate, Strong and Deep" : "Not selected"}</dd></div><div><dt>Model</dt><dd>{privateAudio ? "Eleven Multilingual v2 · 0.95 speed · 0.50 stability · 0.75 similarity · style 0 · speaker boost off" : "Not connected"}</dd></div><div><dt>Script lock</dt><dd>{item.lockedHash ? "Approved wording locked" : "Not yet locked"}</dd></div><div><dt>Credits</dt><dd>{privateAudio ? privateAudio.creditsUsed == null ? `${privateAudio.estimatedCredits} estimated; provider ledger pending` : `${privateAudio.creditsUsed} used` : "None used"}</dd></div>{privateAudio ? <div><dt>QA notes</dt><dd>{privateAudio.qaNotes}</dd></div> : null}</dl><div className="review-actions"><button className="secondary-button" disabled={!privateAudio} onClick={() => setNotice("Open the private draft in ElevenLabs History to listen. This does not accept or release it.")} type="button">Review Audio</button><button className="secondary-button" disabled={!privateAudio} onClick={() => mutate("audio_accepted_private", "Private audio accepted. Release remains blocked and no publication occurred.")} type="button">Accept Private Audio</button><button className="danger-button" disabled={!privateAudio} onClick={() => mutate("revision_requested", "Audio rejected. No retry was generated.")} type="button">Reject Audio</button><button className="secondary-button" disabled={!privateAudio} onClick={() => mutate("revision_requested", "One revision requested. No provider call was made.")} type="button">Request One Revision</button></div></section>
-        <section className="status-timeline"><h3>Status timeline</h3><ol>{["draft", "owner_review", "owner_editing", "owner_edit_complete", "owner_approved", "narration_authorized", "audio_review", "audio_accepted_private", "release_approved"].map((status) => <li className={status === item.status ? "current" : ""} key={status}>{labels[status as Status]}</li>)}</ol></section>
-        <details className="advanced-details"><summary>Details and audit</summary><p>Version history: {item.versions.join(" · ")}</p><p>Script SHA-256: {item.lockedHash ?? "Created only after wording approval"}</p><p>Locked-script readiness: {item.script.length} characters · estimated {estimatedDuration} · estimated ElevenLabs use {estimatedCredits} credits (character-based estimate only; no provider call).</p>{privateAudio ? <p>Actual private-review generation: {privateAudio.generatedAt} · {privateAudio.durationSeconds.toFixed(1)} seconds · {privateAudio.creditsUsed == null ? `${privateAudio.estimatedCredits} credits estimated; provider ledger pending` : `${privateAudio.creditsUsed} credits used`} · verified script hash {privateAudio.scriptHash}.</p> : null}{supersededRenewalPrivateAudioReviews[item.id] ? <p>Most recent superseded narration evidence preserved: {supersededRenewalPrivateAudioReviews[item.id]!.generatedAt} · {supersededRenewalPrivateAudioReviews[item.id]!.durationSeconds.toFixed(1)} seconds · {supersededRenewalPrivateAudioReviews[item.id]!.creditsUsed == null ? "provider credit ledger pending" : `${supersededRenewalPrivateAudioReviews[item.id]!.creditsUsed} credits`} · prior hash {supersededRenewalPrivateAudioReviews[item.id]!.scriptHash}. It is not authorized for reuse.</p> : null}{priorSupersededRenewalPrivateAudioReviews[item.id] ? <p>Earlier superseded narration evidence is also retained in the audit record and is not authorized for reuse.</p> : null}{scriptureRights ? <><h3>Scripture rights record</h3><dl className="evidence-list"><div><dt>References and intended translation</dt><dd>{item.scripture} · King James Version (KJV)</dd></div><div><dt>Exact source edition</dt><dd>{scriptureRights.sourceEdition}</dd></div><div><dt>Quotation status</dt><dd>{scriptureRights.quotationStatus}</dd></div><div><dt>Narration rights</dt><dd>{scriptureRights.narrationRights}</dd></div><div><dt>App-display rights</dt><dd>{scriptureRights.appDisplayRights}</dd></div><div><dt>Publication and distribution</dt><dd>{scriptureRights.publicationStatus}</dd></div><div><dt>Territory limitations</dt><dd>{scriptureRights.territoryLimitations}</dd></div><div><dt>Attribution requirements</dt><dd>{scriptureRights.attribution}</dd></div><div><dt>Unresolved rights questions</dt><dd>{scriptureRights.unresolvedQuestions}</dd></div><div><dt>Narration authorization eligibility</dt><dd>{item.narrationRights ? "Eligible after separate owner authorization." : "Not eligible: prior authorization is superseded; wording is not locked; and no current authorization exists."}</dd></div></dl></> : null}<p>Tenant isolation, owner permissions, MFA/AAL2, approval evidence, audit history, and service-role boundaries remain enforced by the existing governed workflow.</p></details>
-      </section>
+  return (
+    <div className="content-review-page">
+      {developmentPreview ? (
+        <aside className="development-preview-banner" role="status">
+          <strong>Development review mode</strong>
+          <span>
+            Local seeded data only. This preview is not connected to Studio authentication, tenant
+            data, providers, or production actions.
+          </span>
+        </aside>
+      ) : null}
+      <div className="page-heading">
+        <p className="eyebrow">Strongr Daily · Owner workspace</p>
+        <h1>Content review</h1>
+        <p>
+          Review wording in one calm place. Sensitive actions stay unavailable until their required
+          approvals are complete.
+        </p>
+      </div>
+      <p className="workflow-notice" role="status">
+        {notice}
+      </p>
+      <div className="review-layout">
+        <aside className="review-list" aria-label="Content items">
+          {items.map((entry) => (
+            <button
+              className={entry.id === item.id ? "is-selected" : ""}
+              key={entry.id}
+              onClick={() => setSelectedId(entry.id)}
+              type="button"
+            >
+              <strong>{entry.title}</strong>
+              <span>{labels[entry.status]}</span>
+            </button>
+          ))}
+        </aside>
+        <section className="review-editor">
+          <header className="review-heading">
+            <div>
+              <p className="eyebrow">{labels[item.status]}</p>
+              <h2>{item.title}</h2>
+              <p>
+                {item.type} · {item.scripture}
+              </p>
+            </div>
+            <span className="status-pill status-pill--warning">{item.rights}</span>
+          </header>
+          <div className="review-metadata">
+            <span>Last edited by Neil</span>
+            <span>Last edited today</span>
+            <span>
+              {words} words · {item.script.length} characters · about{" "}
+              {Math.max(1, Math.round(words / 130))} minutes
+            </span>
+          </div>
+          <div className="review-fields">
+            {field("Written reflection", "reflection", 6)}
+            {field("Narration script", "script", 12)}
+            {field("Prayer", "prayer", 4)}
+            {field("Journal prompt", "journal", 3)}
+            {field("Daily Practice", "practice", 3)}
+            {field("Historical context and imaginative details", "notes", 6)}
+          </div>
+          <div className="review-actions">
+            <button
+              className="secondary-button"
+              onClick={() =>
+                setNotice("Draft saved in this review session. No wording was changed.")
+              }
+              type="button"
+            >
+              Save Draft
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() =>
+                mutate("revision_requested", "Revision requested. The wording remains editable.")
+              }
+              type="button"
+            >
+              Request Revision
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() =>
+                mutate(
+                  "owner_edit_complete",
+                  "Owner editing marked complete. Review the exact wording before approval.",
+                )
+              }
+              type="button"
+            >
+              Mark Owner Edit Complete
+            </button>
+            <button
+              className="primary-button"
+              disabled={item.status !== "owner_edit_complete"}
+              onClick={() => void approve()}
+              type="button"
+            >
+              Approve Wording
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() =>
+                mutate(
+                  "owner_editing",
+                  "Reopened for owner editing. Any prior wording lock is no longer valid.",
+                )
+              }
+              type="button"
+            >
+              Reopen for Editing
+            </button>
+            <button
+              className="primary-button"
+              disabled={item.status !== "owner_approved" || !item.narrationRights}
+              onClick={authorize}
+              type="button"
+            >
+              Authorize ElevenLabs
+            </button>
+            <button
+              className="danger-button"
+              disabled={item.status !== "narration_authorized"}
+              onClick={() =>
+                mutate(
+                  "owner_approved",
+                  "Narration authorization revoked. No provider call was made.",
+                )
+              }
+              type="button"
+            >
+              Revoke Narration Authorization
+            </button>
+          </div>
+          <section className="audio-review">
+            <h3>Private audio review</h3>
+            <p>Private audio acceptance will never release content.</p>
+            <div className="audio-placeholder">
+              {privateAudio
+                ? "Private review draft available in ElevenLabs History"
+                : "No active audio draft. Prior Renewal narration evidence is superseded and preserved only in the audit record."}
+            </div>
+            <dl>
+              <div>
+                <dt>Duration</dt>
+                <dd>
+                  {privateAudio
+                    ? `${privateAudio.durationSeconds.toFixed(1)} seconds`
+                    : "Not generated"}
+                </dd>
+              </div>
+              <div>
+                <dt>Voice</dt>
+                <dd>{privateAudio ? "Donovan — Articulate, Strong and Deep" : "Not selected"}</dd>
+              </div>
+              <div>
+                <dt>Model</dt>
+                <dd>
+                  {privateAudio
+                    ? "Eleven Multilingual v2 · 0.95 speed · 0.50 stability · 0.75 similarity · style 0 · speaker boost off"
+                    : "Not connected"}
+                </dd>
+              </div>
+              <div>
+                <dt>Script lock</dt>
+                <dd>{item.lockedHash ? "Approved wording locked" : "Not yet locked"}</dd>
+              </div>
+              <div>
+                <dt>Credits</dt>
+                <dd>
+                  {privateAudio
+                    ? privateAudio.creditsUsed == null
+                      ? `${privateAudio.estimatedCredits} estimated; provider ledger pending`
+                      : `${privateAudio.creditsUsed} used`
+                    : "None used"}
+                </dd>
+              </div>
+              {privateAudio ? (
+                <div>
+                  <dt>QA notes</dt>
+                  <dd>{privateAudio.qaNotes}</dd>
+                </div>
+              ) : null}
+            </dl>
+            <div className="review-actions">
+              <button
+                className="secondary-button"
+                disabled={!privateAudio}
+                onClick={() =>
+                  setNotice(
+                    "Open the private draft in ElevenLabs History to listen. This does not accept or release it.",
+                  )
+                }
+                type="button"
+              >
+                Review Audio
+              </button>
+              <button
+                className="secondary-button"
+                disabled={!privateAudio}
+                onClick={() =>
+                  mutate(
+                    "audio_accepted_private",
+                    "Private audio accepted. Release remains blocked and no publication occurred.",
+                  )
+                }
+                type="button"
+              >
+                Accept Private Audio
+              </button>
+              <button
+                className="danger-button"
+                disabled={!privateAudio}
+                onClick={() =>
+                  mutate("revision_requested", "Audio rejected. No retry was generated.")
+                }
+                type="button"
+              >
+                Reject Audio
+              </button>
+              <button
+                className="secondary-button"
+                disabled={!privateAudio}
+                onClick={() =>
+                  mutate("revision_requested", "One revision requested. No provider call was made.")
+                }
+                type="button"
+              >
+                Request One Revision
+              </button>
+            </div>
+          </section>
+          <section className="status-timeline">
+            <h3>Status timeline</h3>
+            <ol>
+              {[
+                "draft",
+                "owner_review",
+                "owner_editing",
+                "owner_edit_complete",
+                "owner_approved",
+                "narration_authorized",
+                "audio_review",
+                "audio_accepted_private",
+                "release_approved",
+              ].map((status) => (
+                <li className={status === item.status ? "current" : ""} key={status}>
+                  {labels[status as Status]}
+                </li>
+              ))}
+            </ol>
+          </section>
+          <details className="advanced-details">
+            <summary>Details and audit</summary>
+            <p>Version history: {item.versions.join(" · ")}</p>
+            <p>Script SHA-256: {item.lockedHash ?? "Created only after wording approval"}</p>
+            <p>
+              Locked-script readiness: {item.script.length} characters · estimated{" "}
+              {estimatedDuration} · estimated ElevenLabs use {estimatedCredits} credits
+              (character-based estimate only; no provider call).
+            </p>
+            {privateAudio ? (
+              <p>
+                Actual private-review generation: {privateAudio.generatedAt} ·{" "}
+                {privateAudio.durationSeconds.toFixed(1)} seconds ·{" "}
+                {privateAudio.creditsUsed == null
+                  ? `${privateAudio.estimatedCredits} credits estimated; provider ledger pending`
+                  : `${privateAudio.creditsUsed} credits used`}{" "}
+                · verified script hash {privateAudio.scriptHash}.
+              </p>
+            ) : null}
+            {supersededRenewalPrivateAudioReviews[item.id] ? (
+              <p>
+                Most recent superseded narration evidence preserved:{" "}
+                {supersededRenewalPrivateAudioReviews[item.id]?.generatedAt} ·{" "}
+                {supersededRenewalPrivateAudioReviews[item.id]?.durationSeconds.toFixed(1)} seconds
+                ·{" "}
+                {supersededRenewalPrivateAudioReviews[item.id]?.creditsUsed == null
+                  ? "provider credit ledger pending"
+                  : `${supersededRenewalPrivateAudioReviews[item.id]?.creditsUsed} credits`}{" "}
+                · prior hash {supersededRenewalPrivateAudioReviews[item.id]?.scriptHash}. It is not
+                authorized for reuse.
+              </p>
+            ) : null}
+            {priorSupersededRenewalPrivateAudioReviews[item.id] ? (
+              <p>
+                Earlier superseded narration evidence is also retained in the audit record and is
+                not authorized for reuse.
+              </p>
+            ) : null}
+            {scriptureRights ? (
+              <>
+                <h3>Scripture rights record</h3>
+                <dl className="evidence-list">
+                  <div>
+                    <dt>References and intended translation</dt>
+                    <dd>{item.scripture} · King James Version (KJV)</dd>
+                  </div>
+                  <div>
+                    <dt>Exact source edition</dt>
+                    <dd>{scriptureRights.sourceEdition}</dd>
+                  </div>
+                  <div>
+                    <dt>Quotation status</dt>
+                    <dd>{scriptureRights.quotationStatus}</dd>
+                  </div>
+                  <div>
+                    <dt>Narration rights</dt>
+                    <dd>{scriptureRights.narrationRights}</dd>
+                  </div>
+                  <div>
+                    <dt>App-display rights</dt>
+                    <dd>{scriptureRights.appDisplayRights}</dd>
+                  </div>
+                  <div>
+                    <dt>Publication and distribution</dt>
+                    <dd>{scriptureRights.publicationStatus}</dd>
+                  </div>
+                  <div>
+                    <dt>Territory limitations</dt>
+                    <dd>{scriptureRights.territoryLimitations}</dd>
+                  </div>
+                  <div>
+                    <dt>Attribution requirements</dt>
+                    <dd>{scriptureRights.attribution}</dd>
+                  </div>
+                  <div>
+                    <dt>Unresolved rights questions</dt>
+                    <dd>{scriptureRights.unresolvedQuestions}</dd>
+                  </div>
+                  <div>
+                    <dt>Narration authorization eligibility</dt>
+                    <dd>
+                      {item.narrationRights
+                        ? "Eligible after separate owner authorization."
+                        : "Not eligible: prior authorization is superseded; wording is not locked; and no current authorization exists."}
+                    </dd>
+                  </div>
+                </dl>
+              </>
+            ) : null}
+            <p>
+              Tenant isolation, owner permissions, MFA/AAL2, approval evidence, audit history, and
+              service-role boundaries remain enforced by the existing governed workflow.
+            </p>
+          </details>
+        </section>
+      </div>
     </div>
-  </div>;
+  );
 }

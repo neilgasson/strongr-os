@@ -8,4 +8,10 @@ import "./styles/studio.css";
 const root = document.getElementById("root");
 if (!root) throw new Error("Development review root is missing");
 
-createRoot(root).render(<StrictMode><main className="main-content"><ContentReviewPage developmentPreview /></main></StrictMode>);
+createRoot(root).render(
+  <StrictMode>
+    <main className="main-content">
+      <ContentReviewPage developmentPreview />
+    </main>
+  </StrictMode>,
+);
