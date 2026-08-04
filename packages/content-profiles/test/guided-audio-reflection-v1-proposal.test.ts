@@ -17,8 +17,13 @@ import {
   guidedAudioReflectionV1ProposalOwnerGate,
   guidedAudioReflectionV1ProposalRegistryV2,
   guidedAudioReflectionV1ProposalSourceManifestV2,
+  Phase4B4DevelopmentActivationError,
   parseContentProfileSourceManifest,
+  phase4B4ApprovedGoldenDescriptorChecksum,
+  phase4B4ApprovedRightsRecordChecksum,
+  registerPhase4B4DevelopmentMetadata,
   resolveContentProfile,
+  rollbackPhase4B4DevelopmentMetadata,
   strongrDailyContentProfileRegistryV1,
   type UnsignedContentProfileRegistry,
 } from "../src/index.ts";
@@ -302,4 +307,59 @@ test("golden prose, private responses, and unlicensed Scripture remain outside p
   assert.equal(rights.owner_gate.exact_profile_activation_approved, false);
   assert.equal(rights.owner_gate.provider_spend_approved, false);
   assert.equal(rights.owner_gate.publication_approved, false);
+});
+
+test("Phase 4B.4 registers only the approved metadata identity and remains fail-closed", () => {
+  const request = {
+    golden_descriptor_checksum: phase4B4ApprovedGoldenDescriptorChecksum,
+    profile_checksum: guidedAudioReflectionV1Proposal.canonical_checksum,
+    profile_id: "guided_audio_reflection",
+    profile_version: 1,
+    rights_record_checksum: phase4B4ApprovedRightsRecordChecksum,
+    source_manifest_checksum: guidedAudioReflectionV1ProposalSourceManifestV2.canonical_checksum,
+  };
+
+  const registration = registerPhase4B4DevelopmentMetadata(request);
+  assert.equal(registration.state, "registered_pending_owner_approval");
+  assert.equal(registration.activation_pending_owner_approval, true);
+  assert.equal(registration.runtime_generation_authority, false);
+  assert.equal(registration.provider_access, false);
+  assert.equal(registration.provider_spending, 0);
+  assert.equal(registration.publication_enabled, false);
+  assert.equal(Object.isFrozen(registration), true);
+
+  for (const invalid of [
+    { ...request, profile_id: "devotional_experience" },
+    { ...request, profile_version: 2 },
+    { ...request, profile_checksum: "0".repeat(64) },
+    { ...request, source_manifest_checksum: "0".repeat(64) },
+    { ...request, rights_record_checksum: "0".repeat(64) },
+    { ...request, golden_descriptor_checksum: "0".repeat(64) },
+    { ...request, nested_profile: request },
+    { ...request, private_prayer: "private" },
+    { ...request, journal: "private" },
+    { ...request, mood: "private" },
+    { ...request, care_details: "private" },
+    { ...request, crisis_information: "private" },
+    { ...request, provider: "enabled" },
+  ]) {
+    assert.throws(
+      () => registerPhase4B4DevelopmentMetadata(invalid),
+      (error: unknown) =>
+        error instanceof Phase4B4DevelopmentActivationError &&
+        error.code === "phase_4b4_registration_rejected",
+    );
+  }
+});
+
+test("Phase 4B.4 rollback returns development registration to inactive without legacy activation", () => {
+  assert.deepEqual(rollbackPhase4B4DevelopmentMetadata(), {
+    activation_pending_owner_approval: true,
+    provider_access: false,
+    provider_spending: 0,
+    publication_enabled: false,
+    runtime_generation_authority: false,
+    state: "inactive",
+  });
+  assert.equal(Object.isFrozen(rollbackPhase4B4DevelopmentMetadata()), true);
 });

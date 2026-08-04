@@ -24,6 +24,17 @@ export {
   resolveContentProfile,
 } from "./library.ts";
 export type {
+  Phase4B4DevelopmentRegistration,
+  Phase4B4InactiveDevelopmentState,
+} from "./phase-4b4-development-activation.ts";
+export {
+  Phase4B4DevelopmentActivationError,
+  phase4B4ApprovedGoldenDescriptorChecksum,
+  phase4B4ApprovedRightsRecordChecksum,
+  registerPhase4B4DevelopmentMetadata,
+  rollbackPhase4B4DevelopmentMetadata,
+} from "./phase-4b4-development-activation.ts";
+export type {
   ContentProfile,
   ContentProfileRegistry,
   ContentProfileSelection,
