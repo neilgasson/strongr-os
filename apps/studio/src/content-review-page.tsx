@@ -8,7 +8,7 @@ type Status =
 type Item = Readonly<{
   id: string; title: string; type: string; scripture: string; status: Status; reflection: string;
   script: string; prayer: string; journal: string; practice: string; notes: string; rights: string;
-  narrationRights: boolean; versions: readonly string[]; lockedHash?: string;
+  narrationRights: boolean; versions: readonly string[]; lockedHash?: string; audioReview?: PrivateAudioReview;
 }>;
 
 type ScriptureRightsRecord = Readonly<{
@@ -20,6 +20,14 @@ type ScriptureRightsRecord = Readonly<{
   territoryLimitations: string;
   attribution: string;
   unresolvedQuestions: string;
+}>;
+
+type PrivateAudioReview = Readonly<{
+  durationSeconds: number;
+  creditsUsed: number;
+  generatedAt: string;
+  qaNotes: string;
+  scriptHash: string;
 }>;
 
 const seeds: readonly Item[] = [
@@ -35,11 +43,17 @@ const approvedRenewalScriptHashes: Readonly<Record<string, string>> = {
   "renewal-3": "3ad6b8f338bb1099e5c3b014123eef9482018e4d57f0c832a03d5cb960f8c4ff",
 };
 
+const renewalPrivateAudioReviews: Readonly<Record<string, PrivateAudioReview>> = {
+  "renewal-1": { durationSeconds: 80.013006, creditsUsed: 1107, generatedAt: "2026-08-03", scriptHash: "721e9b618e140f1eccb554be8e8c4ee7579d2c738236192e3a4d364c56d064ba", qaNotes: "Generated once from the verified locked script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
+  "renewal-2": { durationSeconds: 73.273449, creditsUsed: 974, generatedAt: "2026-08-03", scriptHash: "097bc024b199d5f2cb4f8cf5b3fcc32708659aa0bb77ffac8e4fe0254e97895f", qaNotes: "Generated once from the verified locked script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
+  "renewal-3": { durationSeconds: 66.638322, creditsUsed: 987, generatedAt: "2026-08-03", scriptHash: "3ad6b8f338bb1099e5c3b014123eef9482018e4d57f0c832a03d5cb960f8c4ff", qaNotes: "Generated once from the verified locked script. Reference-only: no KJV verse wording, music or sound effects. Awaiting Neil’s private listening review." },
+};
+
 const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = {
   "renewal-1": {
     sourceEdition: "The King James Version of the Bible, Project Gutenberg eBook #10 (release 1 August 1989; last updated 6 April 2024).",
     quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
-    narrationRights: "Not authorized. Internal pilot source record only; a separate owner narration authorization and territory review are still required.",
+    narrationRights: "Authorized only for the completed reference-only private review draft. No KJV verse wording was inserted or narrated; no publication or distribution authority is granted.",
     appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
     publicationStatus: "Not approved for publication or distribution.",
     territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
@@ -49,7 +63,7 @@ const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = 
   "renewal-2": {
     sourceEdition: "The King James Version of the Bible, Project Gutenberg ebook #10 (release 1 August 1989; last updated 6 April 2024).",
     quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
-    narrationRights: "Not authorized. Internal pilot source record only; a separate owner narration authorization and territory review are still required.",
+    narrationRights: "Authorized only for the completed reference-only private review draft. No KJV verse wording was inserted or narrated; no publication or distribution authority is granted.",
     appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
     publicationStatus: "Not approved for publication or distribution.",
     territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
@@ -59,7 +73,7 @@ const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = 
   "renewal-3": {
     sourceEdition: "The King James Version of the Bible, Project Gutenberg ebook #10 (release 1 August 1989; last updated 6 April 2024).",
     quotationStatus: "Reference-only. No Scripture wording is inserted in the locked reflection or narration script.",
-    narrationRights: "Not authorized. Internal pilot source record only; a separate owner narration authorization and territory review are still required.",
+    narrationRights: "Authorized only for the completed reference-only private review draft. No KJV verse wording was inserted or narrated; no publication or distribution authority is granted.",
     appDisplayRights: "Reference-only metadata is recorded for internal review. Display of verse wording is not cleared.",
     publicationStatus: "Not approved for publication or distribution.",
     territoryLimitations: "Project Gutenberg records this edition as public domain in the United States only and makes no representation for other territories.",
@@ -70,9 +84,12 @@ const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = 
 
 const ownerApprovedSeeds: readonly Item[] = seeds.map((item) => {
   const lockedHash = approvedRenewalScriptHashes[item.id];
-  return lockedHash
-    ? { ...item, status: "owner_approved", lockedHash, versions: [`Version ${item.versions.length + 1} — immutable wording approval`, ...item.versions] }
-    : item;
+  const audioReview = renewalPrivateAudioReviews[item.id];
+  if (!lockedHash) return item;
+  const approvedVersion = [`Version ${item.versions.length + 1} — immutable wording approval`, ...item.versions];
+  return audioReview
+    ? { ...item, status: "audio_review", narrationRights: true, lockedHash, audioReview, versions: approvedVersion }
+    : { ...item, status: "owner_approved", lockedHash, versions: approvedVersion };
 });
 
 const labels: Record<Status, string> = { draft: "Draft", owner_review: "Owner review", revision_requested: "Revision requested", owner_editing: "Owner editing", owner_edit_complete: "Owner edit complete", owner_approved: "Wording approved", narration_authorized: "Narration authorized", audio_generated: "Audio generated", audio_review: "Audio review", audio_accepted_private: "Private audio accepted", release_approved: "Release approved" };
@@ -94,6 +111,7 @@ export function ContentReviewPage({ developmentPreview = false }: { readonly dev
   const estimatedDuration = `${Math.floor(estimatedDurationSeconds / 60)}m ${estimatedDurationSeconds % 60}s`;
   const estimatedCredits = item.script.length;
   const scriptureRights = renewalScriptureRights[item.id];
+  const privateAudio = item.audioReview;
   const update = (patch: Partial<Item>) => setItems((current) => current.map((entry) => {
     if (entry.id !== item.id) return entry;
     const wordingChanged = ["reflection", "script", "prayer", "journal", "practice"].some((key) => Object.hasOwn(patch, key));
@@ -108,7 +126,7 @@ export function ContentReviewPage({ developmentPreview = false }: { readonly dev
   const mutate = (status: Status, message: string) => { update({ status }); setNotice(message); };
   const approve = async () => { const hash = await sha256(item.script); update({ status: "owner_approved", lockedHash: hash, versions: [`Version ${item.versions.length + 1} — immutable wording approval`, ...item.versions] }); setNotice("Wording approved for this exact version. The locked script is recorded in the Audit details."); };
   const authorize = () => mutate("narration_authorized", "Narration authorization is recorded for the locked wording only. No provider call was made.");
-  const field = (label: string, key: keyof Pick<Item, "reflection" | "script" | "prayer" | "journal" | "practice" | "notes">, rows = 4) => <label>{label}<textarea disabled={item.status === "owner_approved" || item.status === "narration_authorized"} onChange={(event) => update({ [key]: event.currentTarget.value })} rows={rows} value={item[key]} /></label>;
+  const field = (label: string, key: keyof Pick<Item, "reflection" | "script" | "prayer" | "journal" | "practice" | "notes">, rows = 4) => <label>{label}<textarea disabled={Boolean(item.lockedHash) && item.status !== "owner_editing"} onChange={(event) => update({ [key]: event.currentTarget.value })} rows={rows} value={item[key]} /></label>;
 
   return <div className="content-review-page">
     {developmentPreview ? <aside className="development-preview-banner" role="status"><strong>Development review mode</strong><span>Local seeded data only. This preview is not connected to Studio authentication, tenant data, providers, or production actions.</span></aside> : null}
@@ -121,9 +139,9 @@ export function ContentReviewPage({ developmentPreview = false }: { readonly dev
         <div className="review-metadata"><span>Last edited by Neil</span><span>Last edited today</span><span>{words} words · {item.script.length} characters · about {Math.max(1, Math.round(words / 130))} minutes</span></div>
         <div className="review-fields">{field("Written reflection", "reflection", 6)}{field("Narration script", "script", 10)}{field("Prayer", "prayer", 4)}{field("Journal prompt", "journal", 3)}{field("Daily Practice", "practice", 3)}{field("Owner notes", "notes", 3)}</div>
         <div className="review-actions"><button className="secondary-button" onClick={() => setNotice("Draft saved in this review session. No wording was changed.")} type="button">Save Draft</button><button className="secondary-button" onClick={() => mutate("revision_requested", "Revision requested. The wording remains editable.")} type="button">Request Revision</button><button className="secondary-button" onClick={() => mutate("owner_edit_complete", "Owner editing marked complete. Review the exact wording before approval.")} type="button">Mark Owner Edit Complete</button><button className="primary-button" disabled={item.status !== "owner_edit_complete"} onClick={() => void approve()} type="button">Approve Wording</button><button className="secondary-button" onClick={() => mutate("owner_editing", "Reopened for owner editing. Any prior wording lock is no longer valid.")} type="button">Reopen for Editing</button><button className="primary-button" disabled={item.status !== "owner_approved" || !item.narrationRights} onClick={authorize} type="button">Authorize ElevenLabs</button><button className="danger-button" disabled={item.status !== "narration_authorized"} onClick={() => mutate("owner_approved", "Narration authorization revoked. No provider call was made.")} type="button">Revoke Narration Authorization</button></div>
-        <section className="audio-review"><h3>Private audio review</h3><p>Audio is not connected in this phase. Private audio acceptance will never release content.</p><div className="audio-placeholder">Audio player placeholder</div><dl><div><dt>Duration</dt><dd>Not generated</dd></div><div><dt>Voice</dt><dd>Not selected</dd></div><div><dt>Model</dt><dd>Not connected</dd></div><div><dt>Script lock</dt><dd>{item.lockedHash ? "Approved wording locked" : "Not yet locked"}</dd></div><div><dt>Credits</dt><dd>None used</dd></div></dl><div className="review-actions"><button className="secondary-button" disabled type="button">Review Audio</button><button className="secondary-button" disabled type="button">Accept Private Audio</button><button className="danger-button" disabled type="button">Reject Audio</button><button className="secondary-button" disabled type="button">Request One Revision</button></div></section>
+        <section className="audio-review"><h3>Private audio review</h3><p>Private audio acceptance will never release content.</p><div className="audio-placeholder">{privateAudio ? "Private review draft available in ElevenLabs History" : "Audio player placeholder"}</div><dl><div><dt>Duration</dt><dd>{privateAudio ? `${privateAudio.durationSeconds.toFixed(1)} seconds` : "Not generated"}</dd></div><div><dt>Voice</dt><dd>{privateAudio ? "Donovan — Articulate, Strong and Deep" : "Not selected"}</dd></div><div><dt>Model</dt><dd>{privateAudio ? "Eleven Multilingual v2 · 0.95 speed · 0.50 stability · 0.75 similarity · style 0 · speaker boost off" : "Not connected"}</dd></div><div><dt>Script lock</dt><dd>{item.lockedHash ? "Approved wording locked" : "Not yet locked"}</dd></div><div><dt>Credits</dt><dd>{privateAudio ? `${privateAudio.creditsUsed} used` : "None used"}</dd></div>{privateAudio ? <div><dt>QA notes</dt><dd>{privateAudio.qaNotes}</dd></div> : null}</dl><div className="review-actions"><button className="secondary-button" disabled={!privateAudio} onClick={() => setNotice("Open the private draft in ElevenLabs History to listen. This does not accept or release it.")} type="button">Review Audio</button><button className="secondary-button" disabled={!privateAudio} onClick={() => mutate("audio_accepted_private", "Private audio accepted. Release remains blocked and no publication occurred.")} type="button">Accept Private Audio</button><button className="danger-button" disabled={!privateAudio} onClick={() => mutate("revision_requested", "Audio rejected. No retry was generated.")} type="button">Reject Audio</button><button className="secondary-button" disabled={!privateAudio} onClick={() => mutate("revision_requested", "One revision requested. No provider call was made.")} type="button">Request One Revision</button></div></section>
         <section className="status-timeline"><h3>Status timeline</h3><ol>{["draft", "owner_review", "owner_editing", "owner_edit_complete", "owner_approved", "narration_authorized", "audio_review", "audio_accepted_private", "release_approved"].map((status) => <li className={status === item.status ? "current" : ""} key={status}>{labels[status as Status]}</li>)}</ol></section>
-        <details className="advanced-details"><summary>Details and audit</summary><p>Version history: {item.versions.join(" · ")}</p><p>Script SHA-256: {item.lockedHash ?? "Created only after wording approval"}</p><p>Locked-script readiness: {item.script.length} characters · estimated {estimatedDuration} · estimated ElevenLabs use {estimatedCredits} credits (character-based estimate only; no provider call).</p>{scriptureRights ? <><h3>Scripture rights record</h3><dl className="evidence-list"><div><dt>References and intended translation</dt><dd>{item.scripture} · King James Version (KJV)</dd></div><div><dt>Exact source edition</dt><dd>{scriptureRights.sourceEdition}</dd></div><div><dt>Quotation status</dt><dd>{scriptureRights.quotationStatus}</dd></div><div><dt>Narration rights</dt><dd>{scriptureRights.narrationRights}</dd></div><div><dt>App-display rights</dt><dd>{scriptureRights.appDisplayRights}</dd></div><div><dt>Publication and distribution</dt><dd>{scriptureRights.publicationStatus}</dd></div><div><dt>Territory limitations</dt><dd>{scriptureRights.territoryLimitations}</dd></div><div><dt>Attribution requirements</dt><dd>{scriptureRights.attribution}</dd></div><div><dt>Unresolved rights questions</dt><dd>{scriptureRights.unresolvedQuestions}</dd></div><div><dt>Narration authorization eligibility</dt><dd>{item.narrationRights ? "Eligible after separate owner authorization." : "Not eligible: rights remain unresolved and Neil has not separately authorized ElevenLabs narration."}</dd></div></dl></> : null}<p>Tenant isolation, owner permissions, MFA/AAL2, approval evidence, audit history, and service-role boundaries remain enforced by the existing governed workflow.</p></details>
+        <details className="advanced-details"><summary>Details and audit</summary><p>Version history: {item.versions.join(" · ")}</p><p>Script SHA-256: {item.lockedHash ?? "Created only after wording approval"}</p><p>Locked-script readiness: {item.script.length} characters · estimated {estimatedDuration} · estimated ElevenLabs use {estimatedCredits} credits (character-based estimate only; no provider call).</p>{privateAudio ? <p>Actual private-review generation: {privateAudio.generatedAt} · {privateAudio.durationSeconds.toFixed(1)} seconds · {privateAudio.creditsUsed} credits · verified script hash {privateAudio.scriptHash}.</p> : null}{scriptureRights ? <><h3>Scripture rights record</h3><dl className="evidence-list"><div><dt>References and intended translation</dt><dd>{item.scripture} · King James Version (KJV)</dd></div><div><dt>Exact source edition</dt><dd>{scriptureRights.sourceEdition}</dd></div><div><dt>Quotation status</dt><dd>{scriptureRights.quotationStatus}</dd></div><div><dt>Narration rights</dt><dd>{scriptureRights.narrationRights}</dd></div><div><dt>App-display rights</dt><dd>{scriptureRights.appDisplayRights}</dd></div><div><dt>Publication and distribution</dt><dd>{scriptureRights.publicationStatus}</dd></div><div><dt>Territory limitations</dt><dd>{scriptureRights.territoryLimitations}</dd></div><div><dt>Attribution requirements</dt><dd>{scriptureRights.attribution}</dd></div><div><dt>Unresolved rights questions</dt><dd>{scriptureRights.unresolvedQuestions}</dd></div><div><dt>Narration authorization eligibility</dt><dd>{item.status === "audio_review" ? "Authorized and generated for private reference-only review. Acceptance and release remain separate gates." : item.narrationRights ? "Eligible after separate owner authorization." : "Not eligible: rights remain unresolved and Neil has not separately authorized ElevenLabs narration."}</dd></div></dl></> : null}<p>Tenant isolation, owner permissions, MFA/AAL2, approval evidence, audit history, and service-role boundaries remain enforced by the existing governed workflow.</p></details>
       </section>
     </div>
   </div>;
