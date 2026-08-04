@@ -83,6 +83,17 @@ const renewalScriptureRights: Readonly<Record<string, ScriptureRightsRecord>> = 
 };
 
 const ownerApprovedSeeds: readonly Item[] = seeds.map((item) => {
+  const correctedScript = item.script.replace(/^Welcome to Strongr Daily\./, "Welcome to Stronger Daily.");
+  if (correctedScript !== item.script) {
+    return {
+      ...item,
+      script: correctedScript,
+      status: "owner_editing",
+      narrationRights: false,
+      notes: "Owner changed the spoken brand to “Stronger Daily.” The prior private audio draft and its narration authorization are invalidated; wording needs a new owner approval before any new narration.",
+      versions: [`Version ${item.versions.length + 1} — pronunciation wording revision`, ...item.versions],
+    };
+  }
   const lockedHash = approvedRenewalScriptHashes[item.id];
   const audioReview = renewalPrivateAudioReviews[item.id];
   if (!lockedHash) return item;
