@@ -156,10 +156,11 @@ select throws_ok(
 
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 set local role anon;
-select is(
-  (select count(*) from public.strongr_daily_native_content_v1),
-  0::bigint,
-  'anonymous callers receive no delivery rows'
+select throws_ok(
+  $$select count(*) from public.strongr_daily_native_content_v1$$,
+  '42501',
+  'permission denied for table strongr_daily_native_content_v1',
+  'anonymous callers cannot query the delivery contract'
 );
 reset role;
 
