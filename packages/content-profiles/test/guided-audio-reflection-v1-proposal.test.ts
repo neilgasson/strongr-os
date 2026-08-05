@@ -18,12 +18,18 @@ import {
   guidedAudioReflectionV1ProposalRegistryV2,
   guidedAudioReflectionV1ProposalSourceManifestV2,
   Phase4B4DevelopmentActivationError,
+  Phase4B5DevelopmentActivationError,
+  activatePhase4B5DevelopmentProfile,
+  phase4B5DevelopmentActivation,
+  phase4B5QuietTrustGenerationRequest,
   parseContentProfileSourceManifest,
   phase4B4ApprovedGoldenDescriptorChecksum,
   phase4B4ApprovedRightsRecordChecksum,
   registerPhase4B4DevelopmentMetadata,
   resolveContentProfile,
   rollbackPhase4B4DevelopmentMetadata,
+  rollbackPhase4B5DevelopmentActivation,
+  preparePhase4B5QuietTrustRequest,
   strongrDailyContentProfileRegistryV1,
   type UnsignedContentProfileRegistry,
 } from "../src/index.ts";
@@ -362,4 +368,54 @@ test("Phase 4B.4 rollback returns development registration to inactive without l
     state: "inactive",
   });
   assert.equal(Object.isFrozen(rollbackPhase4B4DevelopmentMetadata()), true);
+});
+
+test("Phase 4B.5 activates only approved development metadata and prepares a capped Quiet Trust request", () => {
+  const registration = registerPhase4B4DevelopmentMetadata({
+    golden_descriptor_checksum: phase4B4ApprovedGoldenDescriptorChecksum,
+    profile_checksum: guidedAudioReflectionV1Proposal.canonical_checksum,
+    profile_id: "guided_audio_reflection",
+    profile_version: 1,
+    rights_record_checksum: phase4B4ApprovedRightsRecordChecksum,
+    source_manifest_checksum: guidedAudioReflectionV1ProposalSourceManifestV2.canonical_checksum,
+  });
+  const activation = activatePhase4B5DevelopmentProfile(registration);
+  const request = preparePhase4B5QuietTrustRequest(activation);
+
+  assert.equal(activation.state, "development_active");
+  assert.equal(activation.activation_scope, "development_only");
+  assert.equal(activation.provider_access, false);
+  assert.equal(activation.runtime_generation_authority, false);
+  assert.equal(activation.provider_spending, 0);
+  assert.equal(Object.isFrozen(activation), true);
+  assert.deepEqual(phase4B5DevelopmentActivation, activation);
+  assert.deepEqual(phase4B5QuietTrustGenerationRequest, request);
+  assert.deepEqual(request, {
+    content_included: false,
+    dispatch_status: "prepared_not_sent",
+    generation_authority: false,
+    maximum_provider_calls: 1,
+    maximum_provider_spend: 0,
+    private_user_content_included: false,
+    profile_id: "guided_audio_reflection",
+    profile_version: 1,
+    request_id: "quiet_trust_development_pilot_v1",
+    scripture_text_included: false,
+  });
+  assert.throws(
+    () => preparePhase4B5QuietTrustRequest({ ...activation, profile_checksum: "0".repeat(64) }),
+    (error: unknown) => error instanceof Phase4B5DevelopmentActivationError,
+  );
+});
+
+test("Phase 4B.5 rejects any non-approved registration and rolls back to inactive", () => {
+  assert.throws(
+    () => activatePhase4B5DevelopmentProfile({ profile_id: "guided_audio_reflection" }),
+    (error: unknown) => error instanceof Phase4B5DevelopmentActivationError,
+  );
+  assert.throws(
+    () => preparePhase4B5QuietTrustRequest({ state: "development_active", provider_access: true }),
+    (error: unknown) => error instanceof Phase4B5DevelopmentActivationError,
+  );
+  assert.equal(rollbackPhase4B5DevelopmentActivation().state, "inactive");
 });
