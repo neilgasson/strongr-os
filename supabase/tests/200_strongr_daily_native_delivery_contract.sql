@@ -12,7 +12,7 @@ select has_table(
 
 select is(
   (
-    select array_agg(column_name order by ordinal_position)
+    select array_agg(column_name::text order by ordinal_position)
     from information_schema.columns
     where table_schema = 'public'
       and table_name = 'strongr_daily_native_content_v1'
