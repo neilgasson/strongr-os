@@ -27,6 +27,13 @@ const secretLiteral = /\bsb_secret_[A-Za-z0-9_-]{8,}\b/;
 const openAiSecretLiteral = /\bsk-(?:(?:proj|svcacct)-)?[A-Za-z0-9_-]{16,}\b/;
 const managedStorageMutation =
   /\b(?:delete\s+from|insert\s+into|update)\s+storage\.(?:buckets|objects)\b/i;
+// The hosted development bucket is intentionally provisioned through this one
+// reviewed migration. Keep the exception structural and single-purpose: any
+// other mutation of Storage metadata remains a boundary failure.
+const approvedDevelopmentBucketMigration =
+  "supabase/migrations/20260805051456_20260805060000_strongr_daily_native_delivery_bucket_and_rls_initplan.sql";
+const approvedDevelopmentBucketProvisioning =
+  /insert\s+into\s+storage\.buckets\s*\(\s*id,\s*name,\s*public,\s*file_size_limit,\s*allowed_mime_types\s*\)\s*values\s*\(\s*'strongr-daily-development-audio',\s*'strongr-daily-development-audio',\s*false,\s*26214400,\s*array\['audio\/wav'\]::text\[\]\s*\)\s*on\s+conflict\s*\(id\)\s*do\s+nothing/is;
 
 async function collectFiles(root: string): Promise<string[]> {
   const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
@@ -112,9 +119,15 @@ for (const requiredLine of [
 
 for (const path of await collectFiles(resolve(repositoryRoot, "supabase/migrations"))) {
   const content = await readFile(path, "utf8");
+  const relativePath = path.slice(repositoryRoot.length + 1).replaceAll("\\", "/");
   if (managedStorageMutation.test(content)) {
-    const relativePath = path.slice(repositoryRoot.length + 1).replaceAll("\\", "/");
-    violations.push(`${relativePath}: direct managed Storage metadata mutation`);
+    if (
+      relativePath !== approvedDevelopmentBucketMigration ||
+      !approvedDevelopmentBucketProvisioning.test(content) ||
+      /\b(?:delete\s+from|update|insert\s+into)\s+storage\.objects\b/i.test(content)
+    ) {
+      violations.push(`${relativePath}: direct managed Storage metadata mutation`);
+    }
   }
 }
 

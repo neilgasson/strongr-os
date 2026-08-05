@@ -32,6 +32,11 @@ public = false
 file_size_limit = "25MiB"
 allowed_mime_types = ["audio/wav"]
 
+[storage.buckets.strongr-daily-development-audio]
+public = false
+file_size_limit = "25MiB"
+allowed_mime_types = ["audio/wav"]
+
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
