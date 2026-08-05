@@ -1,6 +1,12 @@
 -- Strongr OS
 -- Development-only Strongr Daily Native customer delivery contract.
 --
+-- The hosted Supabase migration service recorded this exact reviewed SQL under
+-- version 20260805050134 while preserving the original source migration name
+-- below. PR #61 is unmerged, so this filename intentionally aligns the source
+-- version/name pair with that immutable hosted evidence without deleting or
+-- manually rewriting the migration ledger.
+--
 -- This is intentionally standalone. It has no foreign keys to Studio
 -- governance, tenant, approval, rights, provider, or workflow records. Only
 -- controlled server-side administration or later reviewed migrations may

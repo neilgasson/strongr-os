@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, pg_catalog;
 
-select plan(28);
+select plan(29);
 
 select has_table(
   'public', 'strongr_daily_native_content_v1',
@@ -74,7 +74,8 @@ select policy_cmd_is(
 );
 select ok(
   (
-    select qual like '%app_metadata%'
+    select lower(qual) like '%select auth.jwt%'
+      and qual like '%app_metadata%'
       and qual like '%strongr_daily_development_reader%'
       and qual not like '%user_metadata%'
     from pg_catalog.pg_policies
@@ -250,7 +251,8 @@ select policy_cmd_is(
 );
 select ok(
   (
-    select qual like '%strongr-daily-development-audio%'
+    select lower(qual) like '%select auth.jwt%'
+      and qual like '%strongr-daily-development-audio%'
       and qual like '%allow_any_operation%'
       and qual like '%object.get_authenticated%'
       and qual like '%audio_asset_ref%'
@@ -261,6 +263,18 @@ select ok(
       and policyname = 'strongr_daily_native_development_audio_exact_reader_select'
   ),
   'audio access is exact-object download only; listing is absent'
+);
+select ok(
+  exists (
+    select 1
+    from storage.buckets
+    where id = 'strongr-daily-development-audio'
+      and name = 'strongr-daily-development-audio'
+      and public = false
+      and file_size_limit = 26214400
+      and allowed_mime_types = array['audio/wav']::text[]
+  ),
+  'the development audio bucket is private, WAV-only, and size-bounded'
 );
 select is(
   (

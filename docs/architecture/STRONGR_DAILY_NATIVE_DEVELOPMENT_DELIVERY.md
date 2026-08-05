@@ -2,9 +2,26 @@
 
 ## Status
 
-Implemented in source only. This record authorizes neither a hosted migration,
-bucket creation, asset upload, publication, provider action, nor native-client
-configuration. Each requires separate owner approval.
+The initial contract was applied only to `strongr-os-dev` for hosted acceptance.
+This record authorizes neither an asset upload, content insertion, publication,
+provider action, nor native-client configuration. Each requires separate owner
+approval.
+
+## Migration-history alignment
+
+The hosted Supabase migration service stored the exact original SQL with its
+own applied-at version, `20260805050134`, while retaining the original source
+name `20260804143000_strongr_daily_native_delivery_contract`. Because PR #61
+is unmerged, the source file is named
+`20260805050134_20260804143000_strongr_daily_native_delivery_contract.sql`.
+That gives the repository parser the same version/name pair already preserved
+in hosted history. No migration-history row is deleted, rewritten, or hidden.
+
+The follow-up bucket/policy migration was recorded under version
+`20260805051456` while preserving its original source name
+`20260805060000_strongr_daily_native_delivery_bucket_and_rls_initplan`.
+Its filename uses the same non-destructive alignment pattern before this PR is
+merged.
 
 ## Customer delivery boundary
 
@@ -35,10 +52,11 @@ delivery table or storage policy is evaluated.
 
 ## Audio delivery boundary
 
-`strongr-daily-development-audio` is private and accepts WAV only. It has an
-exact authenticated object-read policy, not a listing or mutation policy. The
-object name must exactly equal the `audio_asset_ref` of a currently eligible
-delivery row. Paths use only opaque UUID values:
+`strongr-daily-development-audio` is provisioned by the follow-up migration as
+private, WAV-only, and limited to 25 MiB. It has an exact authenticated
+object-read policy, not a listing or mutation policy. The object name must
+exactly equal the `audio_asset_ref` of a currently eligible delivery row. Paths
+use only opaque UUID values:
 
 ```text
 <opaque-public-content-id>/<opaque-audio-asset-id>.wav
@@ -68,11 +86,14 @@ the private object automatically.
 
 1. Owner approval of the reviewed backend PR.
 2. Apply the committed migration only to `strongr-os-dev`.
-3. Owner creates the non-public bucket in that development project and uploads
-   the approved temporary WAV through a controlled server-side process.
-4. Owner creates a development test account with public signup disabled and
+3. Apply the reviewed follow-up bucket/policy migration through the repository
+   migration workflow after its version/name pair is confirmed against hosted
+   history.
+4. Owner uploads the approved temporary WAV through a controlled server-side
+   process.
+5. Owner creates a development test account with public signup disabled and
    server-controlled development-reader app metadata.
-5. Run the authenticated/ordinary/anonymous RLS and exact-download acceptance
+6. Run the authenticated/ordinary/anonymous RLS and exact-download acceptance
    checks against the development project.
-6. Approve the exact asset reference before inserting the metadata-only Quiet
+7. Approve the exact asset reference before inserting the metadata-only Quiet
    Trust row. Only then can the separate native client Phase 1 resume.
