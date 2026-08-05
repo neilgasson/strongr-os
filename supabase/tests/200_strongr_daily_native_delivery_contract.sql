@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, pg_catalog;
 
-select plan(29);
+select plan(38);
 
 select has_table(
   'public', 'strongr_daily_native_content_v1',
@@ -107,6 +107,52 @@ insert into public.strongr_daily_native_content_v1 (
     '40000000-0000-4000-8000-000000000003/40000000-0000-4000-8000-000000000013.wav',
     'revoked', 30
   );
+
+select throws_ok(
+  $$insert into public.strongr_daily_native_content_v1 values ('40000000-0000-4000-8000-000000000021', 'Invalid', null, 'Invalid path test.', 12, 'guided_audio_reflection', null, '40000000-0000-4000-8000-000000000021/40000000-0000-4000-8000-000000000031\.wav', 'development_safe', 101)$$,
+  '23514', null,
+  'a literal backslash before the WAV suffix is rejected'
+);
+select throws_ok(
+  $$insert into public.strongr_daily_native_content_v1 values ('40000000-0000-4000-8000-000000000022', 'Invalid', null, 'Invalid path test.', 12, 'guided_audio_reflection', null, '40000000-0000-4000-8000-000000000022/40000000-0000-4000-8000-000000000032.mp3', 'development_safe', 102)$$,
+  '23514', null,
+  'an MP3 suffix is rejected'
+);
+select throws_ok(
+  $$insert into public.strongr_daily_native_content_v1 values ('40000000-0000-4000-8000-000000000023', 'Invalid', null, 'Invalid path test.', 12, 'guided_audio_reflection', null, '40000000-0000-4000-8000-000000000023/40000000-0000-4000-8000-000000000033.WAV', 'development_safe', 103)$$,
+  '23514', null,
+  'an uppercase WAV suffix is rejected'
+);
+select throws_ok(
+  $$insert into public.strongr_daily_native_content_v1 values ('40000000-0000-4000-8000-000000000024', 'Invalid', null, 'Invalid path test.', 12, 'guided_audio_reflection', null, 'extra/40000000-0000-4000-8000-000000000024/40000000-0000-4000-8000-000000000034.wav', 'development_safe', 104)$$,
+  '23514', null,
+  'an extra directory segment is rejected'
+);
+select throws_ok(
+  $$insert into public.strongr_daily_native_content_v1 values ('40000000-0000-4000-8000-000000000025', 'Invalid', null, 'Invalid path test.', 12, 'guided_audio_reflection', null, '40000000-0000-4000-8000-000000000035.wav', 'development_safe', 105)$$,
+  '23514', null,
+  'a path without a content UUID is rejected'
+);
+select throws_ok(
+  $$insert into public.strongr_daily_native_content_v1 values ('40000000-0000-4000-8000-000000000026', 'Invalid', null, 'Invalid path test.', 12, 'guided_audio_reflection', null, '40000000-0000-4000-8000-000000000026/.wav', 'development_safe', 106)$$,
+  '23514', null,
+  'a path without an audio UUID is rejected'
+);
+select throws_ok(
+  $$insert into public.strongr_daily_native_content_v1 values ('40000000-0000-4000-8000-000000000027', 'Invalid', null, 'Invalid path test.', 12, 'guided_audio_reflection', null, '40000000-0000-4000-8000-000000000027/40000000-0000-4000-8000-000000000037.wav?download=1', 'development_safe', 107)$$,
+  '23514', null,
+  'a query-string suffix is rejected'
+);
+select throws_ok(
+  $$insert into public.strongr_daily_native_content_v1 values ('40000000-0000-4000-8000-000000000028', 'Invalid', null, 'Invalid path test.', 12, 'guided_audio_reflection', null, '40000000-0000-4000-8000-000000000028/../40000000-0000-4000-8000-000000000038.wav', 'development_safe', 108)$$,
+  '23514', null,
+  'a traversal segment is rejected'
+);
+select throws_ok(
+  $$insert into public.strongr_daily_native_content_v1 values ('40000000-0000-4000-8000-000000000029', 'Invalid', null, 'Invalid path test.', 12, 'guided_audio_reflection', null, 'arbitrary/path.wav', 'development_safe', 109)$$,
+  '23514', null,
+  'an arbitrary text path is rejected'
+);
 
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 set local role anon;
